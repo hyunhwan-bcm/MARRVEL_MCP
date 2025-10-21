@@ -6,6 +6,7 @@ Claude Desktop. Useful for testing with OpenAI or other LLM integrations.
 """
 
 import asyncio
+import pytest
 from server import (
     get_gene_by_entrez_id,
     get_gene_by_symbol,
@@ -18,6 +19,7 @@ from server import (
 )
 
 
+@pytest.mark.asyncio
 async def test_gene_tools():
     """Test gene information tools."""
     print("\n" + "="*70)
@@ -35,6 +37,7 @@ async def test_gene_tools():
     print(f"✓ Result: {result[:200]}...")
 
 
+@pytest.mark.asyncio
 async def test_variant_tools():
     """Test variant analysis tools."""
     print("\n" + "="*70)
@@ -57,6 +60,7 @@ async def test_variant_tools():
     print(f"✓ Result: {result[:200]}...")
 
 
+@pytest.mark.asyncio
 async def test_disease_tools():
     """Test disease/OMIM tools."""
     print("\n" + "="*70)
@@ -69,6 +73,7 @@ async def test_disease_tools():
     print(f"✓ Result: {result[:200]}...")
 
 
+@pytest.mark.asyncio
 async def test_ortholog_tools():
     """Test ortholog and expression tools."""
     print("\n" + "="*70)

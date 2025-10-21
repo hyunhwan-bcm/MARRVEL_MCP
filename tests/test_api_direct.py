@@ -7,12 +7,15 @@ Perfect for validating the API integration works.
 
 import asyncio
 import sys
+import pytest
+
 sys.path.insert(0, '/Users/hyun-hwanjeong/Workspaces/MARRVEL_MCP')
 
 # Import the fetch function and BASE_URL directly
 from server import fetch_marrvel_data, BASE_URL
 
 
+@pytest.mark.asyncio
 async def test_basic_queries():
     """Test a few basic MARRVEL API queries."""
     print("\n" + "="*70)
