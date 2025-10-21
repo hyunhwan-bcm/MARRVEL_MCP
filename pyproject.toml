@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marrvel-mcp"
+version = "1.0.0"
+description = "Model Context Protocol server for MARRVEL genetics research platform"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "MARRVEL Team"}
+]
+keywords = ["genetics", "genomics", "bioinformatics", "mcp", "model-context-protocol", "marrvel"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Healthcare Industry",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "httpx>=0.27.0",
+    "mcp>=1.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/hyunhwan-bcm/MARRVEL_MCP"
+Repository = "https://github.com/hyunhwan-bcm/MARRVEL_MCP"
+Documentation = "https://github.com/hyunhwan-bcm/MARRVEL_MCP#readme"
+"Bug Tracker" = "https://github.com/hyunhwan-bcm/MARRVEL_MCP/issues"
+
+[project.scripts]
+marrvel-mcp = "marrvel_mcp.server:run_server"
+
+[tool.setuptools]
+packages = ["marrvel_mcp", "marrvel_mcp.tools"]
+
+[tool.setuptools.package-data]
+marrvel_mcp = ["py.typed"]
