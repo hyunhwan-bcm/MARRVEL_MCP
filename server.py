@@ -206,7 +206,7 @@ async def get_clinvar_by_variant(variant: str) -> str:
         get_clinvar_by_variant("17-7577121-C-T")
     """
     try:
-        data = await fetch_marrvel_data(f"/clinvar/gene/variant/{variant}")
+        data = await fetch_marrvel_data(f"/clinvar/variant/{variant}")
         return str(data)
     except httpx.HTTPError as e:
         return f"Error fetching ClinVar data: {str(e)}"
