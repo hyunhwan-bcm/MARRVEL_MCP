@@ -29,7 +29,7 @@ MARRVEL-MCP provides AI agents with seamless access to comprehensive genetics da
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/hyunhwan-bcm/MARRVEL_MCP.git
 cd MARRVEL_MCP
 ```
 
