@@ -12,6 +12,7 @@ This server provides AI agents access to comprehensive genetics databases includ
 """
 
 import httpx
+import inspect
 from typing import Any
 from mcp.server.fastmcp import FastMCP
 
@@ -39,8 +40,14 @@ async def fetch_marrvel_data(endpoint: str) -> dict[str, Any]:
     url = f"{BASE_URL}{endpoint}"
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(url)
-        response.raise_for_status()
-        return response.json()
+        # Some tests may mock raise_for_status/json as async coroutines; handle both sync/async.
+        rfs = response.raise_for_status()
+        if inspect.iscoroutine(rfs):
+            await rfs
+        data = response.json()
+        if inspect.iscoroutine(data):
+            data = await data
+        return data
 
 
 # ============================================================================
