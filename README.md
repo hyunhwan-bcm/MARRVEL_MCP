@@ -140,21 +140,52 @@ See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for comprehensive details on 
 
 ```
 MARRVEL_MCP/
-├── server.py              # Main MCP server implementation
-├── requirements.txt       # Python dependencies
-├── README.md             # This file
-├── API_DOCUMENTATION.md  # Comprehensive API documentation
-├── examples/             # Usage examples
-│   └── example_queries.py
-└── tests/               # Unit tests
-    └── test_server.py
+├── server.py                          # Main FastMCP server
+├── config.py                          # Configuration
+├── requirements.txt                   # Dependencies
+├── pytest.ini                        # Test configuration
+├── examples/
+│   ├── example_queries.py           # MCP usage examples
+│   └── openai/
+│       ├── README.md                # OpenAI integration guide
+│       ├── openai_marrvel_simple.py # Production-ready OpenAI example
+│       └── openai_marrvel_example.py # Advanced OpenAI example
+└── tests/
+    ├── README.md                    # Test documentation
+    ├── test_server.py              # Core server tests
+    ├── test_api_direct.py          # Direct API tests
+    └── test_mcp_client.py          # MCP client tests
 ```
 
 ### Running Tests
 
 ```bash
+# Run all tests
 python -m pytest tests/
+
+# Run specific test file
+pytest tests/test_server.py
+
+# Skip integration tests (for CI)
+pytest tests/ -m "not integration"
+
+# Run direct API tests
+python3 tests/test_api_direct.py
 ```
+
+### OpenAI Integration
+
+MARRVEL-MCP can be used with OpenAI's function calling:
+
+```bash
+# Set your API key
+export OPENAI_API_KEY='your-key-here'
+
+# Run the example
+python3 examples/openai/openai_marrvel_simple.py
+```
+
+See `examples/openai/README.md` and `OPENAI_INTEGRATION.md` for complete details.
 
 ## API Base URL
 
