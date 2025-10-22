@@ -25,6 +25,7 @@ from src.tools.expression_tools import (
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestGetGtexExpression:
     """Test the get_gtex_expression function with mocked API calls."""
 
@@ -117,6 +118,7 @@ class TestGetGtexExpression:
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestGetOrthologExpression:
     """Test the get_ortholog_expression function with mocked API calls."""
 
@@ -221,6 +223,7 @@ class TestGetOrthologExpression:
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestGetPharosTargets:
     """Test the get_pharos_targets function with mocked API calls."""
 
@@ -327,7 +330,7 @@ class TestGetPharosTargets:
 class TestExpressionToolsIntegration:
     """Integration tests that make real API calls (marked for optional execution)."""
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_gtex_expression_tp53(self):
         """Test real GTEx API call for TP53 gene (requires network access)."""
@@ -336,7 +339,7 @@ class TestExpressionToolsIntegration:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_ortholog_expression_tp53(self):
         """Test real ortholog expression API call for TP53 (requires network access)."""
@@ -345,7 +348,7 @@ class TestExpressionToolsIntegration:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_pharos_targets_tp53(self):
         """Test real Pharos API call for TP53 gene (requires network access)."""
@@ -354,7 +357,7 @@ class TestExpressionToolsIntegration:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_invalid_entrez_id(self):
         """Test real API calls with invalid Entrez ID (requires network access)."""

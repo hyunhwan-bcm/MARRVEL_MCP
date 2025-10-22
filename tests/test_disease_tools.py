@@ -20,6 +20,7 @@ from src.tools.disease_tools import (
 from config import API_BASE_URL
 
 
+@pytest.mark.unit
 class TestGetOmimByMimNumber:
     """Test the get_omim_by_mim_number function."""
 
@@ -98,6 +99,7 @@ class TestGetOmimByMimNumber:
             assert "p.C61G" in result
 
 
+@pytest.mark.unit
 class TestGetOmimByGeneSymbol:
     """Test the get_omim_by_gene_symbol function."""
 
@@ -182,6 +184,7 @@ class TestGetOmimByGeneSymbol:
             assert "277180" in result
 
 
+@pytest.mark.unit
 class TestGetOmimVariant:
     """Test the get_omim_variant function."""
 
@@ -268,7 +271,7 @@ class TestGetOmimVariant:
 class TestOmimIntegration:
     """Integration tests that make real API calls."""
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_call_mim_number(self):
         """Test real API call for OMIM by MIM number (requires network access)."""
@@ -276,7 +279,7 @@ class TestOmimIntegration:
         # Basic validation - should not be an error message
         assert "Error fetching OMIM data" not in result or isinstance(result, str)
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_call_gene_symbol(self):
         """Test real API call for OMIM by gene symbol (requires network access)."""
@@ -284,7 +287,7 @@ class TestOmimIntegration:
         # Basic validation - should not be an error message or should be a string
         assert isinstance(result, str)
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_call_variant(self):
         """Test real API call for OMIM variant (requires network access)."""

@@ -16,6 +16,7 @@ from src.utils.api_client import fetch_marrvel_data
 from config import API_BASE_URL
 
 
+@pytest.mark.unit
 class TestFetchMarrvelData:
     """Test the fetch_marrvel_data API client function."""
 
@@ -107,17 +108,16 @@ class TestFetchMarrvelData:
 
 
 # Integration tests (require actual API access)
+@pytest.mark.integration_api
 class TestFetchMarrvelDataIntegration:
     """Integration tests that make real API calls (marked for optional execution)."""
 
-    @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_real_api_call_tp53(self):
         """Test real API call for TP53 gene (requires network access)."""
         result = await fetch_marrvel_data("/gene/entrezId/7157")
         assert "symbol" in result or "entrezId" in result
 
-    @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_real_api_call_invalid_endpoint(self):
         """Test real API call with invalid endpoint (requires network access)."""

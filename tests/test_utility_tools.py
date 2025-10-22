@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.tools.utility_tools import validate_hgvs_variant, convert_protein_variant
 
 
+@pytest.mark.unit
 class TestValidateHgvsVariant:
     """Test the validate_hgvs_variant function."""
 
@@ -140,6 +141,7 @@ class TestValidateHgvsVariant:
             assert "Error validating HGVS variant" in result
 
 
+@pytest.mark.unit
 class TestConvertProteinVariant:
     """Test the convert_protein_variant function."""
 
@@ -285,7 +287,7 @@ class TestConvertProteinVariant:
 class TestValidateHgvsVariantIntegration:
     """Integration tests for validate_hgvs_variant with real API."""
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_validate_genomic_variant(self):
         """Test real API call for genomic variant validation."""
@@ -293,7 +295,7 @@ class TestValidateHgvsVariantIntegration:
         assert result is not None
         assert len(result) > 0
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_validate_coding_variant(self):
         """Test real API call for coding variant validation."""
@@ -305,7 +307,7 @@ class TestValidateHgvsVariantIntegration:
 class TestConvertProteinVariantIntegration:
     """Integration tests for convert_protein_variant with real API."""
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_convert_protein_variant(self):
         """Test real API call for protein variant conversion."""
@@ -313,7 +315,7 @@ class TestConvertProteinVariantIntegration:
         assert result is not None
         assert len(result) > 0
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_convert_refseq_variant(self):
         """Test real API call for RefSeq protein variant conversion."""

@@ -21,4 +21,7 @@ python_functions = "test_*"
 asyncio_mode = "auto"
 markers = [
     "integration: marks tests as integration tests (may be slow)",
+    "unit: marks tests as unit tests with mocked dependencies (fast, no network required)",
+    "integration_api: marks tests that call real MARRVEL API (requires network)",
+    "integration_mcp: marks tests that run MCP server (requires server startup)",
 ]

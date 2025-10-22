@@ -45,6 +45,7 @@ from config import API_BASE_URL
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestGetVariantDbNSFP:
     """Test get_variant_dbnsfp function."""
 
@@ -117,7 +118,7 @@ class TestGetVariantDbNSFP:
             assert "predictions" in result
             assert "conservation" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_tp53_variant(self):
         """Integration test with real API for TP53 variant."""
@@ -135,6 +136,7 @@ class TestGetVariantDbNSFP:
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestGetClinVarByVariant:
     """Test get_clinvar_by_variant function."""
 
@@ -190,7 +192,7 @@ class TestGetClinVarByVariant:
 
             assert "Uncertain significance" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_tp53_variant(self):
         """Integration test with real API."""
@@ -200,6 +202,7 @@ class TestGetClinVarByVariant:
         assert len(result) > 0
 
 
+@pytest.mark.unit
 class TestGetClinVarByGeneSymbol:
     """Test get_clinvar_by_gene_symbol function."""
 
@@ -257,7 +260,7 @@ class TestGetClinVarByGeneSymbol:
             assert "BRCA1" in result
             assert "1500" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_tp53_gene(self):
         """Integration test with real API."""
@@ -267,6 +270,7 @@ class TestGetClinVarByGeneSymbol:
         assert len(result) > 0
 
 
+@pytest.mark.unit
 class TestGetClinVarByEntrezId:
     """Test get_clinvar_by_entrez_id function."""
 
@@ -317,7 +321,7 @@ class TestGetClinVarByEntrezId:
 
             assert "7157" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_tp53_entrez(self):
         """Integration test with real API for TP53 Entrez ID."""
@@ -332,6 +336,7 @@ class TestGetClinVarByEntrezId:
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestGetGnomadVariant:
     """Test get_gnomad_variant function."""
 
@@ -393,7 +398,7 @@ class TestGetGnomadVariant:
             assert "AMR" in result
             assert "EAS" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_variant(self):
         """Integration test with real API."""
@@ -403,6 +408,7 @@ class TestGetGnomadVariant:
         assert len(result) > 0
 
 
+@pytest.mark.unit
 class TestGetGnomadByGeneSymbol:
     """Test get_gnomad_by_gene_symbol function."""
 
@@ -459,7 +465,7 @@ class TestGetGnomadByGeneSymbol:
 
             assert "CFTR" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_gene(self):
         """Integration test with real API."""
@@ -469,6 +475,7 @@ class TestGetGnomadByGeneSymbol:
         assert len(result) > 0
 
 
+@pytest.mark.unit
 class TestGetGnomadByEntrezId:
     """Test get_gnomad_by_entrez_id function."""
 
@@ -524,7 +531,7 @@ class TestGetGnomadByEntrezId:
             assert "constraint" in result
             assert "pLI" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_entrez(self):
         """Integration test with real API."""
@@ -539,6 +546,7 @@ class TestGetGnomadByEntrezId:
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestGetDgvVariant:
     """Test get_dgv_variant function."""
 
@@ -597,7 +605,7 @@ class TestGetDgvVariant:
             assert "duplication" in result
             assert "inversion" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_variant(self):
         """Integration test with real API."""
@@ -607,6 +615,7 @@ class TestGetDgvVariant:
         assert len(result) > 0
 
 
+@pytest.mark.unit
 class TestGetDgvByEntrezId:
     """Test get_dgv_by_entrez_id function."""
 
@@ -666,7 +675,7 @@ class TestGetDgvByEntrezId:
             assert "dgv1" in result
             assert "dgv2" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_entrez(self):
         """Integration test with real API."""
@@ -681,6 +690,7 @@ class TestGetDgvByEntrezId:
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestGetDecipherVariant:
     """Test get_decipher_variant function."""
 
@@ -740,7 +750,7 @@ class TestGetDecipherVariant:
             assert "intellectual disability" in result
             assert "de novo" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_variant(self):
         """Integration test with real API."""
@@ -750,6 +760,7 @@ class TestGetDecipherVariant:
         assert len(result) > 0
 
 
+@pytest.mark.unit
 class TestGetDecipherByLocation:
     """Test get_decipher_by_location function."""
 
@@ -807,7 +818,7 @@ class TestGetDecipherByLocation:
             assert "chr17" in result
             assert "7000000" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_location(self):
         """Integration test with real API for TP53 region."""
@@ -822,6 +833,7 @@ class TestGetDecipherByLocation:
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestGetGeno2mpVariant:
     """Test get_geno2mp_variant function."""
 
@@ -880,7 +892,7 @@ class TestGetGeno2mpVariant:
             assert "HP:0001249" in result
             assert "HP:0001263" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_variant(self):
         """Integration test with real API."""
@@ -890,6 +902,7 @@ class TestGetGeno2mpVariant:
         assert len(result) > 0
 
 
+@pytest.mark.unit
 class TestGetGeno2mpByEntrezId:
     """Test get_geno2mp_by_entrez_id function."""
 
@@ -948,7 +961,7 @@ class TestGetGeno2mpByEntrezId:
             assert "Very frequent" in result
             assert "Autosomal dominant" in result
 
-    @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_entrez(self):
         """Integration test with real API for TP53."""
