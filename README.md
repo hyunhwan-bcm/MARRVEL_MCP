@@ -19,7 +19,7 @@ pip install -r requirements.txt
 
 2. Configure your MCP client (e.g., Claude Desktop):
 
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
 
 ```json
