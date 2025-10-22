@@ -16,6 +16,7 @@ from src.utils.api_client import fetch_marrvel_data
 from config import API_BASE_URL as BASE_URL
 
 
+@pytest.mark.unit
 class TestFetchMarrvelData:
     """Test the fetch_marrvel_data helper function."""
 
@@ -47,6 +48,7 @@ class TestFetchMarrvelData:
                 await fetch_marrvel_data("/invalid/endpoint")
 
 
+@pytest.mark.unit
 class TestGeneTools:
     """Test gene-related tools."""
 
@@ -63,6 +65,7 @@ class TestGeneTools:
         pass
 
 
+@pytest.mark.unit
 class TestVariantTools:
     """Test variant analysis tools."""
 
@@ -77,6 +80,7 @@ class TestVariantTools:
         pass
 
 
+@pytest.mark.unit
 class TestOMIMTools:
     """Test OMIM disease tools."""
 
@@ -86,6 +90,7 @@ class TestOMIMTools:
         pass
 
 
+@pytest.mark.unit
 class TestDIOPTTools:
     """Test DIOPT ortholog tools."""
 
@@ -95,6 +100,7 @@ class TestDIOPTTools:
         pass
 
 
+@pytest.mark.unit
 class TestExpressionTools:
     """Test expression data tools."""
 
@@ -104,6 +110,7 @@ class TestExpressionTools:
         pass
 
 
+@pytest.mark.unit
 class TestUtilityTools:
     """Test utility tools."""
 
@@ -121,6 +128,7 @@ class TestIntegration:
     """
 
     @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_gene_query(self):
         """Test real API call for TP53."""
@@ -129,6 +137,7 @@ class TestIntegration:
         # Add more specific assertions based on expected response
 
     @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_variant_query(self):
         """Test real API call for a variant."""

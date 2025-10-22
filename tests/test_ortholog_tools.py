@@ -17,6 +17,7 @@ from src.tools.ortholog_tools import get_diopt_orthologs, get_diopt_alignment
 from config import API_BASE_URL
 
 
+@pytest.mark.unit
 class TestGetDioptOrthologs:
     """Test the get_diopt_orthologs function."""
 
@@ -88,6 +89,7 @@ class TestGetDioptOrthologs:
             assert "BRCA1" in result
 
 
+@pytest.mark.unit
 class TestGetDioptAlignment:
     """Test the get_diopt_alignment function."""
 
@@ -161,6 +163,7 @@ class TestOrthologToolsIntegration:
     """Integration tests that make real API calls (marked for optional execution)."""
 
     @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_get_diopt_orthologs_tp53(self):
         """Test real API call for TP53 orthologs (requires network access)."""
@@ -173,6 +176,7 @@ class TestOrthologToolsIntegration:
             assert "7157" in result or "TP53" in result.upper()
 
     @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_get_diopt_orthologs_brca1(self):
         """Test real API call for BRCA1 orthologs (requires network access)."""
@@ -185,6 +189,7 @@ class TestOrthologToolsIntegration:
             assert "672" in result or "BRCA1" in result.upper()
 
     @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_get_diopt_alignment_tp53(self):
         """Test real API call for TP53 alignment (requires network access)."""
@@ -197,6 +202,7 @@ class TestOrthologToolsIntegration:
             assert "7157" in result or "TP53" in result.upper()
 
     @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_get_diopt_alignment_brca1(self):
         """Test real API call for BRCA1 alignment (requires network access)."""

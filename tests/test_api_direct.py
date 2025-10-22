@@ -16,6 +16,7 @@ from src.utils.api_client import fetch_marrvel_data
 from config import API_BASE_URL as BASE_URL
 
 
+@pytest.mark.integration_api
 @pytest.mark.asyncio
 async def test_basic_queries():
     """Test a few basic MARRVEL API queries."""

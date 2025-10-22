@@ -14,6 +14,7 @@ from src.tools.ortholog_tools import get_diopt_orthologs
 from src.tools.expression_tools import get_gtex_expression
 
 
+@pytest.mark.integration_api
 @pytest.mark.asyncio
 async def test_gene_tools():
     """Test gene information tools."""
@@ -32,6 +33,7 @@ async def test_gene_tools():
     print(f"✓ Result: {result[:200]}...")
 
 
+@pytest.mark.integration_api
 @pytest.mark.asyncio
 async def test_variant_tools():
     """Test variant analysis tools."""
@@ -55,6 +57,7 @@ async def test_variant_tools():
     print(f"✓ Result: {result[:200]}...")
 
 
+@pytest.mark.integration_api
 @pytest.mark.asyncio
 async def test_disease_tools():
     """Test disease/OMIM tools."""
@@ -68,6 +71,7 @@ async def test_disease_tools():
     print(f"✓ Result: {result[:200]}...")
 
 
+@pytest.mark.integration_api
 @pytest.mark.asyncio
 async def test_ortholog_tools():
     """Test ortholog and expression tools."""

@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.tools.gene_tools import get_gene_by_entrez_id, get_gene_by_symbol, get_gene_by_position
 
 
+@pytest.mark.unit
 class TestGetGeneByEntrezId:
     """Test the get_gene_by_entrez_id function."""
 
@@ -83,6 +84,7 @@ class TestGetGeneByEntrezId:
             assert "NM_000546" in result
 
     @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_tp53(self):
         """Integration test with real API for TP53 gene."""
@@ -91,6 +93,7 @@ class TestGetGeneByEntrezId:
         assert "TP53" in result or "7157" in result
 
 
+@pytest.mark.unit
 class TestGetGeneBySymbol:
     """Test the get_gene_by_symbol function."""
 
@@ -161,6 +164,7 @@ class TestGetGeneBySymbol:
             assert "1080" in result
 
     @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_brca1(self):
         """Integration test with real API for BRCA1 gene."""
@@ -169,6 +173,7 @@ class TestGetGeneBySymbol:
         assert "BRCA1" in result or "672" in result
 
 
+@pytest.mark.unit
 class TestGetGeneByPosition:
     """Test the get_gene_by_position function."""
 
@@ -239,6 +244,7 @@ class TestGetGeneByPosition:
             assert "GENE2" in result
 
     @pytest.mark.integration
+    @pytest.mark.integration_api
     @pytest.mark.asyncio
     async def test_real_api_tp53_region(self):
         """Integration test with real API for TP53 chromosomal region.
