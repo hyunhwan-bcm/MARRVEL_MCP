@@ -75,7 +75,7 @@ Thank you for your interest in contributing to MARRVEL-MCP! This document provid
 
    **Important:** Your PR must pass all CI checks:
    - ✅ Pre-commit hooks (Black formatting, trailing whitespace, etc.)
-   - ✅ Unit tests across Python 3.10-3.13
+   - ✅ Unit tests on Python 3.13
    - ✅ Integration tests (may be skipped if API is unavailable)
 
 ## Code Quality & CI
@@ -85,7 +85,7 @@ Thank you for your interest in contributing to MARRVEL-MCP! This document provid
 All pull requests are automatically checked by GitHub Actions:
 
 1. **Pre-commit Checks** - Runs Black formatting and code quality hooks
-2. **Tests** - Runs unit and integration tests on multiple Python versions
+2. **Tests** - Runs unit and integration tests on Python 3.13
 3. **Code Style** - Verifies Black formatting compliance
 
 ### Pre-commit Hooks

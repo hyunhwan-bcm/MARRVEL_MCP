@@ -153,7 +153,7 @@ Push to GitHub / Create PR
     ▼
 GitHub Actions Triggered
     │
-    ├─► Setup Python 3.10, 3.11, 3.12, 3.13
+    ├─► Setup Python 3.13
     │
     ├─► Install Dependencies
     │   └─► pytest, pytest-html, pytest-json-report, pytest-cov, etc.
