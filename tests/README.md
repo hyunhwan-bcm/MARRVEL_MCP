@@ -20,11 +20,22 @@ This directory contains all test files for the MARRVEL-MCP project.
   - Run: `python3 tests/test_api_direct.py`
 
 ### MCP Client Testing
+
 - **`test_mcp_client.py`** - Interactive MCP tool tester
   - Tests MCP tools through the protocol
   - Interactive and automated modes
   - Predefined test cases for common queries
   - Run: `python3 tests/test_mcp_client.py`
+
+### Server Integration Testing
+
+- **`test_server_integration.py`** - Pytest-based server lifecycle tests
+  - 6 integration tests covering complete MCP server operations
+  - Uses pytest fixtures for automatic server setup/teardown
+  - Tests: server start, initialize, list tools, call tool, shutdown, protocol compliance
+  - Validates JSON-RPC 2.0 protocol compliance
+  - Run with pytest: `pytest tests/test_server_integration.py -v -m integration`
+  - Run standalone: `python tests/test_server_integration.py`
 
 ## Running Tests
 

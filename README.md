@@ -184,7 +184,8 @@ MARRVEL_MCP/
     ├── test_expression_tools.py    # Expression tools tests
     ├── test_utility_tools.py       # Utility tools tests
     ├── test_api_direct.py          # Direct API tests
-    └── test_mcp_client.py          # MCP client tests
+    ├── test_mcp_client.py          # MCP client tests
+    └── test_server_integration.py  # Server integration tests
 ```
 
 ### Setup Development Environment
@@ -243,7 +244,26 @@ pytest tests/ -m "not integration"
 
 # Run direct API tests
 python3 tests/test_api_direct.py
+
+# Run server integration tests
+pytest tests/test_server_integration.py -v -m integration
+
+# Or run as standalone script
+python tests/test_server_integration.py
 ```
+
+#### Server Integration Tests
+
+The `test_server_integration.py` contains pytest-based integration tests for the complete MCP server lifecycle:
+
+- ✅ `test_server_starts` - Verify server process starts
+- ✅ `test_server_initialize` - Test JSON-RPC initialization
+- ✅ `test_server_list_tools` - Test tools/list request
+- ✅ `test_server_call_tool` - Test calling get_gene_info
+- ✅ `test_server_graceful_shutdown` - Test clean shutdown
+- ✅ `test_server_protocol_compliance` - Verify JSON-RPC 2.0 compliance
+
+These tests use pytest fixtures for automatic setup/teardown and can be integrated into CI/CD pipelines.
 
 ### OpenAI Integration
 
