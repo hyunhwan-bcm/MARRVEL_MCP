@@ -5,7 +5,13 @@ This demonstrates how to use the api_capture fixture to log
 API responses during test execution.
 """
 
+import sys
+import os
 import pytest
+
+# Add project root to Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+
 from src.utils.api_client import fetch_marrvel_data
 
 
