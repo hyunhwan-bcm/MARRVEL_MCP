@@ -56,7 +56,7 @@ Ask your AI assistant natural language questions:
 
 ## Documentation
 
-- **[API Reference](docs/API_DOCUMENTATION.md)** - Complete tool documentation
+- **[API Reference](./API_DOCUMENTATION.md)** - Complete tool documentation
 - **[Architecture](docs/ARCHITECTURE.md)** - Technical details
 - **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines
 - **[OpenAI Integration](examples/openai/README.md)** - Using with OpenAI
