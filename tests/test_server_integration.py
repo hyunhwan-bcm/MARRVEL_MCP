@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 """
 Integration test for MARRVEL-MCP server operations.
 
-This script tests the complete lifecycle of the MCP server:
+Tests the complete lifecycle of the MCP server:
 1. Start the server
 2. Send JSON-RPC requests via stdio
 3. Verify JSON responses
@@ -15,309 +14,231 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
 
-class ServerIntegrationTest:
-    """Test MCP server integration."""
 
-    def __init__(self, timeout: int = 10):
-        """Initialize test with timeout."""
-        self.timeout = timeout
-        self.process = None
-        self.tests_passed = 0
-        self.tests_failed = 0
+@pytest.fixture
+def mcp_server():
+    """
+    Pytest fixture that starts MCP server and yields the process.
+    Automatically cleans up on teardown.
+    """
+    # Get the Python executable from the virtual environment
+    python_path = Path(__file__).parent.parent / ".venv" / "bin" / "python"
+    if not python_path.exists():
+        python_path = Path(sys.executable)
 
-    def log(self, message: str, status: str = "INFO"):
-        """Print formatted log message."""
-        symbols = {
-            "INFO": "ℹ️",
-            "SUCCESS": "✅",
-            "ERROR": "❌",
-            "WARNING": "⚠️",
-            "TEST": "🧪",
-        }
-        symbol = symbols.get(status, "•")
-        print(f"{symbol} {message}")
+    server_path = Path(__file__).parent.parent / "server.py"
 
-    def start_server(self) -> bool:
-        """Start the MCP server process."""
+    # Start server as subprocess with stdio pipes
+    process = subprocess.Popen(
+        [str(python_path), str(server_path)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
+
+    # Give server time to initialize
+    time.sleep(2)
+
+    # Check if process started successfully
+    if process.poll() is not None:
+        stderr_output = ""
+        if process.stderr:
+            stderr_output = process.stderr.read()
+        pytest.fail(f"Server failed to start: {stderr_output}")
+
+    yield process
+
+    # Cleanup: terminate the server
+    try:
+        process.terminate()
         try:
-            self.log("Starting MCP server...", "TEST")
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+    except Exception as e:
+        print(f"Warning: Error during server cleanup: {e}")
 
-            # Get the Python executable from the virtual environment
-            python_path = Path(__file__).parent.parent / ".venv" / "bin" / "python"
-            if not python_path.exists():
-                python_path = sys.executable
 
-            server_path = Path(__file__).parent.parent / "server.py"
+def send_request(process, method: str, params: dict | None = None, timeout: int = 10):
+    """Helper function to send JSON-RPC request and get response."""
+    request = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": method,
+        "params": params or {},
+    }
 
-            # Start server as subprocess with stdio pipes
-            self.process = subprocess.Popen(
-                [str(python_path), str(server_path)],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-            )
+    # Send request
+    request_json = json.dumps(request) + "\n"
+    process.stdin.write(request_json)
+    process.stdin.flush()
 
-            # Give server time to initialize
-            time.sleep(2)
-
-            # Check if process started successfully
-            if self.process.poll() is not None:
-                stderr_output = ""
-                if self.process.stderr:
-                    stderr_output = self.process.stderr.read()
-                self.log(f"Server failed to start: {stderr_output}", "ERROR")
-                self.tests_failed += 1
-                return False
-
-            self.log("Server started successfully", "SUCCESS")
-            self.tests_passed += 1
-            return True
-
-        except Exception as e:
-            self.log(f"Failed to start server: {e}", "ERROR")
-            self.tests_failed += 1
-            return False
-
-    def send_request(self, method: str, params: dict | None = None) -> dict | None:
-        """Send JSON-RPC request to server."""
-        if not self.process or not self.process.stdin or not self.process.stdout:
-            self.log("Server process not available", "ERROR")
-            self.tests_failed += 1
-            return None
+    # Read response with timeout
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if process.poll() is not None:
+            pytest.fail("Server terminated unexpectedly")
 
         try:
-            self.log(f"Sending request: {method}", "TEST")
-
-            request = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": method,
-                "params": params or {},
-            }
-
-            # Send request
-            request_json = json.dumps(request) + "\n"
-            self.process.stdin.write(request_json)
-            self.process.stdin.flush()
-
-            # Read response with timeout
-            start_time = time.time()
-            response_line = ""
-            while time.time() - start_time < self.timeout:
-                if self.process.poll() is not None:
-                    self.log("Server terminated unexpectedly", "ERROR")
-                    self.tests_failed += 1
-                    return None
-
-                # Try to read a line
-                try:
-                    response_line = self.process.stdout.readline()
-                    if response_line:
-                        break
-                except Exception as e:
-                    self.log(f"Error reading response: {e}", "ERROR")
-                    self.tests_failed += 1
-                    return None
-
-                time.sleep(0.1)
-
-            if not response_line:
-                self.log("No response received (timeout)", "ERROR")
-                self.tests_failed += 1
-                return None
-
-            # Parse JSON response
-            response = json.loads(response_line.strip())
-            self.log("Received valid JSON response", "SUCCESS")
-            self.tests_passed += 1
-            return response
-
-        except json.JSONDecodeError as e:
-            self.log(f"Invalid JSON response: {e}", "ERROR")
-            self.tests_failed += 1
-            return None
+            response_line = process.stdout.readline()
+            if response_line:
+                return json.loads(response_line.strip())
         except Exception as e:
-            self.log(f"Request failed: {e}", "ERROR")
-            self.tests_failed += 1
-            return None
+            pytest.fail(f"Error reading response: {e}")
 
-    def verify_response(
-        self, response: dict | None, expected_keys: list[str] | None = None
-    ) -> bool:
-        """Verify response structure."""
-        try:
-            self.log("Verifying response structure...", "TEST")
+        time.sleep(0.1)
 
-            if not response:
-                self.log("Response is None or empty", "ERROR")
-                self.tests_failed += 1
-                return False
-
-            # Check JSON-RPC structure
-            if "jsonrpc" not in response:
-                self.log("Missing 'jsonrpc' field", "ERROR")
-                self.tests_failed += 1
-                return False
-
-            if response["jsonrpc"] != "2.0":
-                self.log(f"Invalid JSON-RPC version: {response['jsonrpc']}", "ERROR")
-                self.tests_failed += 1
-                return False
-
-            # Check for required keys (if specified)
-            if expected_keys:
-                missing_keys = [key for key in expected_keys if key not in response]
-                if missing_keys:
-                    self.log(
-                        f"Optional keys missing: {missing_keys} (not critical)",
-                        "WARNING",
-                    )
-
-            # Check for error vs result
-            has_result = "result" in response
-            has_error = "error" in response
-
-            if not has_result and not has_error:
-                self.log("Response has neither 'result' nor 'error'", "WARNING")
-
-            if has_error:
-                error = response["error"]
-                self.log(f"Server returned error: {error}", "WARNING")
-
-            self.log("Response structure valid", "SUCCESS")
-            self.tests_passed += 1
-            return True
-
-        except Exception as e:
-            self.log(f"Verification failed: {e}", "ERROR")
-            self.tests_failed += 1
-            return False
-
-    def shutdown_server(self) -> bool:
-        """Gracefully shut down the server."""
-        try:
-            self.log("Shutting down server...", "TEST")
-
-            if not self.process:
-                self.log("No server process to shut down", "WARNING")
-                return True
-
-            # Try graceful shutdown first
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.log("Graceful shutdown timeout, forcing kill", "WARNING")
-                self.process.kill()
-                self.process.wait()
-
-            self.log("Server shut down successfully", "SUCCESS")
-            self.tests_passed += 1
-            return True
-
-        except Exception as e:
-            self.log(f"Shutdown failed: {e}", "ERROR")
-            self.tests_failed += 1
-            return False
-
-    def run_test_suite(self):
-        """Run complete test suite."""
-        self.log("=" * 60, "INFO")
-        self.log("MARRVEL-MCP Server Integration Test", "INFO")
-        self.log("=" * 60, "INFO")
-        print()
-
-        try:
-            # Test 1: Start server
-            if not self.start_server():
-                self.log("Cannot continue without server", "ERROR")
-                return False
-
-            print()
-
-            # Test 2: Send initialize request
-            init_response = self.send_request(
-                "initialize",
-                {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {},
-                    "clientInfo": {"name": "integration-test", "version": "1.0.0"},
-                },
-            )
-
-            if init_response:
-                self.verify_response(init_response, ["jsonrpc", "id", "result"])
-
-            print()
-
-            # Test 3: List available tools
-            tools_response = self.send_request("tools/list", {})
-
-            if tools_response:
-                self.verify_response(tools_response, ["jsonrpc", "id", "result"])
-                if "result" in tools_response and "tools" in tools_response["result"]:
-                    tool_count = len(tools_response["result"]["tools"])
-                    self.log(f"Server reported {tool_count} available tools", "INFO")
-
-            print()
-
-            # Test 4: Call a simple tool (get_gene_info)
-            gene_response = self.send_request(
-                "tools/call",
-                {
-                    "name": "get_gene_info",
-                    "arguments": {"gene_symbol": "TP53", "model_organism": "human"},
-                },
-            )
-
-            if gene_response:
-                self.verify_response(gene_response, ["jsonrpc", "id"])
-                if "result" in gene_response:
-                    self.log("Tool execution successful", "SUCCESS")
-                    self.tests_passed += 1
-                elif "error" in gene_response:
-                    self.log(
-                        f"Tool returned error (may be expected): {gene_response['error']}",
-                        "WARNING",
-                    )
-
-            print()
-
-        except Exception as e:
-            self.log(f"Test suite failed: {e}", "ERROR")
-            self.tests_failed += 1
-
-        finally:
-            # Always try to shut down server
-            print()
-            self.shutdown_server()
-
-        # Print summary
-        print()
-        self.log("=" * 60, "INFO")
-        self.log("Test Summary", "INFO")
-        self.log("=" * 60, "INFO")
-        self.log(f"Tests Passed: {self.tests_passed}", "SUCCESS")
-        self.log(f"Tests Failed: {self.tests_failed}", "ERROR")
-        print()
-
-        if self.tests_failed == 0:
-            self.log("🎉 All tests passed!", "SUCCESS")
-            return True
-        else:
-            self.log("❌ Some tests failed", "ERROR")
-            return False
+    pytest.fail("No response received (timeout)")
 
 
-def main():
-    """Run the integration test."""
-    tester = ServerIntegrationTest(timeout=10)
-    success = tester.run_test_suite()
-    sys.exit(0 if success else 1)
+@pytest.mark.integration
+def test_server_starts(mcp_server):
+    """Test that the server starts successfully."""
+    assert mcp_server is not None
+    assert mcp_server.poll() is None, "Server process should be running"
 
 
+@pytest.mark.integration
+def test_server_initialize(mcp_server):
+    """Test server initialization via JSON-RPC."""
+    response = send_request(
+        mcp_server,
+        "initialize",
+        {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "pytest", "version": "1.0.0"},
+        },
+    )
+
+    assert response is not None
+    assert response["jsonrpc"] == "2.0"
+    assert "id" in response
+    # Response should have either 'result' or 'error'
+    assert "result" in response or "error" in response
+
+
+@pytest.mark.integration
+def test_server_list_tools(mcp_server):
+    """Test listing available tools."""
+    # First initialize
+    send_request(
+        mcp_server,
+        "initialize",
+        {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "pytest", "version": "1.0.0"},
+        },
+    )
+
+    # Then list tools
+    response = send_request(mcp_server, "tools/list", {})
+
+    assert response is not None
+    assert response["jsonrpc"] == "2.0"
+    # FastMCP may return error for invalid protocol - that's OK for this test
+    assert "result" in response or "error" in response
+
+
+@pytest.mark.integration
+def test_server_call_tool(mcp_server):
+    """Test calling a tool (get_gene_info)."""
+    # First initialize
+    send_request(
+        mcp_server,
+        "initialize",
+        {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "pytest", "version": "1.0.0"},
+        },
+    )
+
+    # Call a tool
+    response = send_request(
+        mcp_server,
+        "tools/call",
+        {
+            "name": "get_gene_info",
+            "arguments": {"gene_symbol": "TP53", "model_organism": "human"},
+        },
+    )
+
+    assert response is not None
+    assert response["jsonrpc"] == "2.0"
+    assert "id" in response
+    # Should have either result or error (API might be down, that's OK)
+    assert "result" in response or "error" in response
+
+
+@pytest.mark.integration
+def test_server_graceful_shutdown(mcp_server):
+    """Test that server can be gracefully shut down."""
+    assert mcp_server.poll() is None, "Server should be running"
+
+    # Terminate the server
+    mcp_server.terminate()
+
+    # Wait for it to shut down
+    try:
+        mcp_server.wait(timeout=5)
+        # If we get here, server shut down gracefully
+        assert True
+    except subprocess.TimeoutExpired:
+        # Force kill if needed
+        mcp_server.kill()
+        mcp_server.wait()
+        pytest.fail("Server did not shut down gracefully")
+
+
+@pytest.mark.integration
+def test_server_protocol_compliance(mcp_server):
+    """Test that all responses follow JSON-RPC 2.0 protocol."""
+    test_requests = [
+        ("initialize", {"protocolVersion": "2024-11-05", "capabilities": {}}),
+        ("tools/list", {}),
+    ]
+
+    for method, params in test_requests:
+        response = send_request(mcp_server, method, params)
+
+        # All responses must have jsonrpc field
+        assert "jsonrpc" in response, f"Missing jsonrpc in {method} response"
+        assert response["jsonrpc"] == "2.0", f"Invalid JSON-RPC version in {method}"
+
+        # All responses must have id field
+        assert "id" in response, f"Missing id in {method} response"
+
+        # All responses must have either result or error
+        has_result = "result" in response
+        has_error = "error" in response
+        assert has_result or has_error, f"Response for {method} has neither result nor error"
+
+
+# Standalone script support for backward compatibility
 if __name__ == "__main__":
-    main()
+    print("=" * 60)
+    print("MARRVEL-MCP Server Integration Test")
+    print("=" * 60)
+    print()
+    print("Running tests with pytest...")
+    print()
+
+    # Run pytest on this file
+    exit_code = pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "-m",
+            "integration",
+        ]
+    )
+
+    sys.exit(exit_code)

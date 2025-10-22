@@ -29,12 +29,13 @@ This directory contains all test files for the MARRVEL-MCP project.
 
 ### Server Integration Testing
 
-- **`test_server_integration.py`** - Full server lifecycle test
-  - Tests complete MCP server operations end-to-end
-  - Starts server, sends requests, verifies responses, shuts down
-  - Validates JSON-RPC protocol compliance
-  - Tests initialize, tools/list, and tools/call operations
-  - Run: `python tests/test_server_integration.py`
+- **`test_server_integration.py`** - Pytest-based server lifecycle tests
+  - 6 integration tests covering complete MCP server operations
+  - Uses pytest fixtures for automatic server setup/teardown
+  - Tests: server start, initialize, list tools, call tool, shutdown, protocol compliance
+  - Validates JSON-RPC 2.0 protocol compliance
+  - Run with pytest: `pytest tests/test_server_integration.py -v -m integration`
+  - Run standalone: `python tests/test_server_integration.py`
 
 ## Running Tests
 

@@ -245,24 +245,25 @@ pytest tests/ -m "not integration"
 # Run direct API tests
 python3 tests/test_api_direct.py
 
-# Run server integration test (full lifecycle)
+# Run server integration tests
+pytest tests/test_server_integration.py -v -m integration
+
+# Or run as standalone script
 python tests/test_server_integration.py
 ```
 
-#### Server Integration Test
+#### Server Integration Tests
 
-The `test_server_integration.py` script tests the complete MCP server lifecycle:
+The `test_server_integration.py` contains pytest-based integration tests for the complete MCP server lifecycle:
 
-1. ✅ Start the server
-2. ✅ Send JSON-RPC requests (initialize, list tools, call tool)
-3. ✅ Verify JSON responses
-4. ✅ Gracefully shut down the server
+- ✅ `test_server_starts` - Verify server process starts
+- ✅ `test_server_initialize` - Test JSON-RPC initialization
+- ✅ `test_server_list_tools` - Test tools/list request
+- ✅ `test_server_call_tool` - Test calling get_gene_info
+- ✅ `test_server_graceful_shutdown` - Test clean shutdown
+- ✅ `test_server_protocol_compliance` - Verify JSON-RPC 2.0 compliance
 
-This is useful for:
-
-- Verifying server functionality end-to-end
-- Testing before deployment
-- Debugging server communication issues
+These tests use pytest fixtures for automatic setup/teardown and can be integrated into CI/CD pipelines.
 
 ### OpenAI Integration
 
