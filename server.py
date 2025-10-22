@@ -12,42 +12,11 @@ This server provides AI agents access to comprehensive genetics databases includ
 """
 
 import httpx
-import inspect
-from typing import Any
 from mcp.server.fastmcp import FastMCP
+from src.utils.api_client import fetch_marrvel_data
 
 # Initialize FastMCP server
 mcp = FastMCP("MARRVEL")
-
-# Base API URL for MARRVEL
-BASE_URL = "http://api.marrvel.org/data"
-
-
-# Helper function to make API requests
-async def fetch_marrvel_data(endpoint: str) -> dict[str, Any]:
-    """
-    Fetch data from MARRVEL API.
-    
-    Args:
-        endpoint: API endpoint path (e.g., "/gene/entrezId/7157")
-        
-    Returns:
-        JSON response from the API
-        
-    Raises:
-        httpx.HTTPError: If the request fails
-    """
-    url = f"{BASE_URL}{endpoint}"
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.get(url)
-        # Some tests may mock raise_for_status/json as async coroutines; handle both sync/async.
-        rfs = response.raise_for_status()
-        if inspect.iscoroutine(rfs):
-            await rfs
-        data = response.json()
-        if inspect.iscoroutine(data):
-            data = await data
-        return data
 
 
 # ============================================================================
