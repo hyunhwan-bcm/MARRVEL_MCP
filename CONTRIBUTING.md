@@ -56,6 +56,9 @@ Thank you for your interest in contributing to MARRVEL-MCP! This document provid
    python server.py
    ```
 
+   **Note:** If you encounter SSL certificate verification errors, see the
+   [Troubleshooting SSL Certificates](#troubleshooting-ssl-certificates) section below.
+
 5. **Commit Your Changes**
    ```bash
    git add .
@@ -231,6 +234,105 @@ When updating documentation:
 - Put detailed information in API_DOCUMENTATION.md
 - Update CHANGELOG.md for all notable changes
 - Keep examples/example_queries.py up to date
+
+## Troubleshooting SSL Certificates
+
+If you encounter SSL certificate verification errors when running integration tests:
+
+```
+httpx.ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed:
+unable to get local issuer certificate
+```
+
+This is a common issue, especially on macOS, where Python doesn't automatically use
+the system's SSL certificates.
+
+### Quick Fix
+
+```bash
+# Upgrade certifi to get the latest CA certificates
+pip install --upgrade certifi
+
+# Reinstall httpx to ensure it uses the updated certificates
+pip install --force-reinstall httpx
+```
+
+### Platform-Specific Solutions
+
+**macOS:**
+1. Install or update certificates via pip:
+   ```bash
+   pip install --upgrade certifi
+   ```
+
+2. If you installed Python from python.org, run the certificate installer:
+   ```bash
+   /Applications/Python\ 3.XX/Install\ Certificates.command
+   ```
+   (Replace 3.XX with your Python version, e.g., 3.12)
+
+3. Restart your terminal and try again
+
+**Linux:**
+1. Update system CA certificates:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install ca-certificates
+   sudo update-ca-certificates
+   ```
+
+2. Update Python's certifi:
+   ```bash
+   pip install --upgrade certifi
+   ```
+
+**Windows:**
+1. Update certifi:
+   ```bash
+   pip install --upgrade certifi
+   ```
+
+2. Reinstall httpx:
+   ```bash
+   pip install --force-reinstall httpx
+   ```
+
+### Additional Checks
+
+If problems persist:
+
+1. **Verify certifi installation:**
+   ```bash
+   pip show certifi
+   python -c "import certifi; print(certifi.where())"
+   ```
+
+2. **Check for proxy issues:**
+   - Ensure you're not behind a corporate proxy that intercepts SSL
+   - If using a proxy, you may need to configure SSL certificate verification differently
+
+3. **Test SSL connectivity:**
+   ```python
+   import ssl
+   import certifi
+   context = ssl.create_default_context(cafile=certifi.where())
+   print("SSL context created successfully")
+   ```
+
+### Running Tests Without Network Access
+
+Integration tests require network access to the MARRVEL API. If you're working
+offline or SSL certificates cannot be fixed, you can skip integration tests:
+
+```bash
+# Run only unit tests (skip integration tests)
+pytest -m "not integration"
+
+# This will run all tests except those marked with @pytest.mark.integration
+```
+
+The CI/CD pipeline will still run all tests, including integration tests,
+in an environment with proper SSL configuration.
 
 ## Questions?
 
