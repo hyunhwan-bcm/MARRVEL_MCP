@@ -7,6 +7,8 @@ It handles requests to the MARRVEL API with proper error handling and timeout ma
 
 import httpx
 import inspect
+import ssl
+import certifi
 from typing import Any
 from config import API_BASE_URL, API_TIMEOUT
 
@@ -18,7 +20,7 @@ async def fetch_marrvel_data(endpoint: str) -> dict[str, Any]:
     This is the central HTTP client function used by all tool modules.
     It handles:
     - Building the complete URL
-    - Making the async HTTP request
+    - Making the async HTTP request with proper SSL certificate verification
     - Error handling and status code validation
     - JSON response parsing
     - Compatibility with both sync and async mocked responses (for testing)
@@ -44,10 +46,16 @@ async def fetch_marrvel_data(endpoint: str) -> dict[str, Any]:
         and asynchronous mocked responses during testing. This allows tests
         to mock raise_for_status() and json() as either regular functions
         or coroutines.
+
+        SSL certificate verification uses certifi's CA bundle to ensure
+        compatibility across different platforms (macOS, Linux, Windows).
     """
     url = f"{API_BASE_URL}{endpoint}"
 
-    async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
+    # Create SSL context with certifi's CA bundle for robust certificate verification
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+    async with httpx.AsyncClient(verify=ssl_context, timeout=API_TIMEOUT) as client:
         response = await client.get(url)
 
         # Some tests may mock raise_for_status/json as async coroutines
