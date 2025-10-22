@@ -10,7 +10,7 @@ This PR improves project organization, adds OpenAI integration support, and fixe
 
 ### 🗂️ Project Reorganization
 - Move test files to `tests/` directory
-- Move OpenAI examples to `examples/openai/` directory  
+- Move OpenAI examples to `examples/openai/` directory
 - Add comprehensive READMEs for both directories
 - Update main README with new structure
 
@@ -48,7 +48,7 @@ None - only file relocations, all functionality preserved
 
 ## Documentation
 - ✅ `tests/README.md` - Test documentation (90 lines)
-- ✅ `examples/openai/README.md` - OpenAI integration guide (145 lines)  
+- ✅ `examples/openai/README.md` - OpenAI integration guide (145 lines)
 - ✅ Updated main `README.md` with new structure
 
 ## Review Focus

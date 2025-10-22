@@ -37,17 +37,11 @@ TAXONOMY_IDS = {
     "drosophila": "7227",
     "worm": "6239",
     "c_elegans": "6239",
-    "yeast": "4932"
+    "yeast": "4932",
 }
 
 # Common gene symbols for testing
-TEST_GENES = {
-    "TP53": "7157",
-    "BRCA1": "672",
-    "BRCA2": "675",
-    "CFTR": "1080",
-    "APOE": "348"
-}
+TEST_GENES = {"TP53": "7157", "BRCA1": "672", "BRCA2": "675", "CFTR": "1080", "APOE": "348"}
 
 # Coordinate system
 DEFAULT_GENOME_BUILD = "hg19"  # MARRVEL uses hg19/GRCh37
@@ -69,26 +63,12 @@ TOOL_CATEGORIES = {
         "get_decipher_variant",
         "get_decipher_by_location",
         "get_geno2mp_variant",
-        "get_geno2mp_by_entrez_id"
+        "get_geno2mp_by_entrez_id",
     ],
-    "disease": [
-        "get_omim_by_mim_number",
-        "get_omim_by_gene_symbol",
-        "get_omim_variant"
-    ],
-    "ortholog": [
-        "get_diopt_orthologs",
-        "get_diopt_alignment"
-    ],
-    "expression": [
-        "get_gtex_expression",
-        "get_ortholog_expression",
-        "get_pharos_targets"
-    ],
-    "utility": [
-        "validate_hgvs_variant",
-        "convert_protein_variant"
-    ]
+    "disease": ["get_omim_by_mim_number", "get_omim_by_gene_symbol", "get_omim_variant"],
+    "ortholog": ["get_diopt_orthologs", "get_diopt_alignment"],
+    "expression": ["get_gtex_expression", "get_ortholog_expression", "get_pharos_targets"],
+    "utility": ["validate_hgvs_variant", "convert_protein_variant"],
 }
 
 # Error messages
@@ -99,5 +79,5 @@ ERROR_MESSAGES = {
     "invalid_chromosome": "Invalid chromosome. Use chr1-22, chrX, chrY, or chrM",
     "invalid_taxon": "Invalid taxonomy ID. See documentation for supported species",
     "api_timeout": "API request timed out. Please try again",
-    "api_error": "Error communicating with MARRVEL API"
+    "api_error": "Error communicating with MARRVEL API",
 }

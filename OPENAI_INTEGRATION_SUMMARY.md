@@ -31,7 +31,7 @@ $ python3 openai_marrvel_simple.py
 🧬 Query: What is the TP53 gene?
 📡 Calling: get_gene_by_symbol({"gene_symbol": "TP53"})
 ✅ Answer:
-The TP53 gene encodes the tumor protein p53, a crucial protein involved 
+The TP53 gene encodes the tumor protein p53, a crucial protein involved
 in regulating the cell cycle and maintaining genomic stability...
 ```
 

@@ -42,10 +42,16 @@ Thank you for your interest in contributing to MARRVEL-MCP! This document provid
    ```bash
    # Install development dependencies
    pip install -r requirements.txt
-   
+
+   # Install pre-commit hooks
+   pre-commit install
+
    # Run tests
    pytest tests/ -v
-   
+
+   # Run pre-commit checks
+   pre-commit run --all-files
+
    # Test with Claude Desktop or MCP client
    python server.py
    ```
@@ -55,12 +61,52 @@ Thank you for your interest in contributing to MARRVEL-MCP! This document provid
    git add .
    git commit -m "Add feature: description of your changes"
    ```
+   Note: Pre-commit hooks will automatically run and may fix formatting issues.
+   If they make changes, review them and commit again.
 
 6. **Push and Create Pull Request**
    ```bash
    git push origin feature/your-feature-name
    ```
    Then create a pull request on GitHub.
+
+   **Important:** Your PR must pass all CI checks:
+   - ✅ Pre-commit hooks (Black formatting, trailing whitespace, etc.)
+   - ✅ Unit tests across Python 3.10-3.13
+   - ✅ Integration tests (may be skipped if API is unavailable)
+
+## Code Quality & CI
+
+### Automated Checks
+
+All pull requests are automatically checked by GitHub Actions:
+
+1. **Pre-commit Checks** - Runs Black formatting and code quality hooks
+2. **Tests** - Runs unit and integration tests on multiple Python versions
+3. **Code Style** - Verifies Black formatting compliance
+
+### Pre-commit Hooks
+
+Pre-commit hooks run automatically when you commit. They will:
+- Format code with Black (line-length=100)
+- Remove trailing whitespace
+- Fix end-of-file issues
+- Check YAML/JSON/TOML syntax
+- Detect merge conflicts
+
+If hooks make changes, you'll need to review and commit again.
+
+To run manually:
+```bash
+# Run on all files
+pre-commit run --all-files
+
+# Run only Black
+black .
+
+# Skip hooks (emergency only)
+git commit --no-verify
+```
 
 ## Code Style Guidelines
 
@@ -88,19 +134,19 @@ Example:
 async def get_gene_by_entrez_id(entrez_id: str) -> str:
     """
     Retrieve comprehensive gene information using NCBI Entrez Gene ID.
-    
+
     This tool provides detailed information about a gene including its symbol,
     name, chromosomal location, summary, transcripts, and links to various databases.
-    
+
     Args:
         entrez_id: NCBI Entrez Gene ID (e.g., "7157" for TP53)
-        
+
     Returns:
         JSON string with gene information
-        
+
     Example:
         get_gene_by_entrez_id("7157")  # TP53
-        
+
     API Endpoint: GET /gene/entrezId/:entrezId
     """
     # Implementation

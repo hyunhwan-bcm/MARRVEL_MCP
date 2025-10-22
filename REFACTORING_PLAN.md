@@ -57,7 +57,7 @@ MARRVEL_MCP/
 - Add enhanced error handling
 - Create `src/__init__.py` and `src/utils/__init__.py`
 
-**Benefits**: 
+**Benefits**:
 - Centralizes API communication
 - Makes it easier to add caching, retry logic, rate limiting
 - Reusable across all tool modules

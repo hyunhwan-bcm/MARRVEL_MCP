@@ -26,23 +26,24 @@ def register_tools(mcp_instance):
 # EXPRESSION DATA TOOLS
 # ============================================================================
 
+
 async def get_gtex_expression(entrez_id: str) -> str:
     """
     Access GTEx (Genotype-Tissue Expression) data.
-    
+
     GTEx provides gene expression levels across 54 human tissues from
     healthy donors.
-    
+
     Args:
         entrez_id: Gene Entrez ID
-        
+
     Returns:
         JSON string with expression data:
         - Median TPM (Transcripts Per Million) per tissue
         - Expression variability
         - Sample sizes
         - Tissue-specific expression patterns
-        
+
     Example:
         get_gtex_expression("7157")  # TP53 expression
         get_gtex_expression("672")   # BRCA1 expression
@@ -57,19 +58,19 @@ async def get_gtex_expression(entrez_id: str) -> str:
 async def get_ortholog_expression(entrez_id: str) -> str:
     """
     Get expression data for orthologs across model organisms.
-    
+
     Provides comparative expression patterns for gene orthologs in
     model organisms including developmental stages and tissue types.
-    
+
     Args:
         entrez_id: Human gene Entrez ID
-        
+
     Returns:
         JSON string with ortholog expression data:
         - Expression in mouse, fly, zebrafish, etc.
         - Developmental stage expression
         - Tissue-specific patterns in models
-        
+
     Example:
         get_ortholog_expression("7157")  # TP53 orthologs
         get_ortholog_expression("672")   # BRCA1 orthologs
@@ -84,13 +85,13 @@ async def get_ortholog_expression(entrez_id: str) -> str:
 async def get_pharos_targets(entrez_id: str) -> str:
     """
     Query Pharos for drug target information.
-    
+
     Pharos is the user interface to the Knowledge Management Center (KMC)
     for the Illuminating the Druggable Genome (IDG) program.
-    
+
     Args:
         entrez_id: Gene Entrez ID
-        
+
     Returns:
         JSON string with drug target information:
         - Target Development Level (Tclin, Tchem, Tbio, Tdark)
@@ -98,13 +99,13 @@ async def get_pharos_targets(entrez_id: str) -> str:
         - Clinical trial information
         - Target class and family
         - Druggability assessment
-        
+
     Target Levels:
         - Tclin: Clinical target with approved drugs
         - Tchem: Target with known chemical probes
         - Tbio: Biological target with evidence
         - Tdark: Understudied protein
-        
+
     Example:
         get_pharos_targets("7157")  # TP53 druggability
         get_pharos_targets("672")   # BRCA1 as drug target

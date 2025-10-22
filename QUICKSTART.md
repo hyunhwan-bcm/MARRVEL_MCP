@@ -118,7 +118,7 @@ Issue: API timeout
 Solution: Some queries may take longer. Increase timeout in server.py if needed.
 
 Issue: Gene/variant not found
-Solution: 
+Solution:
 - Check gene symbol spelling
 - Verify Entrez ID is correct
 - Ensure variant format is: chromosome-position-ref-alt
