@@ -12,10 +12,8 @@ import os
 # Add parent directory to path to import server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from server import (
-    fetch_marrvel_data,
-    BASE_URL
-)
+from src.utils.api_client import fetch_marrvel_data
+from config import API_BASE_URL as BASE_URL
 
 
 class TestFetchMarrvelData:
