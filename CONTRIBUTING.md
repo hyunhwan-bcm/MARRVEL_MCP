@@ -42,10 +42,10 @@ Thank you for your interest in contributing to MARRVEL-MCP! This document provid
    ```bash
    # Install development dependencies
    pip install -r requirements.txt
-   
+
    # Run tests
    pytest tests/ -v
-   
+
    # Test with Claude Desktop or MCP client
    python server.py
    ```
@@ -88,19 +88,19 @@ Example:
 async def get_gene_by_entrez_id(entrez_id: str) -> str:
     """
     Retrieve comprehensive gene information using NCBI Entrez Gene ID.
-    
+
     This tool provides detailed information about a gene including its symbol,
     name, chromosomal location, summary, transcripts, and links to various databases.
-    
+
     Args:
         entrez_id: NCBI Entrez Gene ID (e.g., "7157" for TP53)
-        
+
     Returns:
         JSON string with gene information
-        
+
     Example:
         get_gene_by_entrez_id("7157")  # TP53
-        
+
     API Endpoint: GET /gene/entrezId/:entrezId
     """
     # Implementation

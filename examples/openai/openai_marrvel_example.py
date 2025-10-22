@@ -16,7 +16,7 @@ from server import (
     get_omim_by_gene_symbol,
     get_gnomad_by_gene_symbol,
     get_diopt_orthologs,
-    get_gtex_expression
+    get_gtex_expression,
 )
 
 # Initialize OpenAI client
@@ -32,16 +32,16 @@ MARRVEL_FUNCTIONS = [
             "properties": {
                 "gene_symbol": {
                     "type": "string",
-                    "description": "Official gene symbol (e.g., TP53, BRCA1)"
+                    "description": "Official gene symbol (e.g., TP53, BRCA1)",
                 },
                 "taxon_id": {
                     "type": "integer",
                     "description": "Species taxonomy ID (9606 for human, 10090 for mouse)",
-                    "default": 9606
-                }
+                    "default": 9606,
+                },
             },
-            "required": ["gene_symbol"]
-        }
+            "required": ["gene_symbol"],
+        },
     },
     {
         "name": "get_clinvar_by_gene_symbol",
@@ -49,18 +49,15 @@ MARRVEL_FUNCTIONS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "gene_symbol": {
-                    "type": "string",
-                    "description": "Gene symbol (e.g., BRCA1, TP53)"
-                },
+                "gene_symbol": {"type": "string", "description": "Gene symbol (e.g., BRCA1, TP53)"},
                 "taxon_id": {
                     "type": "integer",
                     "description": "Species taxonomy ID (default: 9606 for human)",
-                    "default": 9606
-                }
+                    "default": 9606,
+                },
             },
-            "required": ["gene_symbol"]
-        }
+            "required": ["gene_symbol"],
+        },
     },
     {
         "name": "get_omim_by_gene_symbol",
@@ -68,18 +65,15 @@ MARRVEL_FUNCTIONS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "gene_symbol": {
-                    "type": "string",
-                    "description": "Gene symbol (e.g., BRCA1, TP53)"
-                },
+                "gene_symbol": {"type": "string", "description": "Gene symbol (e.g., BRCA1, TP53)"},
                 "taxon_id": {
                     "type": "integer",
                     "description": "Species taxonomy ID (default: 9606 for human)",
-                    "default": 9606
-                }
+                    "default": 9606,
+                },
             },
-            "required": ["gene_symbol"]
-        }
+            "required": ["gene_symbol"],
+        },
     },
     {
         "name": "get_diopt_orthologs",
@@ -89,17 +83,17 @@ MARRVEL_FUNCTIONS = [
             "properties": {
                 "gene_symbol": {
                     "type": "string",
-                    "description": "Gene symbol to find orthologs for"
+                    "description": "Gene symbol to find orthologs for",
                 },
                 "taxon_id": {
                     "type": "integer",
                     "description": "Source species taxonomy ID",
-                    "default": 9606
-                }
+                    "default": 9606,
+                },
             },
-            "required": ["gene_symbol"]
-        }
-    }
+            "required": ["gene_symbol"],
+        },
+    },
 ]
 
 # Map function names to actual functions
@@ -110,7 +104,7 @@ FUNCTION_MAP = {
     "get_omim_by_gene_symbol": get_omim_by_gene_symbol,
     "get_gnomad_by_gene_symbol": get_gnomad_by_gene_symbol,
     "get_diopt_orthologs": get_diopt_orthologs,
-    "get_gtex_expression": get_gtex_expression
+    "get_gtex_expression": get_gtex_expression,
 }
 
 
@@ -119,37 +113,45 @@ async def call_marrvel_function(function_name: str, arguments: dict):
     func = FUNCTION_MAP.get(function_name)
     if not func:
         return {"error": f"Unknown function: {function_name}"}
-    
+
     try:
         result = await func(**arguments)
-        
+
         # For ClinVar queries specifically, return minimal summary for large datasets
         if function_name == "get_clinvar_by_gene_symbol" and isinstance(result, list):
             if len(result) > 100:  # Large ClinVar datasets
                 # Just return statistics
-                pathogenic_count = sum(1 for v in result if isinstance(v, dict) and 
-                                     v.get('clinicalSignificance', '').lower().startswith('pathogenic'))
-                benign_count = sum(1 for v in result if isinstance(v, dict) and 
-                                 v.get('clinicalSignificance', '').lower().startswith('benign'))
-                
+                pathogenic_count = sum(
+                    1
+                    for v in result
+                    if isinstance(v, dict)
+                    and v.get("clinicalSignificance", "").lower().startswith("pathogenic")
+                )
+                benign_count = sum(
+                    1
+                    for v in result
+                    if isinstance(v, dict)
+                    and v.get("clinicalSignificance", "").lower().startswith("benign")
+                )
+
                 return {
                     "summary": f"Found {len(result)} ClinVar variants for {arguments.get('gene_symbol', 'gene')}",
                     "total_variants": len(result),
                     "pathogenic_likely": pathogenic_count,
                     "benign_likely": benign_count,
-                    "note": "Large dataset - use specific variant queries for details (e.g., by position or variant ID)"
+                    "note": "Large dataset - use specific variant queries for details (e.g., by position or variant ID)",
                 }
-        
+
         # General truncation for other large results
         result_str = json.dumps(result)
         MAX_RESULT_SIZE = 5000  # ~5KB limit
-        
+
         if len(result_str) > MAX_RESULT_SIZE:
             if isinstance(result, list):
                 return {
                     "note": "⚠️ Large dataset truncated",
                     "total_count": len(result),
-                    "message": "Use more specific queries for detailed results"
+                    "message": "Use more specific queries for detailed results",
                 }
             elif isinstance(result, dict):
                 summary = {}
@@ -159,7 +161,7 @@ async def call_marrvel_function(function_name: str, arguments: dict):
                     elif isinstance(value, list):
                         summary[f"{key}_count"] = len(value)
                 return {"note": "⚠️ Large result truncated", **summary}
-        
+
         return result
     except Exception as e:
         return {"error": str(e)}
@@ -174,57 +176,51 @@ async def chat_with_marrvel(user_message: str):
         {
             "role": "system",
             "content": "You are a genetics research assistant with access to the MARRVEL database. "
-                      "You can look up gene information, variants, diseases, orthologs, and expression data. "
-                      "Always provide clear, scientific answers."
+            "You can look up gene information, variants, diseases, orthologs, and expression data. "
+            "Always provide clear, scientific answers.",
         },
-        {"role": "user", "content": user_message}
+        {"role": "user", "content": user_message},
     ]
-    
+
     print(f"\n🧬 User: {user_message}")
     print("🤖 Thinking...")
-    
+
     # First API call to OpenAI
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        functions=MARRVEL_FUNCTIONS,
-        function_call="auto"
+        model="gpt-4o-mini", messages=messages, functions=MARRVEL_FUNCTIONS, function_call="auto"
     )
-    
+
     response_message = response.choices[0].message
-    
+
     # Check if OpenAI wants to call a function
     if response_message.function_call:
         function_name = response_message.function_call.name
         function_args = json.loads(response_message.function_call.arguments)
-        
+
         print(f"📡 Calling MARRVEL function: {function_name}")
         print(f"   Arguments: {function_args}")
-        
+
         # Execute the MARRVEL function
         function_result = await call_marrvel_function(function_name, function_args)
-        
+
         # Add the function result to messages
-        messages.append({
-            "role": "assistant",
-            "content": None,
-            "function_call": {
-                "name": function_name,
-                "arguments": response_message.function_call.arguments
+        messages.append(
+            {
+                "role": "assistant",
+                "content": None,
+                "function_call": {
+                    "name": function_name,
+                    "arguments": response_message.function_call.arguments,
+                },
             }
-        })
-        messages.append({
-            "role": "function",
-            "name": function_name,
-            "content": json.dumps(function_result)
-        })
-        
-        # Second API call to get natural language response
-        second_response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages
         )
-        
+        messages.append(
+            {"role": "function", "name": function_name, "content": json.dumps(function_result)}
+        )
+
+        # Second API call to get natural language response
+        second_response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+
         final_answer = second_response.choices[0].message.content
         print(f"\n✅ Assistant: {final_answer}\n")
         return final_answer
@@ -237,25 +233,25 @@ async def chat_with_marrvel(user_message: str):
 
 async def main():
     """Run example queries"""
-    
+
     # Check for API key
     if not os.environ.get("OPENAI_API_KEY"):
         print("❌ Error: Please set OPENAI_API_KEY environment variable")
         print("   Example: export OPENAI_API_KEY='sk-...'")
         return
-    
+
     print("=" * 70)
     print("🧬 MARRVEL + OpenAI Integration Example")
     print("=" * 70)
-    
+
     # Example queries
     queries = [
         "What is the TP53 gene?",
         "Tell me about disease associations for BRCA1",
         "Find orthologs of TP53 in other species",
-        "What are the ClinVar variants for CFTR?"
+        "What are the ClinVar variants for CFTR?",
     ]
-    
+
     for query in queries:
         await chat_with_marrvel(query)
         print("-" * 70)

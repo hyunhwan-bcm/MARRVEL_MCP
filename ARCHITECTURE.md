@@ -236,7 +236,7 @@ Listening on stdio for MCP connections...
 from mcp import ClientSession
 
 async with ClientSession(...) as session:
-    result = await session.call_tool("get_gene_by_entrez_id", 
+    result = await session.call_tool("get_gene_by_entrez_id",
                                      {"entrez_id": "7157"})
 ```
 

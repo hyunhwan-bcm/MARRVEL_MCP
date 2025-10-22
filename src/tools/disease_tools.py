@@ -13,7 +13,7 @@ from mcp.server.fastmcp import FastMCP
 def register_tools(mcp_instance: FastMCP):
     """
     Register all disease tools with the MCP server instance.
-    
+
     Args:
         mcp_instance: The FastMCP server instance to register tools with
     """
@@ -26,12 +26,12 @@ def register_tools(mcp_instance: FastMCP):
 async def get_omim_by_mim_number(mim_number: str) -> str:
     """
     Retrieve OMIM (Online Mendelian Inheritance in Man) entry by MIM number.
-    
+
     OMIM is a comprehensive database of human genes and genetic disorders.
-    
+
     Args:
         mim_number: OMIM MIM number (e.g., "191170" for Treacher Collins syndrome)
-        
+
     Returns:
         JSON string with OMIM entry:
         - Disease/phenotype description
@@ -39,7 +39,7 @@ async def get_omim_by_mim_number(mim_number: str) -> str:
         - Inheritance pattern
         - Molecular genetics
         - Allelic variants
-        
+
     Example:
         get_omim_by_mim_number("191170")  # Treacher Collins syndrome
         get_omim_by_mim_number("114480")  # Breast cancer (BRCA1)
@@ -54,20 +54,20 @@ async def get_omim_by_mim_number(mim_number: str) -> str:
 async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
     """
     Find all OMIM diseases associated with a gene symbol.
-    
+
     This tool retrieves all OMIM entries (diseases, phenotypes) that are
     associated with a particular gene.
-    
+
     Args:
         gene_symbol: Official gene symbol (e.g., "TP53", "BRCA1", "CFTR")
-        
+
     Returns:
         JSON string with list of OMIM diseases including:
         - MIM numbers
         - Disease names
         - Inheritance patterns
         - Gene-disease relationships
-        
+
     Example:
         get_omim_by_gene_symbol("TP53")  # Li-Fraumeni syndrome
         get_omim_by_gene_symbol("BRCA1")  # Breast/ovarian cancer
@@ -83,17 +83,17 @@ async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
 async def get_omim_variant(gene_symbol: str, variant: str) -> str:
     """
     Query OMIM for specific variant information.
-    
+
     Get OMIM data for a specific variant in a gene, including disease
     associations and clinical significance.
-    
+
     Args:
         gene_symbol: Gene symbol (e.g., "TP53")
         variant: Variant description (e.g., "p.R248Q", "c.743G>A")
-        
+
     Returns:
         JSON string with variant-specific OMIM information
-        
+
     Example:
         get_omim_variant("TP53", "p.R248Q")
         get_omim_variant("BRCA1", "p.C61G")

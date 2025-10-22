@@ -24,20 +24,21 @@ def register_tools(mcp_instance):
 # VARIANT NOMENCLATURE & CONVERSION TOOLS
 # ============================================================================
 
+
 async def validate_hgvs_variant(hgvs_variant: str) -> str:
     """
     Validate and parse HGVS variant nomenclature using Mutalyzer.
-    
+
     Mutalyzer checks if variant descriptions are correct according to HGVS
     nomenclature standards and provides parsed components.
-    
+
     Args:
         hgvs_variant: Variant in HGVS format
             Examples:
             - Genomic: "NC_000017.10:g.7577121C>T"
             - Coding: "NM_000546.5:c.215C>G"
             - Protein: "NP_000537.3:p.Arg72Pro"
-        
+
     Returns:
         JSON string with validation results:
         - Validation status (valid/invalid)
@@ -45,7 +46,7 @@ async def validate_hgvs_variant(hgvs_variant: str) -> str:
         - Genomic coordinates
         - Protein changes
         - Alternative descriptions
-        
+
     Example:
         validate_hgvs_variant("NM_000546.5:c.215C>G")
         validate_hgvs_variant("NC_000017.10:g.7577121C>T")
@@ -60,23 +61,23 @@ async def validate_hgvs_variant(hgvs_variant: str) -> str:
 async def convert_protein_variant(protein_variant: str) -> str:
     """
     Convert protein-level variants to genomic coordinates using Transvar.
-    
+
     Transvar is a tool for converting between different variant annotation
     formats and coordinate systems.
-    
+
     Args:
         protein_variant: Protein variant description
             Examples:
             - "ENSP00000269305:p.R248Q"
             - "NP_000537.3:p.Arg72Pro"
-        
+
     Returns:
         JSON string with converted coordinates:
         - Genomic coordinates (hg19, hg38)
         - cDNA changes
         - Multiple transcript mappings
         - Alternative annotations
-        
+
     Example:
         convert_protein_variant("ENSP00000269305:p.R248Q")
         convert_protein_variant("NP_000537.3:p.Arg72Pro")

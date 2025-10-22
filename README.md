@@ -143,7 +143,19 @@ MARRVEL_MCP/
 ├── server.py                          # Main FastMCP server
 ├── config.py                          # Configuration
 ├── requirements.txt                   # Dependencies
+├── pyproject.toml                    # Black & pytest configuration
+├── .pre-commit-config.yaml           # Pre-commit hooks configuration
 ├── pytest.ini                        # Test configuration
+├── src/
+│   ├── tools/                       # MCP tool modules
+│   │   ├── gene_tools.py           # Gene query functions
+│   │   ├── variant_tools.py        # Variant analysis functions
+│   │   ├── disease_tools.py        # OMIM disease functions
+│   │   ├── ortholog_tools.py       # DIOPT ortholog functions
+│   │   ├── expression_tools.py     # Expression & drug target functions
+│   │   └── utility_tools.py        # Variant nomenclature utilities
+│   └── utils/
+│       └── api_client.py           # HTTP client for MARRVEL API
 ├── examples/
 │   ├── example_queries.py           # MCP usage examples
 │   └── openai/
@@ -153,8 +165,57 @@ MARRVEL_MCP/
 └── tests/
     ├── README.md                    # Test documentation
     ├── test_server.py              # Core server tests
+    ├── test_api_client.py          # API client tests
+    ├── test_gene_tools.py          # Gene tools tests
+    ├── test_variant_tools.py       # Variant tools tests
+    ├── test_disease_tools.py       # Disease tools tests
+    ├── test_ortholog_tools.py      # Ortholog tools tests
+    ├── test_expression_tools.py    # Expression tools tests
+    ├── test_utility_tools.py       # Utility tools tests
     ├── test_api_direct.py          # Direct API tests
     └── test_mcp_client.py          # MCP client tests
+```
+
+### Setup Development Environment
+
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Install pre-commit hooks:
+```bash
+pre-commit install
+```
+
+This will automatically run code formatting and linting before each commit.
+
+### Code Quality
+
+We use **Black** for code formatting and **pre-commit** hooks to maintain code quality.
+
+#### Running Black manually:
+```bash
+# Format all Python files
+black .
+
+# Check formatting without making changes
+black --check .
+```
+
+#### Pre-commit hooks:
+Pre-commit hooks run automatically on `git commit`. To run manually:
+```bash
+# Run on all files
+pre-commit run --all-files
+
+# Run on staged files only
+pre-commit run
+```
+
+#### Bypass pre-commit (emergency use only):
+```bash
+git commit --no-verify -m "Emergency commit"
 ```
 
 ### Running Tests

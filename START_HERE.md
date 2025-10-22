@@ -40,7 +40,7 @@ MARRVEL_MCP/
 
 1. **Gene Tools** (3) - Query gene information
 2. **Variant Analysis** (13) - Comprehensive variant annotation
-3. **Disease Information** (3) - OMIM disease associations  
+3. **Disease Information** (3) - OMIM disease associations
 4. **Ortholog Analysis** (2) - Cross-species comparisons
 5. **Expression Data** (3) - Tissue expression & drug targets
 6. **Utilities** (2) - Variant validation & conversion

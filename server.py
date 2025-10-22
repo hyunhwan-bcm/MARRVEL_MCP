@@ -32,13 +32,13 @@ from src.tools import (
 def create_server() -> FastMCP:
     """
     Create and configure the MARRVEL MCP server.
-    
+
     Returns:
         FastMCP: Configured MCP server instance with all tools registered
     """
     # Initialize FastMCP server
     mcp = FastMCP("MARRVEL")
-    
+
     # Register all tool modules
     gene_tools.register_tools(mcp)
     variant_tools.register_tools(mcp)
@@ -46,7 +46,7 @@ def create_server() -> FastMCP:
     ortholog_tools.register_tools(mcp)
     expression_tools.register_tools(mcp)
     utility_tools.register_tools(mcp)
-    
+
     return mcp
 
 

@@ -24,7 +24,7 @@ Agent uses: get_gene_by_position("chr17", 7577121)
 Example 2: Cross-species gene queries
 --------------------------------------
 User: "Find the mouse ortholog of TP53"
-Agent uses: 
+Agent uses:
   1. get_gene_by_symbol("TP53", "9606") to get human gene info
   2. get_diopt_orthologs("7157") to find mouse ortholog
   3. get_gene_by_symbol("Trp53", "10090") for mouse gene details

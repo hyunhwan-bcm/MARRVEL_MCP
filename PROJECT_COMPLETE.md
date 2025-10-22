@@ -57,7 +57,7 @@ MARRVEL_MCP/
 
 ### Gene Tools (3 tools)
 ✅ `get_gene_by_entrez_id` - Query by NCBI ID
-✅ `get_gene_by_symbol` - Query by gene name + species  
+✅ `get_gene_by_symbol` - Query by gene name + species
 ✅ `get_gene_by_position` - Find gene at chromosomal position
 
 ### Variant Analysis Tools (13 tools)
@@ -112,7 +112,7 @@ MARRVEL_MCP/
 **Comprehensive API reference** with:
 - Detailed description of all 30+ tools
 - Parameter specifications
-- Return value descriptions  
+- Return value descriptions
 - Usage examples for each tool
 - Workflow examples
 - Error handling guide

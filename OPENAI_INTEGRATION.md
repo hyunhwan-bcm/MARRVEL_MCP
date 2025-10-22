@@ -76,10 +76,10 @@ response = openai.ChatCompletion.create(
 if response.choices[0].message.get("function_call"):
     function_name = response.choices[0].message["function_call"]["name"]
     arguments = json.loads(response.choices[0].message["function_call"]["arguments"])
-    
+
     # Execute the function
     result = asyncio.run(call_marrvel_function(function_name, arguments))
-    
+
     # Send result back to OpenAI
     second_response = openai.ChatCompletion.create(
         model="gpt-5",
@@ -212,37 +212,37 @@ async def execute_marrvel_function(function_name: str, arguments: dict) -> dict:
         "get_clinvar_variant": "/clinvar/gene/variant/{variant}",
         "get_omim_by_gene_symbol": "/omim/gene/symbol/{gene_symbol}"
     }
-    
+
     endpoint_template = endpoint_map.get(function_name)
     if not endpoint_template:
         return {"error": f"Unknown function: {function_name}"}
-    
+
     endpoint = endpoint_template.format(**arguments)
     return await fetch_marrvel_data(endpoint)
 
 def chat_with_marrvel(user_message: str):
     """Chat with OpenAI using MARRVEL tools."""
     messages = [{"role": "user", "content": user_message}]
-    
+
     response = openai.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=messages,
         functions=MARRVEL_FUNCTIONS,
         function_call="auto"
     )
-    
+
     response_message = response.choices[0].message
-    
+
     # Check if OpenAI wants to call a function
     if response_message.get("function_call"):
         function_name = response_message["function_call"]["name"]
         arguments = json.loads(response_message["function_call"]["arguments"])
-        
+
         print(f"🔧 Calling {function_name} with {arguments}")
-        
+
         # Execute MARRVEL function
         function_result = asyncio.run(execute_marrvel_function(function_name, arguments))
-        
+
         # Send result back to OpenAI
         messages.append(response_message)
         messages.append({
@@ -250,14 +250,14 @@ def chat_with_marrvel(user_message: str):
             "name": function_name,
             "content": json.dumps(function_result)
         })
-        
+
         second_response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=messages
         )
-        
+
         return second_response.choices[0].message["content"]
-    
+
     return response_message["content"]
 
 # Example usage
@@ -267,7 +267,7 @@ if __name__ == "__main__":
         "Is variant 17-7577121-C-T pathogenic?",
         "What diseases are associated with BRCA1?"
     ]
-    
+
     for query in queries:
         print(f"\n{'='*70}")
         print(f"Q: {query}")
