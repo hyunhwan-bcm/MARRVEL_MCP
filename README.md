@@ -1,5 +1,9 @@
 # MARRVEL-MCP
 
+[![CI](https://github.com/hyunhwan-bcm/MARRVEL_MCP/actions/workflows/ci.yml/badge.svg)](https://github.com/hyunhwan-bcm/MARRVEL_MCP/actions/workflows/ci.yml)
+[![Pre-commit](https://github.com/hyunhwan-bcm/MARRVEL_MCP/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/hyunhwan-bcm/MARRVEL_MCP/actions/workflows/pre-commit.yml)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 A Model Context Protocol (MCP) server for [MARRVEL](https://marrvel.org) (Model organism Aggregated Resources for Rare Variant ExpLoration) genetics research platform.
 
 ## Overview
