@@ -49,6 +49,8 @@ cd MARRVEL_MCP
 pip install -r requirements.txt
 ```
 
+**Note:** If you encounter SSL certificate verification errors, see the [Troubleshooting section in CONTRIBUTING.md](CONTRIBUTING.md#troubleshooting-ssl-certificates).
+
 3. Configure the MCP server in your Claude Desktop or other MCP client configuration file.
 
 For Claude Desktop, add to your configuration file:
