@@ -9,9 +9,6 @@ import httpx
 from src.utils.api_client import fetch_marrvel_data
 from mcp.server.fastmcp import FastMCP
 
-# This will be set by server.py when importing
-mcp = None
-
 
 def register_tools(mcp_instance: FastMCP):
     """
@@ -20,13 +17,10 @@ def register_tools(mcp_instance: FastMCP):
     Args:
         mcp_instance: The FastMCP server instance to register tools with
     """
-    global mcp
-    mcp = mcp_instance
-    
     # Register the tools
-    mcp.tool()(get_omim_by_mim_number)
-    mcp.tool()(get_omim_by_gene_symbol)
-    mcp.tool()(get_omim_variant)
+    mcp_instance.tool()(get_omim_by_mim_number)
+    mcp_instance.tool()(get_omim_by_gene_symbol)
+    mcp_instance.tool()(get_omim_variant)
 
 
 async def get_omim_by_mim_number(mim_number: str) -> str:
