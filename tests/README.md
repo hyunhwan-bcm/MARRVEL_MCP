@@ -155,7 +155,7 @@ from unittest.mock import patch
 @pytest.mark.unit
 class TestMyFeature:
     """Unit tests with mocked dependencies."""
-    
+
     @pytest.mark.asyncio
     async def test_successful_call(self):
         """Test successful API call."""
@@ -222,12 +222,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: pytest -m unit  # Fast, no network needed
-  
+
   integration-tests:
     runs-on: ubuntu-latest
     steps:
       - run: pytest -m integration_api  # Requires network
-  
+
   server-tests:
     runs-on: ubuntu-latest
     steps:
