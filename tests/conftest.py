@@ -56,8 +56,7 @@ def check_network_connectivity() -> bool:
 # Marker for skipping tests when SSL is not properly configured
 skip_if_ssl_broken = pytest.mark.skipif(
     not check_ssl_configuration(),
-    reason="SSL certificates not properly configured. "
-    "Run: pip install --upgrade certifi",
+    reason="SSL certificates not properly configured. " "Run: pip install --upgrade certifi",
 )
 
 # Marker for skipping tests when network is unavailable
