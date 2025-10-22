@@ -10,7 +10,7 @@ import inspect
 import ssl
 import certifi
 from typing import Any
-from config import API_BASE_URL, API_TIMEOUT
+from config import API_BASE_URL, API_TIMEOUT, VERIFY_SSL
 
 
 async def fetch_marrvel_data(endpoint: str) -> dict[str, Any]:
@@ -47,15 +47,24 @@ async def fetch_marrvel_data(endpoint: str) -> dict[str, Any]:
         to mock raise_for_status() and json() as either regular functions
         or coroutines.
 
-        SSL certificate verification uses certifi's CA bundle to ensure
-        compatibility across different platforms (macOS, Linux, Windows).
+        SSL certificate verification:
+        - When VERIFY_SSL=True: uses certifi's CA bundle (production)
+        - When VERIFY_SSL=False: bypasses SSL verification (development/testing only)
+        WARNING: Never disable SSL verification in production!
     """
     url = f"{API_BASE_URL}{endpoint}"
 
-    # Create SSL context with certifi's CA bundle for robust certificate verification
-    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    # Configure SSL verification based on config
+    # For production: use certifi's CA bundle for robust certificate verification
+    # For development/testing: can bypass SSL verification if VERIFY_SSL=False
+    if VERIFY_SSL:
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        verify = ssl_context
+    else:
+        # Bypass SSL verification (for development/testing only)
+        verify = False
 
-    async with httpx.AsyncClient(verify=ssl_context, timeout=API_TIMEOUT) as client:
+    async with httpx.AsyncClient(verify=verify, timeout=API_TIMEOUT) as client:
         response = await client.get(url)
 
         # Some tests may mock raise_for_status/json as async coroutines

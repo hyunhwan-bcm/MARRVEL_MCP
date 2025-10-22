@@ -9,6 +9,11 @@ API_BASE_URL = "https://marrvel.org/data"
 API_TIMEOUT = 30.0  # seconds
 API_MAX_RETRIES = 3
 
+# SSL Configuration
+# Set to False to bypass SSL certificate verification (useful for development/testing)
+# WARNING: Only disable for testing! Never use in production with sensitive data
+VERIFY_SSL = False  # Set to True for production
+
 # Server Configuration
 SERVER_NAME = "MARRVEL"
 SERVER_VERSION = "1.0.0"
