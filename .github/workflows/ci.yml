@@ -32,6 +32,10 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13']
@@ -48,10 +52,115 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest-html pytest-json-report pytest-cov pytest-md pytest-emoji
 
-      - name: Run unit tests
-        run: pytest tests/ -v --tb=short -m "not integration"
+      - name: Run unit tests with coverage
+        run: |
+          pytest tests/ \
+            -v \
+            --tb=short \
+            -m "not integration" \
+            --cov=src \
+            --cov-report=term \
+            --cov-report=html:htmlcov-${{ matrix.python-version }} \
+            --cov-report=xml:coverage-${{ matrix.python-version }}.xml \
+            --html=test-report-unit-${{ matrix.python-version }}.html \
+            --self-contained-html \
+            --json-report \
+            --json-report-file=test-report-unit-${{ matrix.python-version }}.json \
+            --junit-xml=junit-unit-${{ matrix.python-version }}.xml
 
       - name: Run integration tests
-        run: pytest tests/ -v --tb=short -m "integration"
+        run: |
+          pytest tests/ \
+            -v \
+            --tb=short \
+            -m "integration" \
+            --html=test-report-integration-${{ matrix.python-version }}.html \
+            --self-contained-html \
+            --json-report \
+            --json-report-file=test-report-integration-${{ matrix.python-version }}.json \
+            --junit-xml=junit-integration-${{ matrix.python-version }}.xml
         continue-on-error: true  # Integration tests may fail due to API availability
+
+      - name: Upload test reports and API responses
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-py${{ matrix.python-version }}
+          path: |
+            test-report-*.html
+            test-report-*.json
+            junit-*.xml
+            coverage-*.xml
+            htmlcov-${{ matrix.python-version }}/
+            test-output/
+          retention-days: 30
+
+      - name: Upload coverage reports to Codecov
+        if: matrix.python-version == '3.13'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage-${{ matrix.python-version }}.xml
+          flags: unittests
+          name: codecov-py${{ matrix.python-version }}
+          fail_ci_if_error: false
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always() && matrix.python-version == '3.13'
+        with:
+          files: |
+            junit-*.xml
+          check_name: "Test Results (Python ${{ matrix.python-version }})"
+          comment_title: "Test Results (Python ${{ matrix.python-version }})"
+          report_individual_runs: true
+          deduplicate_classes_by_file_name: false
+
+      - name: Create test summary
+        if: always() && matrix.python-version == '3.13'
+        run: |
+          echo "## Test Results Summary 🧪" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Python ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          python3 .github/scripts/generate_test_summary.py \
+            test-report-unit-${{ matrix.python-version }}.json \
+            coverage-${{ matrix.python-version }}.xml >> $GITHUB_STEP_SUMMARY
+
+          # Add API response summary if available
+          if [ -f "test-output/api_responses.md" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## API Response Capture 📡" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat test-output/api_responses.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment API Responses on PR
+        if: always() && matrix.python-version == '3.13' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const apiResponseFile = 'test-output/api_responses.md';
+
+            if (fs.existsSync(apiResponseFile)) {
+              const apiResponses = fs.readFileSync(apiResponseFile, 'utf8');
+
+              // Truncate if too long (GitHub has comment size limits)
+              const maxLength = 65000;
+              let comment = apiResponses;
+              if (comment.length > maxLength) {
+                comment = comment.substring(0, maxLength) + '\n\n... (truncated - see artifacts for full output)';
+              }
+
+              // Post comment
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } else {
+              console.log('No API responses captured');
+            }
