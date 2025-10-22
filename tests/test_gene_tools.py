@@ -263,4 +263,4 @@ class TestGetGeneByPosition:
         result = await get_gene_by_position("chr17", 7577121)
         assert isinstance(result, str)
         # API currently returns [] for position queries, so we just verify it's valid JSON
-        assert result == "[]" or "chr17" in result or "7577121" in result
+        assert result == "[]"
