@@ -10,6 +10,13 @@ A Model Context Protocol (MCP) server for [MARRVEL](https://marrvel.org) (Model 
 
 MARRVEL-MCP provides AI agents with seamless access to comprehensive genetics databases and variant analysis tools through the MCP protocol. This server enables researchers and AI assistants to query gene information, variant data, disease associations, and ortholog information programmatically.
 
+## Documentation
+
+- **[API Reference](docs/API_DOCUMENTATION.md)** - Complete documentation for all 26 MCP tools
+- **[Architecture](docs/ARCHITECTURE.md)** - Technical architecture and design details
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
+- **[OpenAI Integration](examples/openai/README.md)** - Using MARRVEL-MCP with OpenAI
+
 ## Features
 
 - **Gene Information**: Query genes by Entrez ID, symbol, or chromosomal position
