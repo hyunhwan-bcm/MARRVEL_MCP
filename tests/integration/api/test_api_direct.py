@@ -18,7 +18,7 @@ from config import API_BASE_URL as BASE_URL
 
 @pytest.mark.integration_api
 @pytest.mark.asyncio
-async def test_basic_queries():
+async def test_basic_queries(api_capture):
     """Test a few basic MARRVEL API queries."""
     print("\n" + "=" * 70)
     print("MARRVEL API DIRECT TEST")
@@ -26,12 +26,12 @@ async def test_basic_queries():
     print(f"Base URL: {BASE_URL}\n")
 
     tests = [
-        ("Gene by Entrez ID (TP53)", "/gene/entrezId/7157"),
-        ("Gene by Symbol (BRCA1)", "/gene/taxonId/9606/symbol/BRCA1"),
-        ("OMIM for TP53", "/omim/gene/symbol/TP53"),
+        ("Gene by Entrez ID (TP53)", "/gene/entrezId/7157", "get_gene_by_entrez_id"),
+        ("Gene by Symbol (BRCA1)", "/gene/taxonId/9606/symbol/BRCA1", "get_gene_by_symbol"),
+        ("OMIM for TP53", "/omim/gene/symbol/TP53", "get_omim_for_gene_symbol"),
     ]
 
-    for test_name, endpoint in tests:
+    for test_name, endpoint, tool_name in tests:
         print(f"\n{'─'*70}")
         print(f"Test: {test_name}")
         print(f"Endpoint: {endpoint}")
@@ -39,6 +39,15 @@ async def test_basic_queries():
 
         try:
             result = await fetch_marrvel_data(endpoint)
+
+            # Log the API response
+            api_capture.log_response(
+                tool_name=tool_name,
+                endpoint=endpoint,
+                input_data={"test_name": test_name},
+                output_data=result,
+                status="success",
+            )
 
             # Pretty print key information
             if isinstance(result, dict):
@@ -64,6 +73,16 @@ async def test_basic_queries():
             print("✓ SUCCESS")
 
         except Exception as e:
+            # Log errors
+            api_capture.log_response(
+                tool_name=tool_name,
+                endpoint=endpoint,
+                input_data={"test_name": test_name},
+                output_data=None,
+                status="error",
+                error=str(e),
+            )
+
             print(f"❌ ERROR: {e}")
             import traceback
 
