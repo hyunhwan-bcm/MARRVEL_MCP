@@ -105,21 +105,24 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
         "",
         "## Summary Table",
         "",
-        "| Test Name | Tool | Endpoint | Input | Output Preview | Status |",
-        "|-----------|------|----------|-------|----------------|--------|",
+        "| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Status |",
+        "|-----------|------|----------|-------|----------------|---------------|--------|",
     ]
 
     for resp in responses:
-        test_name = resp["test_name"].split("::")[-1][:30]  # Get last part, truncate
-        tool = resp["tool_name"][:20]
-        endpoint = resp["endpoint"][:30]
+        # Show full test name (don't truncate)
+        test_name = resp["test_name"].split("::")[-1]  # Get last part of test path
+        tool = resp["tool_name"]
+        endpoint = resp["endpoint"]
 
         # Format input
         input_str = str(resp["input"])
         if len(input_str) > 40:
             input_str = input_str[:37] + "..."
 
-        # Format output preview
+        # Format output preview - show first bytes of actual data
+        output_preview = ""
+        num_keys = "N/A"
         try:
             output_data = resp["output"]
             if isinstance(output_data, str):
@@ -129,54 +132,36 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
                     pass
 
             if isinstance(output_data, dict):
-                preview = f"{{...}} ({len(output_data)} keys)"
+                num_keys = str(len(output_data))
+                # Show first few bytes of JSON
+                json_str = json.dumps(output_data, ensure_ascii=False)
+                if len(json_str) > 80:
+                    output_preview = json_str[:77] + "..."
+                else:
+                    output_preview = json_str
             elif isinstance(output_data, list):
-                preview = f"[...] ({len(output_data)} items)"
+                num_keys = f"{len(output_data)} items"
+                # Show first few bytes of JSON
+                json_str = json.dumps(output_data, ensure_ascii=False)
+                if len(json_str) > 80:
+                    output_preview = json_str[:77] + "..."
+                else:
+                    output_preview = json_str
+            elif output_data is None:
+                output_preview = "null"
+                num_keys = "0"
             else:
-                preview = str(output_data)[:40]
-        except:
-            preview = "N/A"
+                output_preview = str(output_data)[:80]
+                num_keys = "1"
+        except Exception as e:
+            output_preview = "Error"
+            num_keys = "N/A"
 
         status_icon = "✅" if resp["status"] == "success" else "❌"
 
         lines.append(
-            f"| {test_name} | {tool} | {endpoint} | `{input_str}` | {preview} | {status_icon} |"
+            f"| {test_name} | {tool} | {endpoint} | `{input_str}` | {output_preview} | {num_keys} | {status_icon} |"
         )
-
-    # Add detailed sections
-    lines.extend(["", "## Detailed Responses", ""])
-
-    for i, resp in enumerate(responses, 1):
-        lines.extend(
-            [
-                f"### {i}. {resp['test_name']}",
-                f"- **Tool:** `{resp['tool_name']}`",
-                f"- **Endpoint:** `{resp['endpoint']}`",
-                f"- **Status:** {resp['status']}",
-                f"- **Timestamp:** {resp['timestamp']}",
-                "",
-                "**Input:**",
-                "```json",
-                json.dumps(resp["input"], indent=2),
-                "```",
-                "",
-                "**Output (Full JSON):**",
-                "```json",
-            ]
-        )
-
-        # Format output - show full JSON without truncation
-        output = resp["output"]
-        if isinstance(output, str):
-            try:
-                output = json.loads(output)
-                lines.append(json.dumps(output, indent=2, ensure_ascii=False))
-            except:
-                lines.append(output)
-        else:
-            lines.append(json.dumps(output, indent=2, ensure_ascii=False))
-
-        lines.extend(["```", "", "---", ""])
 
     return "\n".join(lines)
 

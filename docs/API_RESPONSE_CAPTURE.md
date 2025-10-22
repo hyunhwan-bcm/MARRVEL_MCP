@@ -124,25 +124,12 @@ The CI will automatically post a comment on your PR with a table like:
 
 ## Summary Table
 
-| Test Name | Tool | Endpoint | Input | Output Preview | Status |
-|-----------|------|----------|-------|----------------|--------|
-| test_gene_api_with_capture | get_gene_by_entrez_id | /gene/entrezId/7157 | `{"entrez_id": "7157"}` | {...} (15 keys) | ✅ |
-| test_variant_api_with_capture | get_variant_dbnsfp | /variant/dbnsfp/17-7577121-C-T | `{"variant": "17-7577121-C-T"}` | {...} (20 keys) | ✅ |
+| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Status |
+|-----------|------|----------|-------|----------------|---------------|--------|
+| test_gene_api_with_capture | get_gene_by_entrez_id | /gene/entrezId/7157 | `{"entrez_id": "7157"}` | {"symbol": "TP53", "entrezId": "7157", "name": "tumor protein p53"... | 15 | ✅ |
+| test_variant_api_with_capture | get_variant_dbnsfp | /variant/dbnsfp/17-7577121-C-T | `{"variant": "17-7577121-C-T"}` | {"chromosome": "17", "position": 7577121, "ref": "C", "alt": "T"... | 20 | ✅ |
 ...
-
-## Detailed Responses
-
-### 1. test_gene_api_with_capture
-- **Tool:** `get_gene_by_entrez_id`
-- **Endpoint:** `/gene/entrezId/7157`
-- **Status:** success
-- **Timestamp:** 2025-10-22T10:30:45.123Z
-
-**Input:**
-```json
-{
-  "entrez_id": "7157"
-}
+```
 ```
 
 **Output:**
@@ -153,7 +140,6 @@ The CI will automatically post a comment on your PR with a table like:
   "name": "tumor protein p53",
   ...
 }
-```
 ```
 
 #### Option 2: GitHub Actions Summary

@@ -57,12 +57,13 @@ class APIResponseCollector:
             "",
             "## Response Summary Table",
             "",
-            "| Test Name | Tool | Input | Output Preview | Status |",
-            "|-----------|------|-------|----------------|--------|",
+            "| Test Name | Tool | Input | Output Preview | # Output Keys | Status |",
+            "|-----------|------|-------|----------------|---------------|--------|",
         ]
 
         for resp in self.responses:
-            test_name = resp["test_name"][:40]  # Truncate long names
+            # Show full test name (don't truncate)
+            test_name = resp["test_name"]
             tool_name = resp["tool_name"]
 
             # Format input
@@ -70,60 +71,45 @@ class APIResponseCollector:
             if len(input_str) > 50:
                 input_str = input_str[:47] + "..."
 
-            # Format output preview
+            # Format output preview - show first bytes of actual data
+            output_preview = ""
+            num_keys = "N/A"
             try:
                 if isinstance(resp["output"], str):
                     output_data = json.loads(resp["output"])
                 else:
                     output_data = resp["output"]
 
-                # Get first key or truncate
                 if isinstance(output_data, dict):
-                    keys = list(output_data.keys())[:3]
-                    output_preview = f"Keys: {', '.join(keys)}"
+                    num_keys = str(len(output_data))
+                    # Show first few bytes of JSON
+                    json_str = json.dumps(output_data, ensure_ascii=False)
+                    if len(json_str) > 80:
+                        output_preview = json_str[:77] + "..."
+                    else:
+                        output_preview = json_str
                 elif isinstance(output_data, list):
-                    output_preview = f"Array[{len(output_data)}]"
+                    num_keys = f"{len(output_data)} items"
+                    # Show first few bytes of JSON
+                    json_str = json.dumps(output_data, ensure_ascii=False)
+                    if len(json_str) > 80:
+                        output_preview = json_str[:77] + "..."
+                    else:
+                        output_preview = json_str
+                elif output_data is None:
+                    output_preview = "null"
+                    num_keys = "0"
                 else:
-                    output_preview = str(output_data)[:50]
-            except:
-                output_preview = "N/A"
-
-            if len(output_preview) > 50:
-                output_preview = output_preview[:47] + "..."
+                    output_preview = str(output_data)[:80]
+                    num_keys = "1"
+            except Exception:
+                output_preview = "Error"
+                num_keys = "N/A"
 
             status_icon = "✅" if resp["status"] == "success" else "❌"
 
             lines.append(
-                f"| {test_name} | {tool_name} | `{input_str}` | {output_preview} | {status_icon} |"
-            )
-
-        lines.extend(["", "## Detailed Responses", ""])
-
-        # Add detailed sections for each response
-        for i, resp in enumerate(self.responses, 1):
-            lines.extend(
-                [
-                    f"### {i}. {resp['test_name']}",
-                    f"**Tool:** `{resp['tool_name']}`",
-                    f"**Status:** {resp['status']}",
-                    "",
-                    "**Input:**",
-                    "```json",
-                    json.dumps(resp["input"], indent=2),
-                    "```",
-                    "",
-                    "**Output:**",
-                    "```json",
-                    (
-                        json.dumps(resp["output"], indent=2)
-                        if isinstance(resp["output"], (dict, list))
-                        else resp["output"]
-                    ),
-                    "```",
-                    "",
-                    "---",
-                    "",
-                ]
+                f"| {test_name} | {tool_name} | `{input_str}` | {output_preview} | {num_keys} | {status_icon} |"
             )
 
         return "\n".join(lines)
