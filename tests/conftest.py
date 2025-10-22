@@ -160,21 +160,21 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
                 json.dumps(resp["input"], indent=2),
                 "```",
                 "",
-                "**Output:**",
+                "**Output (Full JSON):**",
                 "```json",
             ]
         )
 
-        # Format output
+        # Format output - show full JSON without truncation
         output = resp["output"]
         if isinstance(output, str):
             try:
                 output = json.loads(output)
-                lines.append(json.dumps(output, indent=2))
+                lines.append(json.dumps(output, indent=2, ensure_ascii=False))
             except:
                 lines.append(output)
         else:
-            lines.append(json.dumps(output, indent=2))
+            lines.append(json.dumps(output, indent=2, ensure_ascii=False))
 
         lines.extend(["```", "", "---", ""])
 

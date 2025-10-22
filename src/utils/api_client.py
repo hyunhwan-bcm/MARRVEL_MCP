@@ -7,6 +7,7 @@ It handles requests to the MARRVEL API with proper error handling and timeout ma
 
 import httpx
 import inspect
+import json
 import ssl
 import certifi
 from typing import Any
@@ -73,11 +74,21 @@ async def fetch_marrvel_data(endpoint: str) -> dict[str, Any]:
         if inspect.iscoroutine(rfs):
             await rfs
 
-        data = response.json()
-        if inspect.iscoroutine(data):
-            data = await data
+        # Check if response has content before trying to parse JSON
+        if not response.content:
+            return {"error": "Empty response from API", "status_code": response.status_code}
 
-        return data
+        try:
+            data = response.json()
+            if inspect.iscoroutine(data):
+                data = await data
+            return data
+        except json.JSONDecodeError:
+            return {
+                "error": "Invalid JSON response",
+                "status_code": response.status_code,
+                "content": response.text[:200],  # First 200 chars
+            }
 
 
 # Future enhancements that can be added to this module:
