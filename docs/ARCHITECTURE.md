@@ -159,7 +159,7 @@ convert_protein_variant ─────► /transvar/protein/:protein
 
 ### FastMCP Server (`server.py`)
 - **Framework**: FastMCP (Model Context Protocol)
-- **Language**: Python 3.10+
+- **Language**: Python 3.13
 - **Async Support**: Uses `asyncio` and `httpx` for async HTTP
 - **Tool Decorator**: `@mcp.tool()` registers functions as MCP tools
 - **Error Handling**: Try-catch blocks with descriptive error messages
@@ -271,7 +271,7 @@ logger.error(f"Error: {error_message}")
 
 ## Version Compatibility
 
-- **Python**: 3.10+
+- **Python**: 3.13
 - **FastMCP**: 0.3.0+
 - **httpx**: 0.27.0+
 - **MARRVEL API**: v2

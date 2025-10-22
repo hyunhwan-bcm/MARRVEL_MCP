@@ -5,7 +5,7 @@
 MARRVEL-MCP is a Model Context Protocol (MCP) server that provides AI assistants with access to the MARRVEL (Model organism Aggregated Resources for Rare Variant ExpLoration) genomics database. The project consists of 30+ MCP tools for querying genes, variants, diseases, orthologs, and expression data.
 
 **Base Technologies:**
-- Python 3.10+
+- Python 3.13
 - FastMCP framework
 - httpx for async HTTP requests
 - pytest for testing
