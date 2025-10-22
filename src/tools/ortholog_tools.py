@@ -11,18 +11,12 @@ orthologs with high confidence across model organisms.
 import httpx
 from src.utils.api_client import fetch_marrvel_data
 
-# MCP instance will be set by server.py
-mcp = None
-
 
 def register_tools(mcp_instance):
     """Register all ortholog tools with the MCP server."""
-    global mcp
-    mcp = mcp_instance
-    
     # Register tools
-    mcp.tool()(get_diopt_orthologs)
-    mcp.tool()(get_diopt_alignment)
+    mcp_instance.tool()(get_diopt_orthologs)
+    mcp_instance.tool()(get_diopt_alignment)
 
 
 # ============================================================================

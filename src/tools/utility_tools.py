@@ -12,18 +12,12 @@ Includes:
 import httpx
 from src.utils.api_client import fetch_marrvel_data
 
-# MCP instance will be set by server.py
-mcp = None
-
 
 def register_tools(mcp_instance):
     """Register all utility tools with the MCP server."""
-    global mcp
-    mcp = mcp_instance
-    
     # Register tools
-    mcp.tool()(validate_hgvs_variant)
-    mcp.tool()(convert_protein_variant)
+    mcp_instance.tool()(validate_hgvs_variant)
+    mcp_instance.tool()(convert_protein_variant)
 
 
 # ============================================================================

@@ -13,19 +13,13 @@ Includes:
 import httpx
 from src.utils.api_client import fetch_marrvel_data
 
-# MCP instance will be set by server.py
-mcp = None
-
 
 def register_tools(mcp_instance):
     """Register all expression tools with the MCP server."""
-    global mcp
-    mcp = mcp_instance
-    
     # Register tools
-    mcp.tool()(get_gtex_expression)
-    mcp.tool()(get_ortholog_expression)
-    mcp.tool()(get_pharos_targets)
+    mcp_instance.tool()(get_gtex_expression)
+    mcp_instance.tool()(get_ortholog_expression)
+    mcp_instance.tool()(get_pharos_targets)
 
 
 # ============================================================================
