@@ -23,12 +23,20 @@ def mcp_server():
     Pytest fixture that starts MCP server and yields the process.
     Automatically cleans up on teardown.
     """
-    # Get the Python executable from the virtual environment
-    python_path = Path(__file__).parent.parent / ".venv" / "bin" / "python"
-    if not python_path.exists():
-        python_path = Path(sys.executable)
+    # Resolve repository root by searching upwards for server.py
+    repo_root = None
+    for p in Path(__file__).resolve().parents:
+        candidate = p / "server.py"
+        if candidate.exists():
+            repo_root = p
+            break
+    if repo_root is None:
+        pytest.fail("Could not locate repo root containing server.py")
 
-    server_path = Path(__file__).parent.parent / "server.py"
+    # Use the current Python executable (typically the project's venv)
+    python_path = Path(sys.executable)
+
+    server_path = repo_root / "server.py"
 
     # Start server as subprocess with stdio pipes
     process = subprocess.Popen(
