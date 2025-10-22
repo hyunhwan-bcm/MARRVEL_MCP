@@ -16,7 +16,7 @@ from mcp.server.fastmcp import FastMCP
 from src.utils.api_client import fetch_marrvel_data
 
 # Import tool modules
-from src.tools import gene_tools, variant_tools, disease_tools
+from src.tools import gene_tools, variant_tools, disease_tools, ortholog_tools
 
 # Initialize FastMCP server
 mcp = FastMCP("MARRVEL")
@@ -25,6 +25,7 @@ mcp = FastMCP("MARRVEL")
 gene_tools.register_tools(mcp)
 variant_tools.register_tools(mcp)
 disease_tools.register_tools(mcp)
+ortholog_tools.register_tools(mcp)
 
 
 # ============================================================================
@@ -49,7 +50,6 @@ disease_tools.register_tools(mcp)
 
 
 # ============================================================================
-# ============================================================================
 # DISEASE TOOLS (OMIM) - Now imported from src.tools.disease_tools
 # ============================================================================
 # The following disease tools are now registered from the disease_tools module:
@@ -59,64 +59,11 @@ disease_tools.register_tools(mcp)
 
 
 # ============================================================================
-# ORTHOLOG TOOLS (DIOPT)
+# ORTHOLOG TOOLS (DIOPT) - Now imported from src.tools.ortholog_tools
 # ============================================================================
-
-@mcp.tool()
-async def get_diopt_orthologs(entrez_id: str) -> str:
-    """
-    Find orthologs across model organisms using DIOPT.
-    
-    DIOPT (DRSC Integrative Ortholog Prediction Tool) integrates multiple
-    ortholog prediction algorithms to identify orthologs with high confidence.
-    
-    Args:
-        entrez_id: Human gene Entrez ID
-        
-    Returns:
-        JSON string with ortholog predictions:
-        - Orthologs in multiple species (Mouse, Rat, Zebrafish, Fly, Worm, Yeast)
-        - DIOPT confidence scores
-        - Number of supporting algorithms
-        - Gene symbols in each species
-        
-    Example:
-        get_diopt_orthologs("7157")  # TP53 orthologs
-        get_diopt_orthologs("672")   # BRCA1 orthologs
-    """
-    try:
-        data = await fetch_marrvel_data(f"/diopt/ortholog/gene/entrezId/{entrez_id}")
-        return str(data)
-    except httpx.HTTPError as e:
-        return f"Error fetching DIOPT data: {str(e)}"
-
-
-@mcp.tool()
-async def get_diopt_alignment(entrez_id: str) -> str:
-    """
-    Get protein sequence alignments for orthologs.
-    
-    Provides multiple sequence alignment of protein sequences across species
-    to visualize conservation patterns.
-    
-    Args:
-        entrez_id: Human gene Entrez ID
-        
-    Returns:
-        JSON string with sequence alignment data:
-        - Aligned protein sequences
-        - Conservation patterns
-        - Protein domain information
-        
-    Example:
-        get_diopt_alignment("7157")  # TP53 alignment
-        get_diopt_alignment("672")   # BRCA1 alignment
-    """
-    try:
-        data = await fetch_marrvel_data(f"/diopt/alignment/gene/entrezId/{entrez_id}")
-        return str(data)
-    except httpx.HTTPError as e:
-        return f"Error fetching DIOPT alignment data: {str(e)}"
+# The following ortholog tools are now registered from the ortholog_tools module:
+# - get_diopt_orthologs
+# - get_diopt_alignment
 
 
 # ============================================================================
