@@ -1,27 +1,13 @@
 """
-Unit tests for MARRVEL-MCP server.
+Unit tests for MARRVEL-MCP server utilities and tool scaffolding.
 
-Run with: pytest tests/test_server.py
+Run with: pytest tests/unit/test_server_unit.py
 """
 
 import pytest
-
-# This file has been split into separate unit and integration test modules.
-# It is skipped to avoid duplicate collection. See:
-#  - tests/unit/test_server_unit.py
-#  - tests/integration/api/test_server_api_integration.py
-pytestmark = pytest.mark.skip(
-    reason="Split into unit/integration files; see tests/unit and tests/integration/api"
-)
 from unittest.mock import AsyncMock, patch
-import sys
-import os
-
-# Add parent directory to path to import server
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.utils.api_client import fetch_marrvel_data
-from config import API_BASE_URL as BASE_URL
 
 
 @pytest.mark.unit
@@ -58,13 +44,11 @@ class TestFetchMarrvelData:
 
 @pytest.mark.unit
 class TestGeneTools:
-    """Test gene-related tools."""
+    """Test gene-related tools (placeholder scaffolding)."""
 
     @pytest.mark.asyncio
     async def test_get_gene_by_entrez_id(self):
         """Test getting gene by Entrez ID."""
-        # This would test the actual tool function
-        # Implementation depends on how you want to structure tests
         pass
 
     @pytest.mark.asyncio
@@ -75,7 +59,7 @@ class TestGeneTools:
 
 @pytest.mark.unit
 class TestVariantTools:
-    """Test variant analysis tools."""
+    """Test variant analysis tools (placeholder scaffolding)."""
 
     @pytest.mark.asyncio
     async def test_get_variant_dbnsfp(self):
@@ -90,7 +74,7 @@ class TestVariantTools:
 
 @pytest.mark.unit
 class TestOMIMTools:
-    """Test OMIM disease tools."""
+    """Test OMIM disease tools (placeholder scaffolding)."""
 
     @pytest.mark.asyncio
     async def test_get_omim_by_mim_number(self):
@@ -100,7 +84,7 @@ class TestOMIMTools:
 
 @pytest.mark.unit
 class TestDIOPTTools:
-    """Test DIOPT ortholog tools."""
+    """Test DIOPT ortholog tools (placeholder scaffolding)."""
 
     @pytest.mark.asyncio
     async def test_get_diopt_orthologs(self):
@@ -110,7 +94,7 @@ class TestDIOPTTools:
 
 @pytest.mark.unit
 class TestExpressionTools:
-    """Test expression data tools."""
+    """Test expression data tools (placeholder scaffolding)."""
 
     @pytest.mark.asyncio
     async def test_get_gtex_expression(self):
@@ -120,38 +104,9 @@ class TestExpressionTools:
 
 @pytest.mark.unit
 class TestUtilityTools:
-    """Test utility tools."""
+    """Test utility tools (placeholder scaffolding)."""
 
     @pytest.mark.asyncio
     async def test_validate_hgvs_variant(self):
         """Test HGVS variant validation."""
         pass
-
-
-# Integration tests (require actual API access)
-class TestIntegration:
-    """
-    Integration tests that make real API calls.
-    Skip these in CI/CD by using pytest markers.
-    """
-
-    @pytest.mark.integration
-    @pytest.mark.integration_api
-    @pytest.mark.asyncio
-    async def test_real_gene_query(self):
-        """Test real API call for TP53."""
-        result = await fetch_marrvel_data("/gene/entrezId/7157")
-        assert result is not None
-        # Add more specific assertions based on expected response
-
-    @pytest.mark.integration
-    @pytest.mark.integration_api
-    @pytest.mark.asyncio
-    async def test_real_variant_query(self):
-        """Test real API call for a variant."""
-        # Example with a real variant
-        pass
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
