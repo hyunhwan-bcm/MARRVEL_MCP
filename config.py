@@ -5,7 +5,7 @@ You can customize server settings here.
 """
 
 # API Configuration
-API_BASE_URL = "http://api.marrvel.org/data"
+API_BASE_URL = "https://marrvel.org/data"
 API_TIMEOUT = 30.0  # seconds
 API_MAX_RETRIES = 3
 

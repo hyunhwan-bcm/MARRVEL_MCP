@@ -47,7 +47,7 @@ async def fetch_marrvel_data(endpoint: str) -> dict[str, Any]:
     """
     url = f"{API_BASE_URL}{endpoint}"
     
-    async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=False) as client:
         response = await client.get(url)
         
         # Some tests may mock raise_for_status/json as async coroutines
