@@ -50,8 +50,12 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run unit tests
-        run: pytest tests/ -v --tb=short -m "not integration"
+        run: pytest tests/ -v --tb=short -m "unit and not integration_api"
 
-      - name: Run integration tests
-        run: pytest tests/ -v --tb=short -m "integration"
+      - name: Run API integration tests
+        run: pytest tests/ -v --tb=short -m "integration_api"
         continue-on-error: true  # Integration tests may fail due to API availability
+      
+      - name: Run MCP server integration tests
+        run: pytest tests/ -v --tb=short -m "integration_mcp"
+        continue-on-error: true  # Integration tests may fail due to server startup

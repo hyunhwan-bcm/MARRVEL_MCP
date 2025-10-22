@@ -46,7 +46,10 @@ Thank you for your interest in contributing to MARRVEL-MCP! This document provid
    # Install pre-commit hooks
    pre-commit install
 
-   # Run tests
+   # Run fast unit tests (recommended during development)
+   pytest -m "unit and not integration_api" -v
+
+   # Run all tests
    pytest tests/ -v
 
    # Run pre-commit checks
@@ -76,7 +79,8 @@ Thank you for your interest in contributing to MARRVEL-MCP! This document provid
    **Important:** Your PR must pass all CI checks:
    - ✅ Pre-commit hooks (Black formatting, trailing whitespace, etc.)
    - ✅ Unit tests across Python 3.10-3.13
-   - ✅ Integration tests (may be skipped if API is unavailable)
+   - ✅ API integration tests (may be skipped if API is unavailable)
+   - ✅ MCP server integration tests (may be skipped due to environment)
 
 ## Code Quality & CI
 
@@ -170,8 +174,10 @@ When adding new MCP tools:
    - Provide usage examples
 
 3. **Add tests**
-   - Create unit test in `tests/test_server.py`
-   - Create integration test (marked with `@pytest.mark.integration`)
+   - Create unit tests with `@pytest.mark.unit` in appropriate test file
+   - Mock API responses for fast testing
+   - Add integration test with `@pytest.mark.integration_api` for real API validation
+   - Test both success and error cases
 
 4. **Update examples**
    - Add example queries to `examples/example_queries.py`
@@ -183,25 +189,111 @@ When adding new MCP tools:
 
 ## Testing Guidelines
 
-### Unit Tests
+### Test Categories
 
-- Test each tool function independently
-- Mock API responses
-- Test error handling
-- Test input validation
+Tests are organized by type using pytest markers:
 
-### Integration Tests
+1. **Unit Tests** (`@pytest.mark.unit`)
+   - Fast, mock-based tests
+   - No network access required
+   - Test individual functions in isolation
+   - Run in < 1 second
 
-- Test with real API calls
-- Mark with `@pytest.mark.integration`
-- Can be skipped in CI/CD
+2. **API Integration Tests** (`@pytest.mark.integration_api`)
+   - Test with real MARRVEL API calls
+   - Require network connectivity
+   - Validate actual API responses
+   - May be slower depending on network
 
-### Manual Testing
+3. **MCP Server Integration Tests** (`@pytest.mark.integration_mcp`)
+   - Test full MCP server lifecycle
+   - Require server startup
+   - Most comprehensive testing
+   - Slowest category
 
-- Test with Claude Desktop or another MCP client
-- Try various query types
-- Test edge cases
-- Verify error messages are helpful
+### Writing Tests
+
+#### Unit Tests
+
+Create mock-based tests for individual functions:
+
+```python
+import pytest
+from unittest.mock import patch
+
+@pytest.mark.unit
+class TestMyTool:
+    @pytest.mark.asyncio
+    async def test_successful_query(self):
+        """Test successful API query with mocked response."""
+        with patch("src.utils.api_client.fetch_marrvel_data") as mock_fetch:
+            mock_fetch.return_value = {"gene": "TP53"}
+            result = await my_tool_function("7157")
+            assert "TP53" in result
+            mock_fetch.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_error_handling(self):
+        """Test error handling with mocked exception."""
+        with patch("src.utils.api_client.fetch_marrvel_data") as mock_fetch:
+            mock_fetch.side_effect = Exception("API Error")
+            result = await my_tool_function("invalid")
+            assert "Error" in result
+```
+
+#### Integration Tests
+
+Create tests that call real APIs (within the same test class):
+
+```python
+@pytest.mark.unit  # Class is marked as unit
+class TestMyTool:
+    # ... mock-based tests above ...
+    
+    @pytest.mark.integration_api  # But this specific test calls real API
+    @pytest.mark.asyncio
+    async def test_real_api_query(self):
+        """Integration test with real API call."""
+        result = await my_tool_function("7157")  # No mocking
+        assert isinstance(result, str)
+        assert "TP53" in result
+```
+
+### Running Tests
+
+```bash
+# Fast feedback during development (< 1 second)
+pytest -m "unit and not integration_api"
+
+# Run all unit tests
+pytest -m unit
+
+# Run API integration tests only
+pytest -m integration_api
+
+# Run MCP server tests only
+pytest -m integration_mcp
+
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_gene_tools.py
+
+# Run specific test
+pytest tests/test_gene_tools.py::TestGetGeneByEntrezId::test_successful_query
+```
+
+### Test Coverage
+
+Aim for:
+- All new functions should have unit tests
+- Critical paths should have integration tests
+- Error cases should be tested
+- Edge cases should be covered
 
 ## Commit Message Guidelines
 
@@ -325,10 +417,13 @@ Integration tests require network access to the MARRVEL API. If you're working
 offline or SSL certificates cannot be fixed, you can skip integration tests:
 
 ```bash
-# Run only unit tests (skip integration tests)
-pytest -m "not integration"
+# Run only unit tests (skip all integration tests)
+pytest -m "unit and not integration_api"
 
-# This will run all tests except those marked with @pytest.mark.integration
+# Skip both API and MCP integration tests
+pytest -m "not integration_api and not integration_mcp"
+
+# This will run fast mock-based tests only
 ```
 
 The CI/CD pipeline will still run all tests, including integration tests,
