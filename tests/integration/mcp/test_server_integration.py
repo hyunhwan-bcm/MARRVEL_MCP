@@ -97,6 +97,7 @@ def send_request(process, method: str, params: dict | None = None, timeout: int 
 
 
 @pytest.mark.integration
+@pytest.mark.integration_mcp
 def test_server_starts(mcp_server):
     """Test that the server starts successfully."""
     assert mcp_server is not None
@@ -104,6 +105,7 @@ def test_server_starts(mcp_server):
 
 
 @pytest.mark.integration
+@pytest.mark.integration_mcp
 def test_server_initialize(mcp_server):
     """Test server initialization via JSON-RPC."""
     response = send_request(
@@ -124,6 +126,7 @@ def test_server_initialize(mcp_server):
 
 
 @pytest.mark.integration
+@pytest.mark.integration_mcp
 def test_server_list_tools(mcp_server):
     """Test listing available tools."""
     # First initialize
@@ -147,6 +150,7 @@ def test_server_list_tools(mcp_server):
 
 
 @pytest.mark.integration
+@pytest.mark.integration_mcp
 def test_server_call_tool(mcp_server):
     """Test calling a tool (get_gene_info)."""
     # First initialize
@@ -178,6 +182,7 @@ def test_server_call_tool(mcp_server):
 
 
 @pytest.mark.integration
+@pytest.mark.integration_mcp
 def test_server_graceful_shutdown(mcp_server):
     """Test that server can be gracefully shut down."""
     assert mcp_server.poll() is None, "Server should be running"
@@ -198,6 +203,7 @@ def test_server_graceful_shutdown(mcp_server):
 
 
 @pytest.mark.integration
+@pytest.mark.integration_mcp
 def test_server_protocol_compliance(mcp_server):
     """Test that all responses follow JSON-RPC 2.0 protocol."""
     test_requests = [

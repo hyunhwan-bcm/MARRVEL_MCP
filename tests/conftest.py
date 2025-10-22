@@ -3,7 +3,7 @@ Pytest configuration and fixtures for MARRVEL-MCP tests.
 
 This module provides:
 - SSL certificate verification check for integration tests
-- Custom pytest markers
+- Custom pytest markers for test categorization
 - Shared fixtures
 """
 
@@ -11,6 +11,21 @@ import pytest
 import ssl
 import certifi
 import httpx
+
+
+def pytest_configure(config):
+    """Configure custom pytest markers for test categorization."""
+    config.addinivalue_line(
+        "markers", "unit: Unit tests with mocked dependencies (fast, no network)"
+    )
+    config.addinivalue_line(
+        "markers",
+        "integration_api: Integration tests that call real MARRVEL API (requires network)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "integration_mcp: Integration tests that run MCP server (requires server startup)",
+    )
 
 
 def check_ssl_configuration() -> bool:
