@@ -22,7 +22,7 @@ class TestFetchMarrvelData:
     @pytest.mark.asyncio
     async def test_successful_fetch(self):
         """Test successful API request with valid response."""
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch('src.utils.api_client.httpx.AsyncClient') as mock_client:
             # Setup mock response
             mock_response = AsyncMock()
             mock_response.json.return_value = {"gene": "TP53", "entrezId": "7157"}
@@ -41,7 +41,7 @@ class TestFetchMarrvelData:
     @pytest.mark.asyncio
     async def test_fetch_with_http_error(self):
         """Test error handling when API returns HTTP error status."""
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch('src.utils.api_client.httpx.AsyncClient') as mock_client:
             # Setup mock response with error
             mock_response = AsyncMock()
             mock_response.raise_for_status.side_effect = Exception("404 Not Found")
@@ -58,7 +58,7 @@ class TestFetchMarrvelData:
     @pytest.mark.asyncio
     async def test_fetch_builds_correct_url(self):
         """Test that the function builds the correct URL from base URL and endpoint."""
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch('src.utils.api_client.httpx.AsyncClient') as mock_client:
             # Setup mock
             mock_response = AsyncMock()
             mock_response.json.return_value = {}
@@ -77,7 +77,7 @@ class TestFetchMarrvelData:
     @pytest.mark.asyncio
     async def test_fetch_with_complex_data(self):
         """Test fetching complex nested data structures."""
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch('src.utils.api_client.httpx.AsyncClient') as mock_client:
             # Setup mock with complex response
             complex_data = {
                 "gene": {
