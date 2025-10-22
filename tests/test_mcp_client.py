@@ -7,16 +7,15 @@ Claude Desktop. Useful for testing with OpenAI or other LLM integrations.
 
 import asyncio
 import pytest
-from server import (
-    get_gene_by_entrez_id,
-    get_gene_by_symbol,
+from src.tools.gene_tools import get_gene_by_entrez_id, get_gene_by_symbol
+from src.tools.variant_tools import (
     get_variant_dbnsfp,
     get_clinvar_by_variant,
-    get_gnomad_variant,
-    get_omim_by_gene_symbol,
-    get_diopt_orthologs,
-    get_gtex_expression
+    get_gnomad_variant
 )
+from src.tools.disease_tools import get_omim_by_gene_symbol
+from src.tools.ortholog_tools import get_diopt_orthologs
+from src.tools.expression_tools import get_gtex_expression
 
 
 @pytest.mark.asyncio

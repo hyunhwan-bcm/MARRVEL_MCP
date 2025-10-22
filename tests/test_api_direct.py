@@ -11,8 +11,9 @@ import pytest
 
 sys.path.insert(0, '/Users/hyun-hwanjeong/Workspaces/MARRVEL_MCP')
 
-# Import the fetch function and BASE_URL directly
-from server import fetch_marrvel_data, BASE_URL
+# Import the fetch function and BASE_URL from their new locations
+from src.utils.api_client import fetch_marrvel_data
+from config import API_BASE_URL as BASE_URL
 
 
 @pytest.mark.asyncio
