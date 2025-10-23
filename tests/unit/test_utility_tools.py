@@ -326,3 +326,268 @@ class TestConvertProteinVariantIntegration:
         result = await convert_protein_variant("NP_000537.3:p.Arg72Pro")
         assert result is not None
         assert len(result) > 0
+
+
+# ============================================================================
+# rsID Converter Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestConvertRsidToVariant:
+    """Test the convert_rsid_to_variant function."""
+
+    @pytest.mark.asyncio
+    async def test_convert_rsid_with_prefix(self):
+        """Test conversion of rsID with 'rs' prefix."""
+        # Import at test level to avoid circular imports
+        from src.tools.utility_tools import convert_rsid_to_variant
+        from unittest.mock import MagicMock
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Setup mock response for rs12345
+            mock_response = MagicMock()
+            mock_response.json = MagicMock(
+                return_value=[
+                    1,  # total count
+                    ["rs12345"],  # rsid list
+                    {  # field data
+                        "37.chr": ["22"],
+                        "37.pos": ["25459491"],
+                        "37.alleles": ["G/A"],
+                        "37.gene": ["CRYBB2P1"],
+                    },
+                    [["rs12345", "22", "25459491", "G/A", "CRYBB2P1"]],  # display strings
+                ]
+            )
+            mock_response.raise_for_status = MagicMock()
+
+            # Setup mock client
+            mock_client = AsyncMock()
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            # Execute test
+            result = await convert_rsid_to_variant("rs12345")
+
+            # Verify results
+            import json
+
+            result_data = json.loads(result)
+            assert result_data["rsid"] == "rs12345"
+            assert result_data["variant"] == "22-25459491-G-A"
+            assert result_data["chr"] == "22"
+            assert result_data["pos"] == "25459491"
+            assert result_data["ref"] == "G"
+            assert result_data["alt"] == "A"
+            assert result_data["assembly"] == "GRCh37"
+
+    @pytest.mark.asyncio
+    async def test_convert_rsid_without_prefix(self):
+        """Test conversion of rsID without 'rs' prefix."""
+        from src.tools.utility_tools import convert_rsid_to_variant
+        from unittest.mock import MagicMock
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Setup mock response for rs429358
+            mock_response = MagicMock()
+            mock_response.json = MagicMock(
+                return_value=[
+                    1,
+                    ["rs429358"],
+                    {
+                        "37.chr": ["19"],
+                        "37.pos": ["45411941"],
+                        "37.alleles": ["T/C"],
+                        "37.gene": ["APOE"],
+                    },
+                    [["rs429358", "19", "45411941", "T/C", "APOE"]],
+                ]
+            )
+            mock_response.raise_for_status = MagicMock()
+
+            mock_client = AsyncMock()
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            # Execute test with numeric rsID
+            result = await convert_rsid_to_variant("429358")
+
+            # Verify results
+            import json
+
+            result_data = json.loads(result)
+            assert result_data["rsid"] == "rs429358"
+            assert result_data["variant"] == "19-45411941-T-C"
+
+    @pytest.mark.asyncio
+    async def test_convert_rsid_multiallelic(self):
+        """Test conversion of rsID with multiple alleles (takes first)."""
+        from src.tools.utility_tools import convert_rsid_to_variant
+        from unittest.mock import MagicMock
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Setup mock response with multiple alleles
+            mock_response = MagicMock()
+            mock_response.json = MagicMock(
+                return_value=[
+                    1,
+                    ["rs12345"],
+                    {
+                        "37.chr": ["22"],
+                        "37.pos": ["25459491"],
+                        "37.alleles": ["G/A, G/C"],  # Multiple alleles
+                        "37.gene": ["CRYBB2P1"],
+                    },
+                    [["rs12345", "22", "25459491", "G/A, G/C", "CRYBB2P1"]],
+                ]
+            )
+            mock_response.raise_for_status = MagicMock()
+
+            mock_client = AsyncMock()
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            # Execute test
+            result = await convert_rsid_to_variant("rs12345")
+
+            # Verify results - should use first allele pair (G/A)
+            import json
+
+            result_data = json.loads(result)
+            assert result_data["variant"] == "22-25459491-G-A"
+            assert result_data["alleles"] == "G/A, G/C"  # Original preserved
+
+    @pytest.mark.asyncio
+    async def test_convert_rsid_not_found(self):
+        """Test handling of non-existent rsID."""
+        from src.tools.utility_tools import convert_rsid_to_variant
+        from unittest.mock import MagicMock
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Setup mock response with no results
+            mock_response = MagicMock()
+            mock_response.json = MagicMock(return_value=[0, [], {}, []])
+            mock_response.raise_for_status = MagicMock()
+
+            mock_client = AsyncMock()
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            # Execute test
+            result = await convert_rsid_to_variant("rs99999999999")
+
+            # Verify error handling
+            import json
+
+            result_data = json.loads(result)
+            assert "error" in result_data
+            assert "not found" in result_data["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_convert_rsid_api_error(self):
+        """Test handling of API errors."""
+        from src.tools.utility_tools import convert_rsid_to_variant
+        from unittest.mock import MagicMock
+        import httpx
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Setup mock to raise HTTP error
+            mock_response = MagicMock()
+            mock_response.status_code = 500
+
+            def raise_status():
+                raise httpx.HTTPStatusError(
+                    "Server Error", request=MagicMock(), response=mock_response
+                )
+
+            mock_response.raise_for_status = raise_status
+
+            mock_client = AsyncMock()
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            # Execute test
+            result = await convert_rsid_to_variant("rs12345")
+
+            # Verify error handling
+            import json
+
+            result_data = json.loads(result)
+            assert "error" in result_data
+            assert "API error" in result_data["error"]
+
+    @pytest.mark.asyncio
+    async def test_convert_rsid_timeout(self):
+        """Test handling of timeout errors."""
+        from src.tools.utility_tools import convert_rsid_to_variant
+        import httpx
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Setup mock to raise timeout
+            mock_client = AsyncMock()
+            mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("Request timeout"))
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            # Execute test
+            result = await convert_rsid_to_variant("rs12345")
+
+            # Verify error handling
+            import json
+
+            result_data = json.loads(result)
+            assert "error" in result_data
+            assert "timeout" in result_data["error"].lower()
+
+
+# ============================================================================
+# rsID Converter Integration Tests
+# ============================================================================
+
+
+@pytest.mark.integration
+class TestConvertRsidToVariantIntegration:
+    """Integration tests for convert_rsid_to_variant with real NLM API."""
+
+    @pytest.mark.asyncio
+    async def test_real_convert_rs12345(self):
+        """Test real API call for rs12345."""
+        from src.tools.utility_tools import convert_rsid_to_variant
+        import json
+
+        result = await convert_rsid_to_variant("rs12345")
+        assert result is not None
+
+        result_data = json.loads(result)
+        assert "rsid" in result_data
+        assert result_data["rsid"] == "rs12345"
+        assert "variant" in result_data
+        assert "chr" in result_data
+        assert "pos" in result_data
+        assert result_data["assembly"] == "GRCh37"
+
+    @pytest.mark.asyncio
+    async def test_real_convert_apoe_variant(self):
+        """Test real API call for APOE rs429358."""
+        from src.tools.utility_tools import convert_rsid_to_variant
+        import json
+
+        result = await convert_rsid_to_variant("429358")
+        assert result is not None
+
+        result_data = json.loads(result)
+        assert result_data["rsid"] == "rs429358"
+        assert "19" in result_data["variant"]  # APOE is on chr19
+        # Note: Gene field may be null/empty in the API response

@@ -543,6 +543,81 @@ Convert protein-level variants to genomic coordinates using Transvar.
 
 ---
 
+### `convert_rsid_to_variant`
+
+Convert rsID (dbSNP reference SNP identifier) to MARRVEL variant format using NLM Clinical Tables SNP API.
+
+**Parameters:**
+- `rsid` (string, required): dbSNP reference SNP ID, with or without "rs" prefix
+  - Examples: "rs12345", "429358", "rs7412"
+
+**Returns:**
+JSON string with variant conversion results:
+- `rsid`: The original rsID (normalized with "rs" prefix)
+- `variant`: MARRVEL format (chromosome-position-ref-alt)
+- `chr`: Chromosome number
+- `pos`: Position on chromosome (GRCh37/hg19)
+- `ref`: Reference allele
+- `alt`: Alternate allele
+- `alleles`: All alleles at this position
+- `gene`: Associated gene symbols (may be empty)
+- `assembly`: Genome assembly (GRCh37)
+
+**Example Usage:**
+```
+"Convert rs12345 to MARRVEL variant format"
+"What's the genomic position of rs429358?"
+"Get variant coordinates for rsID 7412"
+"Look up rs334 variant details"
+```
+
+**Example Response:**
+```json
+{
+  "rsid": "rs12345",
+  "variant": "22-25459491-G-A",
+  "chr": "22",
+  "pos": "25459491",
+  "ref": "G",
+  "alt": "A",
+  "alleles": "G/A",
+  "gene": "CRYBB2P1",
+  "assembly": "GRCh37"
+}
+```
+
+**API Endpoint:** `GET https://clinicaltables.nlm.nih.gov/api/snps/v3/search`
+
+**Notes:**
+- Uses GRCh37 (hg19) coordinates to match MARRVEL API requirements
+- Handles SNPs on autosomes, X, Y, and MT chromosomes
+- For multi-allelic sites, returns the first alternate allele
+- The returned `variant` field can be directly used with other MARRVEL variant tools:
+  - `get_variant_dbnsfp`
+  - `get_clinvar_by_variant`
+  - `get_gnomad_variant`
+  - `get_dgv_variant`
+  - `get_decipher_variant`
+  - `get_geno2mp_variant`
+
+**Use Cases:**
+1. Convert rsID to query ClinVar:
+   ```
+   "Convert rs7412 to variant format, then look up in ClinVar"
+   ```
+
+2. Get population frequencies:
+   ```
+   "What's the gnomAD frequency for rs429358?"
+   ```
+
+3. Check functional predictions:
+   ```
+   "Get dbNSFP annotations for rs334"
+   ```
+
+---
+
 ## Data Format Reference
 
 ### Variant Formats
