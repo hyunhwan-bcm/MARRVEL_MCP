@@ -261,11 +261,102 @@ Agent workflow:
 """
 
 # ============================================================================
+# PUBMED LITERATURE SEARCH
+# ============================================================================
+
+"""
+Example 18: Search PubMed for gene-related literature
+------------------------------------------------------
+User: "Find recent publications about TP53 and cancer"
+Agent uses: search_pubmed("TP53 cancer", max_results=10)
+
+User: "What are the latest studies on BRCA1 mutations?"
+Agent uses: search_pubmed("BRCA1 mutation", max_results=20)
+
+User: "Search for literature on Alzheimer's disease genetics"
+Agent uses: search_pubmed("Alzheimer's disease genetics", max_results=50)
+"""
+
+"""
+Example 19: Retrieve specific PubMed articles
+----------------------------------------------
+User: "Get details for PubMed article 32601318"
+Agent uses: get_pubmed_article("32601318")
+
+User: "Show me the abstract for PMID 28887537"
+Agent uses: get_pubmed_article("28887537")
+"""
+
+"""
+Example 20: Comprehensive literature review workflow
+-----------------------------------------------------
+User: "What does the literature say about TP53 R175H mutation?"
+Agent workflow:
+  1. search_pubmed("TP53 R175H", max_results=25)
+  2. Reviews article titles and abstracts
+  3. For key articles, uses get_pubmed_article(pmid)
+  4. Summarizes findings across publications
+
+User: "Find treatment options for BRCA1-related breast cancer"
+Agent workflow:
+  1. search_pubmed("BRCA1 breast cancer treatment", max_results=30)
+  2. Filters for clinical trials and treatment studies
+  3. Summarizes therapeutic approaches
+"""
+
+"""
+Example 21: Combined genetic analysis with literature review
+-------------------------------------------------------------
+User: "Tell me everything about variant chr17:7577121C>T"
+Agent comprehensive workflow:
+  1. get_variant_dbnsfp("17-7577121-C-T")      # Functional analysis
+  2. get_clinvar_by_variant("17-7577121-C-T")  # Clinical significance
+  3. get_gnomad_variant("17-7577121-C-T")      # Population frequency
+  4. Identifies gene: TP53
+  5. search_pubmed("TP53 R175H clinical", max_results=20)  # Literature
+  6. Synthesizes: genetic evidence + published research
+"""
+
+"""
+Example 22: Disease research with literature context
+-----------------------------------------------------
+User: "Research cystic fibrosis genetics"
+Agent workflow:
+  1. get_omim_by_gene_symbol("CFTR")           # Disease info
+  2. get_clinvar_by_gene_symbol("CFTR")        # Known variants
+  3. search_pubmed("CFTR cystic fibrosis mutations", max_results=30)
+  4. search_pubmed("cystic fibrosis treatment", max_results=20)
+  5. Combines genetic data with current literature
+"""
+
+"""
+Example 23: Model organism literature search
+---------------------------------------------
+User: "Find studies using zebrafish to study TP53"
+Agent uses: search_pubmed("TP53 zebrafish model", max_results=15)
+
+User: "What research has been done on Drosophila neurodegeneration?"
+Agent uses: search_pubmed("Drosophila neurodegeneration", max_results=25)
+"""
+
+"""
+Example 24: Variant nomenclature with literature validation
+------------------------------------------------------------
+User: "Is R248Q in TP53 clinically significant?"
+Agent workflow:
+  1. validate_hgvs_variant("NP_000537.3:p.Arg248Gln")
+  2. convert_protein_variant("NP_000537.3:p.Arg248Gln")
+  3. get_clinvar_by_variant("17-7577535-G-A")  # Using converted coords
+  4. search_pubmed("TP53 R248Q cancer", max_results=15)
+  5. Synthesizes findings from databases and literature
+"""
+
+# ============================================================================
 # VARIANT NOMENCLATURE AND CONVERSION
 # ============================================================================
 
 """
-Example 18: Variant format conversion
+Example 25: Variant format conversion
 --------------------------------------
 User: "Convert protein variant p.R248Q to genomic coordinates"
 Agent uses: convert_protein_variant("ENSP00000269305:p.R248Q")
@@ -317,7 +408,7 @@ Best Practices:
 # ============================================================================
 
 """
-Example 19: Handling non-existent genes/variants
+Example 26: Handling non-existent genes/variants
 -------------------------------------------------
 User: "Get information for gene XYZ123"
 Agent:
@@ -333,7 +424,7 @@ Agent:
 """
 
 """
-Example 20: Coordinate system handling
+Example 27: Coordinate system handling
 ---------------------------------------
 User: "Find variant at position 7,577,121 on chromosome 17"
 Agent:

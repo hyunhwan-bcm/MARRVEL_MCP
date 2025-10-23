@@ -42,17 +42,20 @@ Ask your AI assistant natural language questions:
 "Look up variant chr17:g.7577121C>T in ClinVar"
 "Find OMIM diseases associated with BRCA1"
 "Find orthologs for human TP53"
+"Search PubMed for TP53 cancer therapy literature"
+"Get PubMed article 32601318"
 ```
 
 ## Features
 
-- **26 MCP Tools** for genetics research
+- **28 MCP Tools** for genetics research
 - Gene queries (by symbol, ID, or position)
 - Variant analysis (dbNSFP, ClinVar, gnomAD)
 - Disease associations (OMIM)
 - Ortholog information (DIOPT)
 - Expression data (GTEx)
 - Drug targets (Pharos)
+- PubMed literature search
 
 ## Documentation
 

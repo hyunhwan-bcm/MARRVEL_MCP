@@ -182,10 +182,24 @@ class TestToolRegistration:
         # Verify that tool() was called 3 times (3 utility tools)
         assert mock_mcp.tool.call_count == 3
 
+    def test_pubmed_tools_registration(self):
+        """Test that pubmed_tools module registers all 2 PubMed tools."""
+        from src.tools import pubmed_tools
+        from mcp.server.fastmcp import FastMCP
+
+        # Create a mock MCP instance
+        mock_mcp = MagicMock(spec=FastMCP)
+
+        # Register tools
+        pubmed_tools.register_tools(mock_mcp)
+
+        # Verify that tool() was called 2 times (2 PubMed tools)
+        assert mock_mcp.tool.call_count == 2
+
     def test_total_tools_registered(self):
-        """Test that the total number of tools registered is correct (27 tools)."""
-        # 3 + 13 + 3 + 2 + 3 + 3 = 27 total tools
-        expected_total = 27
+        """Test that the total number of tools registered is correct (28 tools)."""
+        # 3 + 13 + 3 + 2 + 3 + 2 + 2 = 28 total tools
+        expected_total = 28
 
         # Create server and count registered tools
         server = create_server()
