@@ -214,9 +214,9 @@ async def test_diopt_api_with_capture(api_capture):
 @pytest.mark.asyncio
 async def test_expression_api_with_capture(api_capture):
     """Test GTEx expression API endpoint and capture the response."""
-    # Test expression data
-    gene_symbol = "TP53"
-    endpoint = f"/gtex/{gene_symbol}"
+    # Test expression data (use canonical entrezId endpoint)
+    entrez_id = "7157"
+    endpoint = f"/gtex/gene/entrezId/{entrez_id}"
 
     try:
         result = await fetch_marrvel_data(endpoint)
@@ -232,7 +232,7 @@ async def test_expression_api_with_capture(api_capture):
         api_capture.log_response(
             tool_name="get_gtex_expression",
             endpoint=endpoint,
-            input_data={"gene_symbol": gene_symbol},
+            input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
             return_code=return_code,
@@ -249,7 +249,7 @@ async def test_expression_api_with_capture(api_capture):
         api_capture.log_response(
             tool_name="get_gtex_expression",
             endpoint=endpoint,
-            input_data={"gene_symbol": gene_symbol},
+            input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
             error=str(e),
