@@ -34,6 +34,13 @@ async def test_gene_api_with_capture(api_capture):
     try:
         result = await fetch_marrvel_data(endpoint)
 
+        # Extract return code if available
+        return_code = None
+        if isinstance(result, dict) and "status_code" in result:
+            return_code = str(result["status_code"])
+        else:
+            return_code = "200"
+
         # Log the successful API response
         api_capture.log_response(
             tool_name="get_gene_by_entrez_id",
@@ -41,11 +48,17 @@ async def test_gene_api_with_capture(api_capture):
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
+            return_code=return_code,
         )
 
         assert result is not None
 
     except Exception as e:
+        # Extract return code from HTTPStatusError if available
+        return_code = "N/A"
+        if hasattr(e, "response") and hasattr(e.response, "status_code"):
+            return_code = str(e.response.status_code)
+
         # Log errors too
         api_capture.log_response(
             tool_name="get_gene_by_entrez_id",
@@ -54,6 +67,7 @@ async def test_gene_api_with_capture(api_capture):
             output_data=None,
             status="error",
             error=str(e),
+            return_code=return_code,
         )
         raise
 ```
@@ -124,13 +138,15 @@ The CI will automatically post a comment on your PR with a table like:
 
 ## Summary Table
 
-| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Status |
-|-----------|------|----------|-------|----------------|---------------|--------|
-| test_gene_api_with_capture | get_gene_by_entrez_id | /gene/entrezId/7157 | `{"entrez_id": "7157"}` | {"symbol": "TP53", "entrezId": "7157", "name": "tumor protein p53"... | 15 | ✅ |
-| test_variant_api_with_capture | get_variant_dbnsfp | /variant/dbnsfp/17-7577121-C-T | `{"variant": "17-7577121-C-T"}` | {"chromosome": "17", "position": 7577121, "ref": "C", "alt": "T"... | 20 | ✅ |
+| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Return Code | Status |
+|-----------|------|----------|-------|----------------|---------------|-------------|--------|
+| test_gene_api_with_capture | get_gene_by_entrez_id | /gene/entrezId/7157 | `{"entrez_id": "7157"}` | {symbol, entrezId, name, chromosome, +11 more} | 15 | 200 | ✅ |
+| test_variant_api_with_capture | get_variant_dbnsfp | /variant/dbnsfp/17-7577121-C-T | `{"variant": "17-7577121-C-T"}` | {chromosome, position, ref, alt, +16 more} | 20 | 200 | ✅ |
+| test_error_example | get_gene_by_entrez_id | /gene/entrezId/invalid |`{"entrez_id": "invalid"}` |  | 0 | 404 | ❌ |
 ...
 ```
-```
+
+**Note:** Error cases show empty output preview (no error messages in table). The Return Code column shows HTTP status codes or "N/A" for network errors.
 
 **Output:**
 ```json
@@ -177,7 +193,17 @@ test-reports-py3.13/
     └── api_responses.md             # ← API responses (Markdown)
 ```
 
-## Output Format
+## Output Format Changes (v2)
+
+**What's New:**
+- **Return Code Column**: Shows HTTP status codes (200, 404, 500) or "N/A" for network errors
+- **Suppressed Error Messages**: Error messages are no longer shown in the "Output Preview" column to prevent markdown table formatting issues
+- **Clean Tables**: Tables now render properly regardless of error message content
+
+**Benefits:**
+- Markdown tables never break due to special characters in error messages
+- Clearer separation between successful JSON output and error status
+- Return codes provide quick insight into failure types (404, 500, network, etc.)
 
 ### JSON Format (`api_responses.json`)
 
@@ -204,6 +230,7 @@ test-reports-py3.13/
       },
       "status": "success",
       "error": null,
+      "return_code": "200",
       "timestamp": "2025-10-22T10:30:45.123Z"
     },
     ...
@@ -226,6 +253,13 @@ async def test_my_api(api_capture):  # ← Include api_capture fixture
     try:
         result = await fetch_marrvel_data("/some/endpoint")
 
+        # Extract return code if available
+        return_code = None
+        if isinstance(result, dict) and "status_code" in result:
+            return_code = str(result["status_code"])
+        else:
+            return_code = "200"
+
         # ✅ Always log successful calls
         api_capture.log_response(
             tool_name="my_tool",
@@ -233,8 +267,14 @@ async def test_my_api(api_capture):  # ← Include api_capture fixture
             input_data={"param": "value"},
             output_data=result,
             status="success",
+            return_code=return_code,
         )
     except Exception as e:
+        # Extract return code from HTTPStatusError if available
+        return_code = "N/A"
+        if hasattr(e, "response") and hasattr(e.response, "status_code"):
+            return_code = str(e.response.status_code)
+
         # ✅ Always log errors too
         api_capture.log_response(
             tool_name="my_tool",
@@ -243,6 +283,7 @@ async def test_my_api(api_capture):  # ← Include api_capture fixture
             output_data=None,
             status="error",
             error=str(e),
+            return_code=return_code,
         )
         raise
 ```

@@ -109,14 +109,27 @@ def test_markdown_generation_with_empty_error_response():
             "output": {"error": "Invalid JSON response", "status_code": 200, "content": ""},
             "status": "error",
             "error": "Invalid endpoint test",
+            "return_code": "200",
             "timestamp": "2025-10-23T01:00:01.000000+00:00",
         }
     ]
 
     markdown = _generate_markdown_table(test_responses)
 
-    # Issue 4 fix: Verify empty content is shown as "(empty)"
-    assert "Invalid JSON response (HTTP 200): (empty)" in markdown
+    # Refactored behavior: Error messages are NOT shown in output preview
+    # Output preview should be empty for errors
+    lines = markdown.split("\n")
+    for line in lines:
+        if "test_real_api_call_invalid_endpoint" in line:
+            columns = line.split("|")
+            # Column 5 is output preview (0-indexed from start)
+            output_column = columns[5].strip()
+            assert (
+                output_column == ""
+            ), f"Expected empty output preview for error, got: '{output_column}'"
+
+    # Verify return code column exists and shows the status code
+    assert "| 200 |" in markdown
 
     # Verify endpoint is a clickable link
     assert (
@@ -179,15 +192,34 @@ def test_markdown_generation_with_non_empty_error_content():
             },
             "status": "error",
             "error": "Resource not found",
+            "return_code": "404",
             "timestamp": "2025-10-23T01:00:00.000000+00:00",
         }
     ]
 
     markdown = _generate_markdown_table(test_responses)
 
-    # Should show content preview (first 50 chars)
-    assert "Invalid JSON response (HTTP 404):" in markdown
-    assert "Not Found: The requested resource does not exist" in markdown
+    # Refactored behavior: Error messages are NOT shown in output preview
+    # Output preview should be empty for errors
+    lines = markdown.split("\n")
+    for line in lines:
+        if "test_error" in line:
+            columns = line.split("|")
+            # Column 5 is output preview (0-indexed from start)
+            output_column = columns[5].strip()
+            assert (
+                output_column == ""
+            ), f"Expected empty output preview for error, got: '{output_column}'"
+
+    # Verify return code column exists and shows the HTTP status code
+    assert "| 404 |" in markdown
+
+    # Error messages should NOT appear in the output preview
+    assert "Invalid JSON response (HTTP 404):" not in markdown or "| 404 |" in markdown
+    # The content should not be shown in output preview
+    for line in markdown.split("\n"):
+        if "test_error" in line:
+            assert "Not Found: The requested resource does not exist" not in line
 
 
 def test_markdown_generation_with_list_response():

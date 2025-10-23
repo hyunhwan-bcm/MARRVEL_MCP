@@ -40,6 +40,13 @@ async def test_basic_queries(api_capture):
         try:
             result = await fetch_marrvel_data(endpoint)
 
+            # Extract return code if available
+            return_code = None
+            if isinstance(result, dict) and "status_code" in result:
+                return_code = str(result["status_code"])
+            else:
+                return_code = "200"
+
             # Log the API response
             api_capture.log_response(
                 tool_name=tool_name,
@@ -47,6 +54,7 @@ async def test_basic_queries(api_capture):
                 input_data={"test_name": test_name},
                 output_data=result,
                 status="success",
+                return_code=return_code,
             )
 
             # Pretty print key information
@@ -73,6 +81,11 @@ async def test_basic_queries(api_capture):
             print("✓ SUCCESS")
 
         except Exception as e:
+            # Extract return code from HTTPStatusError if available
+            return_code = "N/A"
+            if hasattr(e, "response") and hasattr(e.response, "status_code"):
+                return_code = str(e.response.status_code)
+
             # Log errors
             api_capture.log_response(
                 tool_name=tool_name,
@@ -81,6 +94,7 @@ async def test_basic_queries(api_capture):
                 output_data=None,
                 status="error",
                 error=str(e),
+                return_code=return_code,
             )
 
             print(f"❌ ERROR: {e}")

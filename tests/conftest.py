@@ -15,7 +15,7 @@ import httpx
 import json
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
 # Global storage for API responses
@@ -36,7 +36,8 @@ class APIResponseCapture:
         input_data: Dict[str, Any],
         output_data: Any,
         status: str = "success",
-        error: str = None,
+        error: Optional[str] = None,
+        return_code: Optional[str] = None,
     ):
         """Log an API response."""
         global _api_responses
@@ -49,6 +50,7 @@ class APIResponseCapture:
             "output": output_data,
             "status": status,
             "error": error,
+            "return_code": return_code,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -107,8 +109,8 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
         "",
         "## Summary Table",
         "",
-        "| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Status |",
-        "|-----------|------|----------|-------|----------------|---------------|--------|",
+        "| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Return Code | Status |",
+        "|-----------|------|----------|-------|----------------|---------------|-------------|--------|",
     ]
 
     for resp in responses:
@@ -125,85 +127,105 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
         if len(input_str) > 40:
             input_str = input_str[:37] + "..."
 
-        # Format output preview - show top-level keys for better visibility
+        # Format output preview - show JSON only for successful calls, empty for errors
         output_preview = ""
         num_keys = "N/A"
         try:
             output_data = resp["output"]
-            if isinstance(output_data, str):
-                try:
-                    output_data = json.loads(output_data)
-                except:
-                    pass
 
-            if isinstance(output_data, dict):
-                # Check if this is an error response with special handling needed
-                if "error" in output_data and "content" in output_data:
-                    # Handle "Invalid JSON response" errors specially
-                    error_msg = output_data.get("error", "")
-                    status_code = output_data.get("status_code", "N/A")
-                    content_preview = output_data.get("content", "")
-                    if content_preview:
-                        # Show first 50 chars if content exists
-                        content_preview = content_preview[:50]
-                        # Sanitize content for markdown table - remove newlines and normalize whitespace
-                        import re
-
-                        content_preview = (
-                            content_preview.replace("\n", " ").replace("\r", " ").replace("\t", " ")
-                        )
-                        content_preview = re.sub(r"\s+", " ", content_preview).strip()
-                        output_preview = f'❌ {error_msg} (HTTP {status_code}): "{content_preview}"'
-                    else:
-                        # Empty content
-                        output_preview = f"❌ {error_msg} (HTTP {status_code}): (empty)"
-                    num_keys = str(len(output_data))
-                elif "error" in output_data:
-                    # Handle other error responses
-                    error_msg = output_data.get("error", "Unknown error")
-                    output_preview = f"❌ Error: {error_msg}"
-                    num_keys = str(len(output_data))
-                else:
-                    # Normal dict response - show key names for better visibility
-                    num_keys = str(len(output_data))
-                    all_keys = list(output_data.keys())
-
-                    # Show up to first 5 keys
-                    if len(all_keys) <= 5:
-                        keys_preview = ", ".join(all_keys)
-                        output_preview = f"{{{keys_preview}}}"
-                    else:
-                        # Show first 4 keys + count of remaining
-                        keys_preview = ", ".join(all_keys[:4])
-                        remaining = len(all_keys) - 4
-                        output_preview = f"{{{keys_preview}, +{remaining} more}}"
-            elif isinstance(output_data, list):
-                num_keys = f"{len(output_data)} items"
-                # Show first few bytes of JSON
-                json_str = json.dumps(output_data, ensure_ascii=False)
-                if len(json_str) > 80:
-                    output_preview = json_str[:77] + "..."
-                else:
-                    output_preview = json_str
-            elif output_data is None:
-                # Check if there's an error message
-                if resp.get("error"):
-                    output_preview = f"❌ {resp['error']}"
-                    num_keys = "0"
-                else:
-                    output_preview = "null"
-                    num_keys = "0"
+            # If there's no output, leave preview empty
+            if output_data is None:
+                output_preview = ""
+                num_keys = "0"
             else:
-                output_preview = str(output_data)[:80]
-                num_keys = "1"
-        except Exception as e:
-            output_preview = f"⚠️ Display error: {str(e)[:40]}"
+                # If output is a JSON string, attempt to parse it
+                if isinstance(output_data, str):
+                    try:
+                        output_data = json.loads(output_data)
+                    except Exception:
+                        # leave as string
+                        pass
+
+                # Handle dict responses
+                if isinstance(output_data, dict):
+                    # If this is a structured error with 'content', show sanitized preview
+                    if (
+                        "error" in output_data
+                        and "content" in output_data
+                        and output_data.get("content")
+                    ):
+                        error_msg = output_data.get("error", "")
+                        status_code = output_data.get("status_code", "N/A")
+                        content_preview = output_data.get("content", "")
+                        # Decide whether to show content preview: only for 200 (HTML pages)
+                        # or server errors (>=500). Hide for common client errors like 404.
+                        try:
+                            sc_int = int(status_code)
+                        except Exception:
+                            sc_int = None
+
+                        show_content = sc_int == 200 or (sc_int is not None and sc_int >= 500)
+                        if show_content:
+                            # Sanitize and truncate content to keep table safe
+                            import re
+
+                            content_preview = (
+                                content_preview.replace("\n", " ")
+                                .replace("\r", " ")
+                                .replace("\t", " ")
+                            )
+                            content_preview = re.sub(r"\s+", " ", content_preview).strip()
+                            if len(content_preview) > 50:
+                                content_preview = content_preview[:50]
+                            output_preview = (
+                                f'❌ {error_msg} (HTTP {status_code}): "{content_preview}"'
+                            )
+                        else:
+                            # Hide content preview for other status codes (e.g., 404)
+                            output_preview = ""
+                        num_keys = str(len(output_data))
+                    elif resp.get("status") == "error":
+                        # Generic error with no content - hide preview
+                        output_preview = ""
+                        num_keys = "0"
+                    elif "error" in output_data:
+                        # Generic error object (no content)
+                        error_msg = output_data.get("error", "Unknown error")
+                        output_preview = f"❌ Error: {error_msg}"
+                        num_keys = str(len(output_data))
+                    else:
+                        # Normal dict response - show key names for better visibility
+                        num_keys = str(len(output_data))
+                        all_keys = list(output_data.keys())
+                        if len(all_keys) <= 5:
+                            keys_preview = ", ".join(all_keys)
+                            output_preview = f"{{{keys_preview}}}"
+                        else:
+                            keys_preview = ", ".join(all_keys[:4])
+                            remaining = len(all_keys) - 4
+                            output_preview = f"{{{keys_preview}, +{remaining} more}}"
+
+                elif isinstance(output_data, list):
+                    num_keys = f"{len(output_data)} items"
+                    json_str = json.dumps(output_data, ensure_ascii=False)
+                    output_preview = json_str[:77] + "..." if len(json_str) > 80 else json_str
+                else:
+                    output_preview = str(output_data)[:80]
+                    num_keys = "1"
+        except Exception:
+            # On display error, leave output empty to avoid breaking table
+            output_preview = ""
             num_keys = "N/A"
+
+        # Get return code
+        return_code = resp.get("return_code", "N/A")
+        if return_code is None:
+            return_code = "N/A"
 
         status_icon = "✅" if resp["status"] == "success" else "❌"
 
         lines.append(
-            f"| {test_name} | {tool} | {endpoint_link} | `{input_str}` | {output_preview} | {num_keys} | {status_icon} |"
+            f"| {test_name} | {tool} | {endpoint_link} | `{input_str}` | {output_preview} | {num_keys} | {return_code} | {status_icon} |"
         )
 
     return "\n".join(lines)
@@ -260,7 +282,7 @@ def check_network_connectivity() -> bool:
 
         socket.gethostbyname("marrvel.org")
         return True
-    except (socket.gaierror, OSError):
+    except Exception:
         return False
 
 
