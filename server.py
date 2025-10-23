@@ -26,6 +26,7 @@ from src.tools import (
     ortholog_tools,
     expression_tools,
     utility_tools,
+    pubmed_tools,
 )
 
 
@@ -46,6 +47,7 @@ def create_server() -> FastMCP:
     ortholog_tools.register_tools(mcp)
     expression_tools.register_tools(mcp)
     utility_tools.register_tools(mcp)
+    pubmed_tools.register_tools(mcp)
 
     return mcp
 

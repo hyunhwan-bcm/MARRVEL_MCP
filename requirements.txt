@@ -20,3 +20,6 @@ pre-commit>=3.5.0
 
 # OpenAI SDK for function calling integration
 openai>=1.0.0
+
+# PubMed literature search
+pymed>=0.8.9
