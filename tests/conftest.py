@@ -146,6 +146,13 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
                     if content_preview:
                         # Show first 50 chars if content exists
                         content_preview = content_preview[:50]
+                        # Sanitize content for markdown table - remove newlines and normalize whitespace
+                        import re
+
+                        content_preview = (
+                            content_preview.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+                        )
+                        content_preview = re.sub(r"\s+", " ", content_preview).strip()
                         output_preview = f'❌ {error_msg} (HTTP {status_code}): "{content_preview}"'
                     else:
                         # Empty content
