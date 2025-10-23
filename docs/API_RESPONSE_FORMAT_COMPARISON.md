@@ -192,7 +192,7 @@ except Exception as e:
     return_code = "N/A"
     if hasattr(e, "response") and hasattr(e.response, "status_code"):
         return_code = str(e.response.status_code)
-    
+
     api_capture.log_response(
         tool_name="my_tool",
         endpoint="/endpoint",

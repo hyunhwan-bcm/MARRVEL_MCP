@@ -119,14 +119,14 @@ api_capture.log_response(
 ```python
 try:
     result = await fetch_marrvel_data(endpoint)
-    
+
     # Success case - extract from result or default to 200
     return_code = None
     if isinstance(result, dict) and "status_code" in result:
         return_code = str(result["status_code"])
     else:
         return_code = "200"
-    
+
     api_capture.log_response(
         tool_name="my_tool",
         endpoint=endpoint,
@@ -141,7 +141,7 @@ except Exception as e:
     return_code = "N/A"
     if hasattr(e, "response") and hasattr(e.response, "status_code"):
         return_code = str(e.response.status_code)
-    
+
     api_capture.log_response(
         tool_name="my_tool",
         endpoint=endpoint,
@@ -254,15 +254,15 @@ import pytest
 @pytest.mark.asyncio
 async def test_my_api(api_capture):
     endpoint = "/my/endpoint"
-    
+
     try:
         result = await fetch_marrvel_data(endpoint)
-        
+
         # Extract return code
         return_code = "200"
         if isinstance(result, dict) and "status_code" in result:
             return_code = str(result["status_code"])
-        
+
         # Log success
         api_capture.log_response(
             tool_name="my_tool",
@@ -272,13 +272,13 @@ async def test_my_api(api_capture):
             status="success",
             return_code=return_code,
         )
-    
+
     except Exception as e:
         # Extract return code from exception
         return_code = "N/A"
         if hasattr(e, "response") and hasattr(e.response, "status_code"):
             return_code = str(e.response.status_code)
-        
+
         # Log error
         api_capture.log_response(
             tool_name="my_tool",
