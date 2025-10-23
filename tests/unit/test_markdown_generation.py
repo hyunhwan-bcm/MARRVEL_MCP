@@ -215,3 +215,139 @@ def test_markdown_generation_with_list_response():
 
     # Should show "2 items" for list responses
     assert "2 items" in markdown
+
+
+def test_markdown_generation_with_newlines_in_error_content():
+    """Test markdown generation with error content containing newlines and whitespace.
+
+    This test ensures that newlines, carriage returns, and multiple spaces in error
+    content are properly sanitized to prevent breaking the markdown table format.
+    Addresses GitHub issue where HTML error pages with newlines broke the table.
+    """
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from tests.conftest import _generate_markdown_table
+
+    test_responses = [
+        {
+            "test_name": "tests/error_test.py::test_html_error",
+            "tool_name": "fetch_marrvel_data",
+            "endpoint": "/invalid/endpoint",
+            "input": {"test": "invalid"},
+            "output": {
+                "error": "Invalid JSON response",
+                "status_code": 200,
+                "content": "\n\n\n  <html>\n  <head>Error Page</head>\n  <body>\n    <h1>Not Found</h1>\n  </body>\n</html>",
+            },
+            "status": "error",
+            "error": "Invalid endpoint",
+            "timestamp": "2025-10-23T01:00:00.000000+00:00",
+        }
+    ]
+
+    markdown = _generate_markdown_table(test_responses)
+
+    # The content should be sanitized but still readable
+    assert "Invalid JSON response (HTTP 200):" in markdown
+    assert "<html>" in markdown
+    assert "Error Page" in markdown or "Not Found" in markdown
+
+    # Verify markdown table structure is preserved (all lines should be part of table)
+    lines = markdown.split("\n")
+    # Find the table section (after "## Summary Table")
+    table_start = None
+    for i, line in enumerate(lines):
+        if "## Summary Table" in line:
+            table_start = i
+            break
+
+    assert table_start is not None, "Table header not found"
+
+    # Table should have header, separator, and data rows without breaks
+    # Look for the test row (should be a complete table row)
+    test_row_found = False
+    for line in lines[table_start:]:
+        if "test_html_error" in line:
+            # This line should be a complete table row (starts with |, ends with |)
+            assert line.startswith("|"), f"Table row doesn't start with |: {line}"
+            assert line.endswith("|"), f"Table row doesn't end with |: {line}"
+            # Count pipe separators - should have 8 (7 columns + 2 boundaries)
+            pipe_count = line.count("|")
+            assert (
+                pipe_count >= 7
+            ), f"Table row has only {pipe_count} pipes, expected at least 7: {line}"
+            # Verify no literal newlines in the table row itself
+            assert (
+                "\n" not in line[:-1]
+            ), f"Table row contains newline: {repr(line)}"  # -1 to exclude trailing \n from split
+            test_row_found = True
+            break
+
+    assert test_row_found, "Test row not found in markdown table"
+
+
+def test_markdown_generation_with_mixed_problematic_characters():
+    """Test markdown generation with various problematic characters.
+
+    Tests handling of tabs, carriage returns, mixed newlines, and multiple
+    consecutive spaces to ensure all are properly normalized.
+    """
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from tests.conftest import _generate_markdown_table
+
+    test_responses = [
+        {
+            "test_name": "tests/whitespace_test.py::test_mixed_whitespace",
+            "tool_name": "fetch_marrvel_data",
+            "endpoint": "/problem/endpoint",
+            "input": {"id": "123"},
+            "output": {
+                "error": "Invalid JSON response",
+                "status_code": 500,
+                "content": "Error:\t\tInternal\r\nServer\n\n\nError    with    spaces",
+            },
+            "status": "error",
+            "error": "Server error",
+            "timestamp": "2025-10-23T01:00:00.000000+00:00",
+        }
+    ]
+
+    markdown = _generate_markdown_table(test_responses)
+
+    # Verify content is still readable with normalized whitespace
+    assert (
+        "Error: Internal Server Error with spaces" in markdown
+        or "Error: Internal Server Error with" in markdown
+    )  # May be truncated at 50 chars
+
+    # Verify the table row is complete and properly formatted
+    lines = markdown.split("\n")
+    test_row_found = False
+    for line in lines:
+        if "test_mixed_whitespace" in line:
+            assert line.startswith("|"), "Table row doesn't start with |"
+            assert line.endswith("|"), "Table row doesn't end with |"
+            # Verify no literal problematic whitespace in the table cell content
+            # Extract just the Output Preview cell content
+            cells = line.split("|")
+            if len(cells) >= 6:  # Ensure we have enough cells
+                output_preview_cell = cells[5]  # Output Preview is the 5th column (0-indexed)
+                assert (
+                    "\t" not in output_preview_cell
+                ), f"Tab character found in output preview: {repr(output_preview_cell)}"
+                assert (
+                    "\r" not in output_preview_cell
+                ), f"Carriage return found in output preview: {repr(output_preview_cell)}"
+                # No literal newline characters should be in the cell
+                assert (
+                    "\n" not in output_preview_cell
+                ), f"Newline found in output preview: {repr(output_preview_cell)}"
+            test_row_found = True
+            break
+
+    assert test_row_found, "Test row with mixed whitespace not found"
