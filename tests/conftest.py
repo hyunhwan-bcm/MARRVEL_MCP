@@ -15,7 +15,7 @@ import httpx
 import json
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
 # Global storage for API responses
@@ -36,8 +36,8 @@ class APIResponseCapture:
         input_data: Dict[str, Any],
         output_data: Any,
         status: str = "success",
-        error: str = None,
-        return_code: str = None,
+        error: Optional[str] = None,
+        return_code: Optional[str] = None,
     ):
         """Log an API response."""
         global _api_responses
@@ -133,40 +133,82 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
         try:
             output_data = resp["output"]
 
-            # If status is error or output is None, leave output preview empty
-            if resp["status"] == "error" or output_data is None:
+            # If there's no output, leave preview empty
+            if output_data is None:
                 output_preview = ""
                 num_keys = "0"
             else:
-                # Success case - show JSON output
+                # If output is a JSON string, attempt to parse it
                 if isinstance(output_data, str):
                     try:
                         output_data = json.loads(output_data)
-                    except:
+                    except Exception:
+                        # leave as string
                         pass
 
+                # Handle dict responses
                 if isinstance(output_data, dict):
-                    # Normal dict response - show key names for better visibility
-                    num_keys = str(len(output_data))
-                    all_keys = list(output_data.keys())
+                    # If this is a structured error with 'content', show sanitized preview
+                    if (
+                        "error" in output_data
+                        and "content" in output_data
+                        and output_data.get("content")
+                    ):
+                        error_msg = output_data.get("error", "")
+                        status_code = output_data.get("status_code", "N/A")
+                        content_preview = output_data.get("content", "")
+                        # Decide whether to show content preview: only for 200 (HTML pages)
+                        # or server errors (>=500). Hide for common client errors like 404.
+                        try:
+                            sc_int = int(status_code)
+                        except Exception:
+                            sc_int = None
 
-                    # Show up to first 5 keys
-                    if len(all_keys) <= 5:
-                        keys_preview = ", ".join(all_keys)
-                        output_preview = f"{{{keys_preview}}}"
+                        show_content = sc_int == 200 or (sc_int is not None and sc_int >= 500)
+                        if show_content:
+                            # Sanitize and truncate content to keep table safe
+                            import re
+
+                            content_preview = (
+                                content_preview.replace("\n", " ")
+                                .replace("\r", " ")
+                                .replace("\t", " ")
+                            )
+                            content_preview = re.sub(r"\s+", " ", content_preview).strip()
+                            if len(content_preview) > 50:
+                                content_preview = content_preview[:50]
+                            output_preview = (
+                                f'❌ {error_msg} (HTTP {status_code}): "{content_preview}"'
+                            )
+                        else:
+                            # Hide content preview for other status codes (e.g., 404)
+                            output_preview = ""
+                        num_keys = str(len(output_data))
+                    elif resp.get("status") == "error":
+                        # Generic error with no content - hide preview
+                        output_preview = ""
+                        num_keys = "0"
+                    elif "error" in output_data:
+                        # Generic error object (no content)
+                        error_msg = output_data.get("error", "Unknown error")
+                        output_preview = f"❌ Error: {error_msg}"
+                        num_keys = str(len(output_data))
                     else:
-                        # Show first 4 keys + count of remaining
-                        keys_preview = ", ".join(all_keys[:4])
-                        remaining = len(all_keys) - 4
-                        output_preview = f"{{{keys_preview}, +{remaining} more}}"
+                        # Normal dict response - show key names for better visibility
+                        num_keys = str(len(output_data))
+                        all_keys = list(output_data.keys())
+                        if len(all_keys) <= 5:
+                            keys_preview = ", ".join(all_keys)
+                            output_preview = f"{{{keys_preview}}}"
+                        else:
+                            keys_preview = ", ".join(all_keys[:4])
+                            remaining = len(all_keys) - 4
+                            output_preview = f"{{{keys_preview}, +{remaining} more}}"
+
                 elif isinstance(output_data, list):
                     num_keys = f"{len(output_data)} items"
-                    # Show first few bytes of JSON
                     json_str = json.dumps(output_data, ensure_ascii=False)
-                    if len(json_str) > 80:
-                        output_preview = json_str[:77] + "..."
-                    else:
-                        output_preview = json_str
+                    output_preview = json_str[:77] + "..." if len(json_str) > 80 else json_str
                 else:
                     output_preview = str(output_data)[:80]
                     num_keys = "1"
@@ -240,7 +282,7 @@ def check_network_connectivity() -> bool:
 
         socket.gethostbyname("marrvel.org")
         return True
-    except (socket.gaierror, OSError):
+    except Exception:
         return False
 
 

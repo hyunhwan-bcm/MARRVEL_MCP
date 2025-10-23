@@ -11,6 +11,7 @@ This server provides AI agents with access to comprehensive genetics databases:
 - Expression data (GTEx, model organisms)
 - Drug target information (Pharos)
 - Variant nomenclature tools (Mutalyzer, Transvar)
+- PubMed literature search (search and article retrieval)
 
 For more information about available tools, see TOOL_REFERENCE.md
 For API documentation, see API_DOCUMENTATION.md
@@ -26,6 +27,7 @@ from src.tools import (
     ortholog_tools,
     expression_tools,
     utility_tools,
+    pubmed_tools,
 )
 
 
@@ -46,6 +48,7 @@ def create_server() -> FastMCP:
     ortholog_tools.register_tools(mcp)
     expression_tools.register_tools(mcp)
     utility_tools.register_tools(mcp)
+    pubmed_tools.register_tools(mcp)
 
     return mcp
 
