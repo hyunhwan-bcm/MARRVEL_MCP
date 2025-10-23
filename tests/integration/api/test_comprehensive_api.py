@@ -21,6 +21,7 @@ Reference: https://marrvel.org/doc
 import sys
 import os
 import pytest
+import httpx
 
 # Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
@@ -788,6 +789,17 @@ async def test_mutalyzer_hgvs_validation(api_capture):
 
         assert result is not None
 
+    except httpx.ReadTimeout:
+        # Mutalyzer service may be slow or unavailable
+        api_capture.log_response(
+            tool_name="validate_hgvs_variant",
+            endpoint=endpoint,
+            input_data={"hgvs_variant": hgvs_variant},
+            output_data=None,
+            status="timeout",
+            error="Mutalyzer API timeout - service may be slow or unavailable",
+        )
+        pytest.skip("Mutalyzer API timeout - service unavailable")
     except Exception as e:
         api_capture.log_response(
             tool_name="validate_hgvs_variant",
@@ -820,6 +832,17 @@ async def test_transvar_protein_variant(api_capture):
 
         assert result is not None
 
+    except httpx.ReadTimeout:
+        # Transvar service may be slow or unavailable
+        api_capture.log_response(
+            tool_name="convert_protein_variant",
+            endpoint=endpoint,
+            input_data={"protein_variant": protein_variant},
+            output_data=None,
+            status="timeout",
+            error="Transvar API timeout - service may be slow or unavailable",
+        )
+        pytest.skip("Transvar API timeout - service unavailable")
     except Exception as e:
         api_capture.log_response(
             tool_name="convert_protein_variant",

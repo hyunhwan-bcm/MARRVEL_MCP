@@ -95,7 +95,16 @@ def send_request(process, method: str, params: dict | None = None, timeout: int 
         try:
             response_line = process.stdout.readline()
             if response_line:
-                return json.loads(response_line.strip())
+                # Some server implementations may write log lines to stdout
+                # before emitting the JSON-RPC response. Skip any lines that
+                # are not valid JSON and continue reading until we get a
+                # proper JSON-RPC response or hit the timeout.
+                stripped = response_line.strip()
+                try:
+                    return json.loads(stripped)
+                except json.JSONDecodeError:
+                    # Not a JSON line (likely logging) — skip and keep waiting
+                    pass
         except Exception as e:
             pytest.fail(f"Error reading response: {e}")
 
