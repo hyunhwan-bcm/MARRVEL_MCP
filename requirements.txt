@@ -22,4 +22,4 @@ pre-commit>=3.5.0
 openai>=1.0.0
 
 # PubMed literature search
-pymed>=0.8.9
+pymed_paperscraper>=0.1.0

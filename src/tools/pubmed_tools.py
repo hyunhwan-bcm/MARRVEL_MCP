@@ -2,13 +2,13 @@
 PubMed Literature Search Tools for MARRVEL-MCP.
 
 This module provides tools for searching PubMed and retrieving biomedical literature
-using the pymed library. Supports flexible queries for genes, variants, symptoms,
-diseases, and other biomedical terms.
+using the pymed_paperscraper library. Supports flexible queries for genes, variants,
+symptoms, diseases, and other biomedical terms.
 """
 
 import json
 from typing import Optional
-from pymed import PubMed
+from pymed_paperscraper import PubMed
 
 
 def register_tools(mcp_instance):

@@ -676,7 +676,7 @@ This tool fetches comprehensive details for a single PubMed article including ti
 - Full text sections (methods, results, conclusions) may not be available for all articles depending on publisher restrictions
 - If article is not found, returns an error message
 
-**API Endpoint:** PubMed E-utilities API via pymed library
+**API Endpoint:** PubMed E-utilities API via pymed_paperscraper library
 
 ---
 
