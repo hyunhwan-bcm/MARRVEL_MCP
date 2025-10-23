@@ -179,8 +179,8 @@ class TestToolRegistration:
         # Register tools
         utility_tools.register_tools(mock_mcp)
 
-        # Verify that tool() was called 2 times (2 utility tools)
-        assert mock_mcp.tool.call_count == 2
+        # Verify that tool() was called 3 times (3 utility tools)
+        assert mock_mcp.tool.call_count == 3
 
     def test_pubmed_tools_registration(self):
         """Test that pubmed_tools module registers all 2 PubMed tools."""

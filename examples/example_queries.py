@@ -433,3 +433,53 @@ Agent:
   3. Or uses get_gene_by_position("chr17", 7577121) to find gene
   4. Notes: "Using hg19 coordinates. For hg38, please convert first."
 """
+
+# ============================================================================
+# UTILITY TOOL EXAMPLES
+# ============================================================================
+
+"""
+Example 21: Converting rsID to variant format
+----------------------------------------------
+User: "What's the clinical significance of rs334?"
+Agent uses:
+  1. convert_rsid_to_variant("rs334")
+     Returns: {"variant": "11-5248232-T-A", "gene": "HBB", ...}
+  2. get_clinvar_by_variant("11-5248232-T-A")
+     Returns clinical significance data
+
+User: "Analyze rs429358"
+Agent uses:
+  1. convert_rsid_to_variant("429358")  # Works without "rs" prefix
+     Returns: {"variant": "19-45411940-T-C", "gene": "", ...}
+  2. get_variant_dbnsfp("19-45411940-T-C")
+  3. get_gnomad_variant("19-45411940-T-C")
+"""
+
+"""
+Example 22: rsID to multiple variant tools
+-------------------------------------------
+User: "Get all available information for rs7412"
+Agent uses:
+  1. convert_rsid_to_variant("rs7412")
+     Returns: {"variant": "19-45412079-C-T", ...}
+  2. Then queries multiple tools with the variant:
+     - get_variant_dbnsfp("19-45412079-C-T")
+     - get_clinvar_by_variant("19-45412079-C-T")
+     - get_gnomad_variant("19-45412079-C-T")
+     - get_geno2mp_variant("19-45412079-C-T")
+"""
+
+"""
+Example 23: Batch rsID conversion workflow
+-------------------------------------------
+User: "Compare rs334, rs7412, and rs429358"
+Agent:
+  1. Converts each rsID to variant format
+  2. Queries databases for each
+  3. Presents comparative analysis of:
+     - Gene locations
+     - Clinical significance
+     - Population frequencies
+     - Functional predictions
+"""
