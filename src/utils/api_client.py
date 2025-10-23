@@ -71,16 +71,82 @@ async def fetch_marrvel_data(endpoint: str) -> dict[str, Any]:
         # Some tests may mock raise_for_status/json as async coroutines
         # Handle both sync and async for compatibility
         rfs = response.raise_for_status()
-        if inspect.iscoroutine(rfs):
+        if inspect.isawaitable(rfs):
             await rfs
 
-        # Check if response has content before trying to parse JSON
-        if not response.content:
+        # Helper to coerce possibly-awaitable/callable values to string.
+        async def _to_str(obj):
+            try:
+                if inspect.isawaitable(obj):
+                    val = await obj
+                elif callable(obj) and not isinstance(obj, str):
+                    maybe = obj()
+                    if inspect.isawaitable(maybe):
+                        val = await maybe
+                    else:
+                        val = maybe
+                else:
+                    val = obj
+            except Exception:
+                val = obj
+            if val is None:
+                return ""
+            try:
+                return str(val)
+            except Exception:
+                return ""
+
+        # Normalize content (bytes or str) existence
+        content_raw = getattr(response, "content", None)
+        try:
+            if inspect.isawaitable(content_raw):
+                content_val = await content_raw
+            else:
+                content_val = content_raw
+        except Exception:
+            content_val = content_raw
+
+        # Consider both bytes and non-bytes content
+        has_content = False
+        if isinstance(content_val, (bytes, bytearray)):
+            has_content = len(content_val) > 0
+        else:
+            has_content = bool(content_val)
+
+        if not has_content:
             return {"error": "Empty response from API", "status_code": response.status_code}
+
+        # Resolve content-type and text_preview to strings safely
+        hdrs = getattr(response, "headers", {})
+        if isinstance(hdrs, dict):
+            content_type = await _to_str(hdrs.get("content-type", ""))
+        else:
+            # hdrs may be a mock object with a get method
+            get_fn = getattr(hdrs, "get", None)
+            if get_fn:
+                content_type = await _to_str(get_fn("content-type", ""))
+            else:
+                content_type = await _to_str(hdrs)
+
+        text_preview = await _to_str(getattr(response, "text", ""))
+
+        content_type = (content_type or "").lower()
+        if (
+            "text/html" in content_type
+            or text_preview.lstrip().lower().startswith("<!doctype")
+            or text_preview.lstrip().lower().startswith("<html")
+        ):
+            # Normalize to a client error so callers always receive JSON-like error dicts
+            return {
+                "error": "Unexpected HTML response from API",
+                "status_code": 400,
+                "original_status": response.status_code,
+                "content_preview": text_preview[:200],
+            }
 
         try:
             data = response.json()
-            if inspect.iscoroutine(data):
+            if inspect.isawaitable(data):
                 data = await data
             return data
         except json.JSONDecodeError:
