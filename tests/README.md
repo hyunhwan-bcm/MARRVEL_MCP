@@ -128,7 +128,7 @@ Integration API tests use the `api_capture` fixture to automatically log all API
 async def test_my_endpoint(api_capture):
     """Test with automatic response capture."""
     result = await fetch_marrvel_data("/endpoint")
-    
+
     api_capture.log_response(
         tool_name="my_tool",
         endpoint="/endpoint",
