@@ -179,13 +179,13 @@ class TestToolRegistration:
         # Register tools
         utility_tools.register_tools(mock_mcp)
 
-        # Verify that tool() was called 2 times (2 utility tools)
-        assert mock_mcp.tool.call_count == 2
+        # Verify that tool() was called 3 times (3 utility tools)
+        assert mock_mcp.tool.call_count == 3
 
     def test_total_tools_registered(self):
-        """Test that the total number of tools registered is correct (26 tools)."""
-        # 3 + 13 + 3 + 2 + 3 + 2 = 26 total tools
-        expected_total = 26
+        """Test that the total number of tools registered is correct (27 tools)."""
+        # 3 + 13 + 3 + 2 + 3 + 3 = 27 total tools
+        expected_total = 27
 
         # Create server and count registered tools
         server = create_server()
