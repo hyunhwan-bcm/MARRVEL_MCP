@@ -97,6 +97,8 @@ def pytest_sessionfinish(session, exitstatus):
 
 def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
     """Generate markdown table from API responses."""
+    from config import API_BASE_URL
+
     lines = [
         "# MARRVEL API Test Responses",
         "",
@@ -115,12 +117,15 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
         tool = resp["tool_name"]
         endpoint = resp["endpoint"]
 
+        # Make endpoint a clickable link to MARRVEL API
+        endpoint_link = f"[{endpoint}]({API_BASE_URL}{endpoint})"
+
         # Format input
         input_str = str(resp["input"])
         if len(input_str) > 40:
             input_str = input_str[:37] + "..."
 
-        # Format output preview - show first bytes of actual data
+        # Format output preview - show top-level keys for better visibility
         output_preview = ""
         num_keys = "N/A"
         try:
@@ -137,8 +142,14 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
                     # Handle "Invalid JSON response" errors specially
                     error_msg = output_data.get("error", "")
                     status_code = output_data.get("status_code", "N/A")
-                    content_preview = output_data.get("content", "")[:50]
-                    output_preview = f'❌ {error_msg} (HTTP {status_code}): "{content_preview}..."'
+                    content_preview = output_data.get("content", "")
+                    if content_preview:
+                        # Show first 50 chars if content exists
+                        content_preview = content_preview[:50]
+                        output_preview = f'❌ {error_msg} (HTTP {status_code}): "{content_preview}"'
+                    else:
+                        # Empty content
+                        output_preview = f"❌ {error_msg} (HTTP {status_code}): (empty)"
                     num_keys = str(len(output_data))
                 elif "error" in output_data:
                     # Handle other error responses
@@ -146,14 +157,19 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
                     output_preview = f"❌ Error: {error_msg}"
                     num_keys = str(len(output_data))
                 else:
-                    # Normal dict response
+                    # Normal dict response - show key names for better visibility
                     num_keys = str(len(output_data))
-                    # Show first few bytes of JSON
-                    json_str = json.dumps(output_data, ensure_ascii=False)
-                    if len(json_str) > 80:
-                        output_preview = json_str[:77] + "..."
+                    all_keys = list(output_data.keys())
+
+                    # Show up to first 5 keys
+                    if len(all_keys) <= 5:
+                        keys_preview = ", ".join(all_keys)
+                        output_preview = f"{{{keys_preview}}}"
                     else:
-                        output_preview = json_str
+                        # Show first 4 keys + count of remaining
+                        keys_preview = ", ".join(all_keys[:4])
+                        remaining = len(all_keys) - 4
+                        output_preview = f"{{{keys_preview}, +{remaining} more}}"
             elif isinstance(output_data, list):
                 num_keys = f"{len(output_data)} items"
                 # Show first few bytes of JSON
@@ -180,7 +196,7 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
         status_icon = "✅" if resp["status"] == "success" else "❌"
 
         lines.append(
-            f"| {test_name} | {tool} | {endpoint} | `{input_str}` | {output_preview} | {num_keys} | {status_icon} |"
+            f"| {test_name} | {tool} | {endpoint_link} | `{input_str}` | {output_preview} | {num_keys} | {status_icon} |"
         )
 
     return "\n".join(lines)
