@@ -18,21 +18,69 @@ class TestFetchMarrvelDataIntegration:
     @pytest.mark.integration
     @pytest.mark.integration_api
     @pytest.mark.asyncio
-    async def test_real_api_call_tp53(self):
+    async def test_real_api_call_tp53(self, api_capture):
         """Test real API call for TP53 gene (requires network access)."""
-        result = await fetch_marrvel_data("/gene/entrezId/7157")
-        assert "symbol" in result or "entrezId" in result
+        endpoint = "/gene/entrezId/7157"
+        entrez_id = "7157"
+
+        try:
+            result = await fetch_marrvel_data(endpoint)
+
+            # Log the API response
+            api_capture.log_response(
+                tool_name="fetch_marrvel_data",
+                endpoint=endpoint,
+                input_data={"entrez_id": entrez_id},
+                output_data=result,
+                status="success",
+            )
+
+            assert "symbol" in result or "entrezId" in result
+
+        except Exception as e:
+            # Log errors too
+            api_capture.log_response(
+                tool_name="fetch_marrvel_data",
+                endpoint=endpoint,
+                input_data={"entrez_id": entrez_id},
+                output_data=None,
+                status="error",
+                error=str(e),
+            )
+            raise
 
     @pytest.mark.integration
     @pytest.mark.integration_api
     @pytest.mark.asyncio
-    async def test_real_api_call_invalid_endpoint(self):
+    async def test_real_api_call_invalid_endpoint(self, api_capture):
         """Test real API call with invalid endpoint (requires network access)."""
-        # Invalid endpoints may raise HTTPStatusError or return error dict
+        endpoint = "/invalid/nonexistent/endpoint"
+
         try:
-            result = await fetch_marrvel_data("/invalid/nonexistent/endpoint")
+            result = await fetch_marrvel_data(endpoint)
+
+            # Log the response (could be error dict or exception)
+            api_capture.log_response(
+                tool_name="fetch_marrvel_data",
+                endpoint=endpoint,
+                input_data={"test": "invalid"},
+                output_data=result,
+                status="error" if "error" in result else "success",
+                error="Invalid endpoint test",
+            )
+
             # If no exception raised, check for error in response
             assert "error" in result or result.get("status_code") >= 400
-        except Exception:
+
+        except Exception as e:
+            # Log HTTPStatusError or other exceptions
+            api_capture.log_response(
+                tool_name="fetch_marrvel_data",
+                endpoint=endpoint,
+                input_data={"test": "invalid"},
+                output_data=None,
+                status="error",
+                error=str(e),
+            )
             # HTTPStatusError is also acceptable
             pass

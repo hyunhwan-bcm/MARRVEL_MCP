@@ -132,13 +132,28 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
                     pass
 
             if isinstance(output_data, dict):
-                num_keys = str(len(output_data))
-                # Show first few bytes of JSON
-                json_str = json.dumps(output_data, ensure_ascii=False)
-                if len(json_str) > 80:
-                    output_preview = json_str[:77] + "..."
+                # Check if this is an error response with special handling needed
+                if "error" in output_data and "content" in output_data:
+                    # Handle "Invalid JSON response" errors specially
+                    error_msg = output_data.get("error", "")
+                    status_code = output_data.get("status_code", "N/A")
+                    content_preview = output_data.get("content", "")[:50]
+                    output_preview = f'❌ {error_msg} (HTTP {status_code}): "{content_preview}..."'
+                    num_keys = str(len(output_data))
+                elif "error" in output_data:
+                    # Handle other error responses
+                    error_msg = output_data.get("error", "Unknown error")
+                    output_preview = f"❌ Error: {error_msg}"
+                    num_keys = str(len(output_data))
                 else:
-                    output_preview = json_str
+                    # Normal dict response
+                    num_keys = str(len(output_data))
+                    # Show first few bytes of JSON
+                    json_str = json.dumps(output_data, ensure_ascii=False)
+                    if len(json_str) > 80:
+                        output_preview = json_str[:77] + "..."
+                    else:
+                        output_preview = json_str
             elif isinstance(output_data, list):
                 num_keys = f"{len(output_data)} items"
                 # Show first few bytes of JSON
@@ -148,13 +163,18 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
                 else:
                     output_preview = json_str
             elif output_data is None:
-                output_preview = "null"
-                num_keys = "0"
+                # Check if there's an error message
+                if resp.get("error"):
+                    output_preview = f"❌ {resp['error']}"
+                    num_keys = "0"
+                else:
+                    output_preview = "null"
+                    num_keys = "0"
             else:
                 output_preview = str(output_data)[:80]
                 num_keys = "1"
         except Exception as e:
-            output_preview = "Error"
+            output_preview = f"⚠️ Display error: {str(e)[:40]}"
             num_keys = "N/A"
 
         status_icon = "✅" if resp["status"] == "success" else "❌"
