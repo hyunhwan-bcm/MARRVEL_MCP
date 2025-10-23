@@ -30,8 +30,18 @@ These tests use `unittest.mock` to mock API responses and run very fast (~0.7 se
 
 These tests make actual HTTP calls to the MARRVEL API and require network connectivity:
 
+- **`test_comprehensive_api.py`** - Comprehensive coverage of all 26 MARRVEL API endpoints
+  - Gene endpoints (3): entrezId, symbol, position
+  - Variant endpoints (13): dbNSFP, ClinVar, gnomAD, DGV, DECIPHER, Geno2MP
+  - Disease endpoints (3): OMIM by mimNumber, symbol, variant
+  - Ortholog endpoints (2): DIOPT orthologs, alignment
+  - Expression endpoints (3): GTEx, ortholog expression, Pharos
+  - Utility endpoints (2): Mutalyzer HGVS validation, Transvar protein conversion
 - **`test_api_direct.py`** - Direct API endpoint verification
+- **`test_api_capture_example.py`** - Example tests demonstrating API capture fixture usage
 - **`test_mcp_client.py`** - MCP tool testing with real API calls
+- **`test_api_client_integration.py`** - API client integration tests
+- **`test_server_api_integration.py`** - Server API integration tests
 - Integration test methods within unit test files (marked with `@pytest.mark.integration_api`)
 
 ### Integration Tests - MCP (Server Lifecycle)
@@ -59,6 +69,14 @@ pytest -m "not integration_api and not integration_mcp"
 ### Run Only API Integration Tests
 ```bash
 pytest -m integration_api
+
+# Run only the comprehensive API tests
+pytest tests/integration/api/test_comprehensive_api.py -v
+
+# Run specific endpoint category
+pytest tests/integration/api/test_comprehensive_api.py -v -k "gene"
+pytest tests/integration/api/test_comprehensive_api.py -v -k "variant"
+pytest tests/integration/api/test_comprehensive_api.py -v -k "clinvar"
 ```
 
 ### Run Only MCP Server Integration Tests
@@ -99,6 +117,36 @@ pytest tests/ -m "not integration_api and not integration_mcp"
 ```bash
 pytest tests/ -s
 ```
+
+## API Response Capture
+
+Integration API tests use the `api_capture` fixture to automatically log all API requests and responses:
+
+```python
+@pytest.mark.integration_api
+@pytest.mark.asyncio
+async def test_my_endpoint(api_capture):
+    """Test with automatic response capture."""
+    result = await fetch_marrvel_data("/endpoint")
+
+    api_capture.log_response(
+        tool_name="my_tool",
+        endpoint="/endpoint",
+        input_data={"param": "value"},
+        output_data=result,
+        status="success",
+    )
+```
+
+After running integration tests, captured responses are saved to:
+- **`test-output/api_responses.json`** - Complete JSON log of all API calls
+- **`test-output/api_responses.md`** - Markdown summary table
+
+This is useful for:
+- Debugging API integration issues
+- Documenting API behavior
+- Tracking API changes over time
+- Generating test reports
 
 ## Test Execution Examples
 
