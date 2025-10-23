@@ -7,11 +7,13 @@ fixture for logging and response validation.
 
 Coverage includes:
 - Gene endpoints (3)
-- Variant endpoints (13)
-- Disease endpoints (3)
+- Variant endpoints (11)
+- Disease endpoints (2)
 - Ortholog endpoints (2)
 - Expression endpoints (3)
 - Utility endpoints (2)
+
+Total: 24 tests (removed 2 non-existent variant endpoints)
 
 Reference: https://marrvel.org/doc
 """
@@ -132,16 +134,15 @@ async def test_gene_by_position(api_capture):
 
 
 # =============================================================================
-# VARIANT ENDPOINTS (13 tests)
+# VARIANT ENDPOINTS (11 tests)
 # =============================================================================
 
 
 @pytest.mark.integration_api
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="API may not have data for this specific variant")
 async def test_variant_dbnsfp(api_capture):
     """Test dbNSFP variant annotations."""
-    variant = "17-7577121-C-T"
+    variant = "6:99365567T>C"
     endpoint = f"/dbnsfp/variant/{variant}"
 
     try:
@@ -267,10 +268,9 @@ async def test_clinvar_by_entrez_id(api_capture):
 
 @pytest.mark.integration_api
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="API may not have data for this specific variant")
 async def test_gnomad_variant(api_capture):
     """Test gnomAD population frequencies by variant."""
-    variant = "17-7577121-C-T"
+    variant = "6:99365567T>C"
     endpoint = f"/gnomad/variant/{variant}"
 
     try:
@@ -494,39 +494,6 @@ async def test_decipher_by_location(api_capture):
 
 @pytest.mark.integration_api
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="API may not have data for this specific variant")
-async def test_geno2mp_variant(api_capture):
-    """Test Geno2MP genotype-phenotype associations by variant."""
-    variant = "17-7577121-C-T"
-    endpoint = f"/geno2mp/variant/{variant}"
-
-    try:
-        result = await fetch_marrvel_data(endpoint)
-
-        api_capture.log_response(
-            tool_name="get_geno2mp_variant",
-            endpoint=endpoint,
-            input_data={"variant": variant},
-            output_data=result,
-            status="success",
-        )
-
-        assert result is not None
-
-    except Exception as e:
-        api_capture.log_response(
-            tool_name="get_geno2mp_variant",
-            endpoint=endpoint,
-            input_data={"variant": variant},
-            output_data=None,
-            status="error",
-            error=str(e),
-        )
-        raise
-
-
-@pytest.mark.integration_api
-@pytest.mark.asyncio
 async def test_geno2mp_by_entrez_id(api_capture):
     """Test Geno2MP phenotype associations by gene Entrez ID."""
     entrez_id = "7157"
@@ -558,7 +525,7 @@ async def test_geno2mp_by_entrez_id(api_capture):
 
 
 # =============================================================================
-# DISEASE ENDPOINTS (3 tests)
+# DISEASE ENDPOINTS (2 tests)
 # =============================================================================
 
 
@@ -619,40 +586,6 @@ async def test_omim_by_gene_symbol(api_capture):
             tool_name="get_omim_by_gene_symbol",
             endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol},
-            output_data=None,
-            status="error",
-            error=str(e),
-        )
-        raise
-
-
-@pytest.mark.integration_api
-@pytest.mark.asyncio
-@pytest.mark.xfail(reason="OMIM variant endpoint may not exist or variant format not supported")
-async def test_omim_variant(api_capture):
-    """Test OMIM variant-specific information."""
-    gene_symbol = "TP53"
-    variant = "p.R248Q"
-    endpoint = f"/omim/gene/symbol/{gene_symbol}/variant/{variant}"
-
-    try:
-        result = await fetch_marrvel_data(endpoint)
-
-        api_capture.log_response(
-            tool_name="get_omim_variant",
-            endpoint=endpoint,
-            input_data={"gene_symbol": gene_symbol, "variant": variant},
-            output_data=result,
-            status="success",
-        )
-
-        assert result is not None
-
-    except Exception as e:
-        api_capture.log_response(
-            tool_name="get_omim_variant",
-            endpoint=endpoint,
-            input_data={"gene_symbol": gene_symbol, "variant": variant},
             output_data=None,
             status="error",
             error=str(e),
