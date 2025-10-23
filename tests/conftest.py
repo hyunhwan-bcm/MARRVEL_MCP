@@ -37,6 +37,7 @@ class APIResponseCapture:
         output_data: Any,
         status: str = "success",
         error: str = None,
+        return_code: str = None,
     ):
         """Log an API response."""
         global _api_responses
@@ -49,6 +50,7 @@ class APIResponseCapture:
             "output": output_data,
             "status": status,
             "error": error,
+            "return_code": return_code,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -107,8 +109,8 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
         "",
         "## Summary Table",
         "",
-        "| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Status |",
-        "|-----------|------|----------|-------|----------------|---------------|--------|",
+        "| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Return Code | Status |",
+        "|-----------|------|----------|-------|----------------|---------------|-------------|--------|",
     ]
 
     for resp in responses:
@@ -125,38 +127,25 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
         if len(input_str) > 40:
             input_str = input_str[:37] + "..."
 
-        # Format output preview - show top-level keys for better visibility
+        # Format output preview - show JSON only for successful calls, empty for errors
         output_preview = ""
         num_keys = "N/A"
         try:
             output_data = resp["output"]
-            if isinstance(output_data, str):
-                try:
-                    output_data = json.loads(output_data)
-                except:
-                    pass
 
-            if isinstance(output_data, dict):
-                # Check if this is an error response with special handling needed
-                if "error" in output_data and "content" in output_data:
-                    # Handle "Invalid JSON response" errors specially
-                    error_msg = output_data.get("error", "")
-                    status_code = output_data.get("status_code", "N/A")
-                    content_preview = output_data.get("content", "")
-                    if content_preview:
-                        # Show first 50 chars if content exists
-                        content_preview = content_preview[:50]
-                        output_preview = f'❌ {error_msg} (HTTP {status_code}): "{content_preview}"'
-                    else:
-                        # Empty content
-                        output_preview = f"❌ {error_msg} (HTTP {status_code}): (empty)"
-                    num_keys = str(len(output_data))
-                elif "error" in output_data:
-                    # Handle other error responses
-                    error_msg = output_data.get("error", "Unknown error")
-                    output_preview = f"❌ Error: {error_msg}"
-                    num_keys = str(len(output_data))
-                else:
+            # If status is error or output is None, leave output preview empty
+            if resp["status"] == "error" or output_data is None:
+                output_preview = ""
+                num_keys = "0"
+            else:
+                # Success case - show JSON output
+                if isinstance(output_data, str):
+                    try:
+                        output_data = json.loads(output_data)
+                    except:
+                        pass
+
+                if isinstance(output_data, dict):
                     # Normal dict response - show key names for better visibility
                     num_keys = str(len(output_data))
                     all_keys = list(output_data.keys())
@@ -170,33 +159,31 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
                         keys_preview = ", ".join(all_keys[:4])
                         remaining = len(all_keys) - 4
                         output_preview = f"{{{keys_preview}, +{remaining} more}}"
-            elif isinstance(output_data, list):
-                num_keys = f"{len(output_data)} items"
-                # Show first few bytes of JSON
-                json_str = json.dumps(output_data, ensure_ascii=False)
-                if len(json_str) > 80:
-                    output_preview = json_str[:77] + "..."
+                elif isinstance(output_data, list):
+                    num_keys = f"{len(output_data)} items"
+                    # Show first few bytes of JSON
+                    json_str = json.dumps(output_data, ensure_ascii=False)
+                    if len(json_str) > 80:
+                        output_preview = json_str[:77] + "..."
+                    else:
+                        output_preview = json_str
                 else:
-                    output_preview = json_str
-            elif output_data is None:
-                # Check if there's an error message
-                if resp.get("error"):
-                    output_preview = f"❌ {resp['error']}"
-                    num_keys = "0"
-                else:
-                    output_preview = "null"
-                    num_keys = "0"
-            else:
-                output_preview = str(output_data)[:80]
-                num_keys = "1"
-        except Exception as e:
-            output_preview = f"⚠️ Display error: {str(e)[:40]}"
+                    output_preview = str(output_data)[:80]
+                    num_keys = "1"
+        except Exception:
+            # On display error, leave output empty to avoid breaking table
+            output_preview = ""
             num_keys = "N/A"
+
+        # Get return code
+        return_code = resp.get("return_code", "N/A")
+        if return_code is None:
+            return_code = "N/A"
 
         status_icon = "✅" if resp["status"] == "success" else "❌"
 
         lines.append(
-            f"| {test_name} | {tool} | {endpoint_link} | `{input_str}` | {output_preview} | {num_keys} | {status_icon} |"
+            f"| {test_name} | {tool} | {endpoint_link} | `{input_str}` | {output_preview} | {num_keys} | {return_code} | {status_icon} |"
         )
 
     return "\n".join(lines)

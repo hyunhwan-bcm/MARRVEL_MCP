@@ -20,7 +20,13 @@ class APIResponseCollector:
         self.responses = []
 
     def add_response(
-        self, test_name: str, tool_name: str, input_params: Dict, output_json: Any, status: str
+        self,
+        test_name: str,
+        tool_name: str,
+        input_params: Dict,
+        output_json: Any,
+        status: str,
+        return_code: str = None,
     ):
         """Add an API response record."""
         self.responses.append(
@@ -30,6 +36,7 @@ class APIResponseCollector:
                 "input": input_params,
                 "output": output_json,
                 "status": status,
+                "return_code": return_code,
                 "timestamp": datetime.utcnow().isoformat(),
             }
         )
@@ -57,8 +64,8 @@ class APIResponseCollector:
             "",
             "## Response Summary Table",
             "",
-            "| Test Name | Tool | Input | Output Preview | # Output Keys | Status |",
-            "|-----------|------|-------|----------------|---------------|--------|",
+            "| Test Name | Tool | Input | Output Preview | # Output Keys | Return Code | Status |",
+            "|-----------|------|-------|----------------|---------------|-------------|--------|",
         ]
 
         for resp in self.responses:
@@ -71,38 +78,25 @@ class APIResponseCollector:
             if len(input_str) > 50:
                 input_str = input_str[:47] + "..."
 
-            # Format output preview - show top-level keys for better visibility
+            # Format output preview - show JSON only for successful calls, empty for errors
             output_preview = ""
             num_keys = "N/A"
             try:
-                if isinstance(resp["output"], str):
-                    output_data = json.loads(resp["output"])
-                else:
-                    output_data = resp["output"]
+                output_data = resp["output"]
 
-                if isinstance(output_data, dict):
-                    # Check if this is an error response with special handling needed
-                    if "error" in output_data and "content" in output_data:
-                        # Handle "Invalid JSON response" errors specially
-                        error_msg = output_data.get("error", "")
-                        status_code = output_data.get("status_code", "N/A")
-                        content_preview = output_data.get("content", "")
-                        if content_preview:
-                            # Show first 50 chars if content exists
-                            content_preview = content_preview[:50]
-                            output_preview = (
-                                f'❌ {error_msg} (HTTP {status_code}): "{content_preview}"'
-                            )
-                        else:
-                            # Empty content
-                            output_preview = f"❌ {error_msg} (HTTP {status_code}): (empty)"
-                        num_keys = str(len(output_data))
-                    elif "error" in output_data:
-                        # Handle other error responses
-                        error_msg = output_data.get("error", "Unknown error")
-                        output_preview = f"❌ Error: {error_msg}"
-                        num_keys = str(len(output_data))
-                    else:
+                # If status is error or output is None, leave output preview empty
+                if resp["status"] == "error" or output_data is None:
+                    output_preview = ""
+                    num_keys = "0"
+                else:
+                    # Success case - show JSON output
+                    if isinstance(output_data, str):
+                        try:
+                            output_data = json.loads(output_data)
+                        except:
+                            pass
+
+                    if isinstance(output_data, dict):
                         # Normal dict response - show key names for better visibility
                         num_keys = str(len(output_data))
                         all_keys = list(output_data.keys())
@@ -116,28 +110,31 @@ class APIResponseCollector:
                             keys_preview = ", ".join(all_keys[:4])
                             remaining = len(all_keys) - 4
                             output_preview = f"{{{keys_preview}, +{remaining} more}}"
-                elif isinstance(output_data, list):
-                    num_keys = f"{len(output_data)} items"
-                    # Show first few bytes of JSON
-                    json_str = json.dumps(output_data, ensure_ascii=False)
-                    if len(json_str) > 80:
-                        output_preview = json_str[:77] + "..."
+                    elif isinstance(output_data, list):
+                        num_keys = f"{len(output_data)} items"
+                        # Show first few bytes of JSON
+                        json_str = json.dumps(output_data, ensure_ascii=False)
+                        if len(json_str) > 80:
+                            output_preview = json_str[:77] + "..."
+                        else:
+                            output_preview = json_str
                     else:
-                        output_preview = json_str
-                elif output_data is None:
-                    output_preview = "null"
-                    num_keys = "0"
-                else:
-                    output_preview = str(output_data)[:80]
-                    num_keys = "1"
+                        output_preview = str(output_data)[:80]
+                        num_keys = "1"
             except Exception:
-                output_preview = "Error"
+                # On display error, leave output empty to avoid breaking table
+                output_preview = ""
                 num_keys = "N/A"
+
+            # Get return code
+            return_code = resp.get("return_code", "N/A")
+            if return_code is None:
+                return_code = "N/A"
 
             status_icon = "✅" if resp["status"] == "success" else "❌"
 
             lines.append(
-                f"| {test_name} | {tool_name} | `{input_str}` | {output_preview} | {num_keys} | {status_icon} |"
+                f"| {test_name} | {tool_name} | `{input_str}` | {output_preview} | {num_keys} | {return_code} | {status_icon} |"
             )
 
         return "\n".join(lines)

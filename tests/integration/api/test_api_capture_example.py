@@ -26,6 +26,13 @@ async def test_gene_api_with_capture(api_capture):
     try:
         result = await fetch_marrvel_data(endpoint)
 
+        # Extract return code if available
+        return_code = None
+        if isinstance(result, dict) and "status_code" in result:
+            return_code = str(result["status_code"])
+        else:
+            return_code = "200"
+
         # Log the API response
         api_capture.log_response(
             tool_name="get_gene_by_entrez_id",
@@ -33,12 +40,18 @@ async def test_gene_api_with_capture(api_capture):
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
+            return_code=return_code,
         )
 
         assert result is not None
         assert "symbol" in result or "entrezId" in result
 
     except Exception as e:
+        # Extract return code from HTTPStatusError if available
+        return_code = "N/A"
+        if hasattr(e, "response") and hasattr(e.response, "status_code"):
+            return_code = str(e.response.status_code)
+
         # Log errors too
         api_capture.log_response(
             tool_name="get_gene_by_entrez_id",
@@ -47,6 +60,7 @@ async def test_gene_api_with_capture(api_capture):
             output_data=None,
             status="error",
             error=str(e),
+            return_code=return_code,
         )
         raise
 
@@ -62,6 +76,13 @@ async def test_variant_api_with_capture(api_capture):
     try:
         result = await fetch_marrvel_data(endpoint)
 
+        # Extract return code if available
+        return_code = None
+        if isinstance(result, dict) and "status_code" in result:
+            return_code = str(result["status_code"])
+        else:
+            return_code = "200"
+
         # Log the API response
         api_capture.log_response(
             tool_name="get_variant_dbnsfp",
@@ -69,11 +90,17 @@ async def test_variant_api_with_capture(api_capture):
             input_data={"variant": variant},
             output_data=result,
             status="success",
+            return_code=return_code,
         )
 
         assert result is not None
 
     except Exception as e:
+        # Extract return code from HTTPStatusError if available
+        return_code = "N/A"
+        if hasattr(e, "response") and hasattr(e.response, "status_code"):
+            return_code = str(e.response.status_code)
+
         api_capture.log_response(
             tool_name="get_variant_dbnsfp",
             endpoint=endpoint,
@@ -81,6 +108,7 @@ async def test_variant_api_with_capture(api_capture):
             output_data=None,
             status="error",
             error=str(e),
+            return_code=return_code,
         )
         raise
 
@@ -96,6 +124,13 @@ async def test_omim_api_with_capture(api_capture):
     try:
         result = await fetch_marrvel_data(endpoint)
 
+        # Extract return code if available
+        return_code = None
+        if isinstance(result, dict) and "status_code" in result:
+            return_code = str(result["status_code"])
+        else:
+            return_code = "200"
+
         # Log the API response
         api_capture.log_response(
             tool_name="get_omim_for_gene_symbol",
@@ -103,11 +138,17 @@ async def test_omim_api_with_capture(api_capture):
             input_data={"gene_symbol": gene_symbol},
             output_data=result,
             status="success",
+            return_code=return_code,
         )
 
         assert result is not None
 
     except Exception as e:
+        # Extract return code from HTTPStatusError if available
+        return_code = "N/A"
+        if hasattr(e, "response") and hasattr(e.response, "status_code"):
+            return_code = str(e.response.status_code)
+
         api_capture.log_response(
             tool_name="get_omim_for_gene_symbol",
             endpoint=endpoint,
@@ -115,6 +156,7 @@ async def test_omim_api_with_capture(api_capture):
             output_data=None,
             status="error",
             error=str(e),
+            return_code=return_code,
         )
         raise
 
@@ -131,6 +173,13 @@ async def test_diopt_api_with_capture(api_capture):
     try:
         result = await fetch_marrvel_data(endpoint)
 
+        # Extract return code if available
+        return_code = None
+        if isinstance(result, dict) and "status_code" in result:
+            return_code = str(result["status_code"])
+        else:
+            return_code = "200"
+
         # Log the API response
         api_capture.log_response(
             tool_name="get_diopt_orthologs_by_entrez_id",
@@ -138,11 +187,17 @@ async def test_diopt_api_with_capture(api_capture):
             input_data={"entrez_id": "7157", "gene_symbol": gene_symbol},
             output_data=result,
             status="success",
+            return_code=return_code,
         )
 
         assert result is not None
 
     except Exception as e:
+        # Extract return code from HTTPStatusError if available
+        return_code = "N/A"
+        if hasattr(e, "response") and hasattr(e.response, "status_code"):
+            return_code = str(e.response.status_code)
+
         api_capture.log_response(
             tool_name="get_diopt_orthologs_by_entrez_id",
             endpoint=endpoint,
@@ -150,6 +205,7 @@ async def test_diopt_api_with_capture(api_capture):
             output_data=None,
             status="error",
             error=str(e),
+            return_code=return_code,
         )
         raise
 
@@ -165,6 +221,13 @@ async def test_expression_api_with_capture(api_capture):
     try:
         result = await fetch_marrvel_data(endpoint)
 
+        # Extract return code if available
+        return_code = None
+        if isinstance(result, dict) and "status_code" in result:
+            return_code = str(result["status_code"])
+        else:
+            return_code = "200"
+
         # Log the API response
         api_capture.log_response(
             tool_name="get_gtex_expression",
@@ -172,11 +235,17 @@ async def test_expression_api_with_capture(api_capture):
             input_data={"gene_symbol": gene_symbol},
             output_data=result,
             status="success",
+            return_code=return_code,
         )
 
         assert result is not None
 
     except Exception as e:
+        # Extract return code from HTTPStatusError if available
+        return_code = "N/A"
+        if hasattr(e, "response") and hasattr(e.response, "status_code"):
+            return_code = str(e.response.status_code)
+
         api_capture.log_response(
             tool_name="get_gtex_expression",
             endpoint=endpoint,
@@ -184,5 +253,6 @@ async def test_expression_api_with_capture(api_capture):
             output_data=None,
             status="error",
             error=str(e),
+            return_code=return_code,
         )
         raise
