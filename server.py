@@ -11,6 +11,7 @@ This server provides AI agents with access to comprehensive genetics databases:
 - Expression data (GTEx, model organisms)
 - Drug target information (Pharos)
 - Variant nomenclature tools (Mutalyzer, Transvar)
+- PubMed literature search (search and article retrieval)
 
 For more information about available tools, see TOOL_REFERENCE.md
 For API documentation, see API_DOCUMENTATION.md
