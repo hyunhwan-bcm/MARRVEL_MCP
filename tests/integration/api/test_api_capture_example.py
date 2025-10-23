@@ -8,6 +8,7 @@ API responses during test execution.
 import sys
 import os
 import pytest
+from urllib.parse import quote
 
 # Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
@@ -69,9 +70,11 @@ async def test_gene_api_with_capture(api_capture):
 @pytest.mark.asyncio
 async def test_variant_api_with_capture(api_capture):
     """Test variant API endpoint and capture the response."""
-    # Test variant
-    variant = "17-7577121-C-T"
-    endpoint = f"/variant/dbnsfp/{variant}"
+    # Test variant (use canonical format and endpoint)
+    variant = "6:99365567 T>C"
+    # Preserve ':' but encode spaces and special chars (like '>') to avoid breaking markdown tables
+    encoded_variant = quote(variant, safe=":")
+    endpoint = f"/dbnsfp/variant/{encoded_variant}"
 
     try:
         result = await fetch_marrvel_data(endpoint)
