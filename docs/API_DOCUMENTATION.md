@@ -10,7 +10,8 @@ Comprehensive documentation for all MCP tools provided by the MARRVEL server.
 4. [Ortholog Tools (DIOPT)](#ortholog-tools-diopt)
 5. [Expression Tools](#expression-tools)
 6. [Utility Tools](#utility-tools)
-7. [Data Format Reference](#data-format-reference)
+7. [PubMed Literature Search Tools](#pubmed-literature-search-tools)
+8. [Data Format Reference](#data-format-reference)
 
 ---
 
@@ -540,6 +541,142 @@ Convert protein-level variants to genomic coordinates using Transvar.
 ```
 
 **API Endpoint:** `GET /transvar/protein/:proteinVariant`
+
+---
+
+## PubMed Literature Search Tools
+
+### `search_pubmed`
+
+Search PubMed for biomedical literature and retrieve article details.
+
+This tool performs comprehensive PubMed searches for any biomedical query including gene names, variants, diseases, symptoms, drug names, or research topics. It returns PubMed IDs along with article metadata including titles, abstracts, authors, and publication information.
+
+**Parameters:**
+- `query` (string, required): Search query using any biomedical terms
+  - Gene names: "TP53 cancer", "BRCA1 breast cancer"
+  - Variants: "rs1042522", "R175H TP53"
+  - Diseases: "Alzheimer's disease genetics"
+  - Symptoms: "fever malaria treatment"
+  - Drug names: "aspirin cardiovascular disease"
+  - General: "CRISPR gene editing"
+- `max_results` (integer, optional): Maximum number of results to return (default: 50, max: 100)
+- `email` (string, optional): Email address for PubMed API identification (default: marrvel@example.com)
+
+**Returns:**
+- `query`: The search query used
+- `total_results`: Total number of matches found in PubMed
+- `returned_results`: Number of results in this response
+- `max_results`: Maximum results requested
+- `articles`: List of article objects, each containing:
+  - `pubmed_id`: PubMed ID (PMID)
+  - `title`: Article title
+  - `abstract`: Article abstract (if available)
+  - `authors`: List of author names
+  - `journal`: Journal name
+  - `publication_date`: Publication date
+  - `doi`: Digital Object Identifier (if available)
+  - `keywords`: Article keywords (if available)
+  - `methods`: Methods section (if available)
+  - `results`: Results section (if available)
+  - `conclusions`: Conclusions section (if available)
+
+**Example Usage:**
+```
+"Search PubMed for TP53 cancer therapy"
+"Find recent publications about BRCA1 mutations"
+"Look up Alzheimer's disease APOE literature"
+"Search for COVID-19 vaccine studies"
+```
+
+**Example Response:**
+```json
+{
+  "query": "TP53 cancer",
+  "total_results": 45678,
+  "returned_results": 10,
+  "max_results": 10,
+  "articles": [
+    {
+      "pubmed_id": "12345678",
+      "title": "TP53 mutations in human cancers",
+      "abstract": "The tumor suppressor gene TP53 is frequently mutated...",
+      "authors": ["Smith J", "Doe A", "Johnson M"],
+      "journal": "Nature",
+      "publication_date": "2023-01-15",
+      "doi": "10.1038/example",
+      "keywords": ["TP53", "cancer", "tumor suppressor"],
+      "methods": null,
+      "results": null,
+      "conclusions": null
+    }
+  ]
+}
+```
+
+**Notes:**
+- Results are limited to max_results for performance
+- Not all articles have full abstracts available
+- Some articles may have limited metadata
+- Full text sections (methods, results, conclusions) availability depends on publisher
+
+---
+
+### `get_pubmed_article`
+
+Retrieve detailed information for a specific PubMed article by PMID.
+
+This tool fetches comprehensive details for a single PubMed article including title, abstract, authors, journal information, keywords, and publication metadata.
+
+**Parameters:**
+- `pubmed_id` (string, required): PubMed ID (PMID) as a string (e.g., "12345678")
+- `email` (string, optional): Email address for PubMed API identification (default: marrvel@example.com)
+
+**Returns:**
+- `pubmed_id`: PubMed ID
+- `title`: Article title
+- `abstract`: Full abstract
+- `authors`: List of authors
+- `journal`: Journal name
+- `publication_date`: Date of publication
+- `doi`: Digital Object Identifier
+- `keywords`: Article keywords
+- `methods`: Methods section (if available)
+- `results`: Results section (if available)
+- `conclusions`: Conclusions section (if available)
+- `copyrights`: Copyright information (if available)
+
+**Example Usage:**
+```
+"Get details for PubMed article 32601318"
+"Retrieve article information for PMID 28887537"
+"Show me the abstract for PubMed ID 12345678"
+```
+
+**Example Response:**
+```json
+{
+  "pubmed_id": "32601318",
+  "title": "COVID-19 vaccine development",
+  "abstract": "The rapid development of COVID-19 vaccines...",
+  "authors": ["Johnson A", "Smith B", "Doe C"],
+  "journal": "The Lancet",
+  "publication_date": "2020-06-28",
+  "doi": "10.1016/S0140-6736(20)31252-6",
+  "keywords": ["COVID-19", "vaccine", "SARS-CoV-2"],
+  "methods": "Study methodology details...",
+  "results": "Results of the study...",
+  "conclusions": "Conclusions drawn from the study...",
+  "copyrights": "Copyright 2020 Elsevier Ltd."
+}
+```
+
+**Notes:**
+- Not all articles have all fields available
+- Full text sections (methods, results, conclusions) may not be available for all articles depending on publisher restrictions
+- If article is not found, returns an error message
+
+**API Endpoint:** PubMed E-utilities API via pymed library
 
 ---
 
