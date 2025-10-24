@@ -10,7 +10,21 @@ Default PubMed search email: zhandongliulab@bcm.edu (updated for compliance)
 
 import json
 from typing import Optional
-from pymed_paperscraper import PubMed
+
+
+def _init_pubmed_client(email: str):
+    """Initialize and return a PubMed client from pymed_paperscraper.
+
+    This import is done lazily so the package remains optional for test environments
+    that don't have the dependency installed.
+    """
+    try:
+        from pymed_paperscraper import PubMed
+
+    except Exception as e:  # pragma: no cover - environment dependent
+        raise ImportError("Optional dependency 'pymed_paperscraper' is not installed: " + str(e))
+
+    return PubMed(tool="MARRVEL_MCP", email=email)
 
 
 def register_tools(mcp_instance):
@@ -75,8 +89,11 @@ async def search_pubmed(
         if max_results < 1 or max_results > 100:
             return json.dumps({"error": "max_results must be between 1 and 100"}, indent=2)
 
-        # Initialize PubMed client
-        pubmed = PubMed(tool="MARRVEL_MCP", email=email)
+        # Initialize PubMed client (lazy import)
+        try:
+            pubmed = _init_pubmed_client(email)
+        except ImportError as ie:
+            return json.dumps({"error": str(ie), "query": query}, indent=2)
 
         # Get total count first
         try:
@@ -166,8 +183,11 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
           for all articles depending on publisher restrictions
     """
     try:
-        # Initialize PubMed client
-        pubmed = PubMed(tool="MARRVEL_MCP", email=email)
+        # Initialize PubMed client (lazy import)
+        try:
+            pubmed = _init_pubmed_client(email)
+        except ImportError as ie:
+            return json.dumps({"error": str(ie), "pubmed_id": pubmed_id}, indent=2)
 
         # Search for specific PMID
         results = pubmed.query(pubmed_id, max_results=1)
