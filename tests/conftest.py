@@ -23,7 +23,13 @@ _api_responses = []
 
 
 class APIResponseCapture:
-    """Captures API responses during test execution."""
+    """Captures API responses during test execution.
+
+    Notes:
+    - The `endpoint` value is optional; it will only be included in the
+      recorded payload when provided. This keeps records minimal and allows
+      tests to stop providing an endpoint when it's not useful.
+    """
 
     def __init__(self, test_name: str):
         self.test_name = test_name
@@ -32,20 +38,23 @@ class APIResponseCapture:
     def log_response(
         self,
         tool_name: str,
-        endpoint: str,
         input_data: Dict[str, Any],
         output_data: Any,
+        endpoint: Optional[str] = None,
         status: str = "success",
         error: Optional[str] = None,
         return_code: Optional[str] = None,
     ):
-        """Log an API response."""
+        """Log an API response.
+
+        The `endpoint` parameter is optional. If it's None the record will not
+        contain an "endpoint" key.
+        """
         global _api_responses
 
-        record = {
+        record: Dict[str, Any] = {
             "test_name": self.test_name,
             "tool_name": tool_name,
-            "endpoint": endpoint,
             "input": input_data,
             "output": output_data,
             "status": status,
@@ -53,6 +62,10 @@ class APIResponseCapture:
             "return_code": return_code,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+
+        # Only add endpoint when it was explicitly provided
+        if endpoint is not None:
+            record["endpoint"] = endpoint
 
         self.responses.append(record)
         _api_responses.append(record)
@@ -101,6 +114,20 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
     """Generate markdown table from API responses."""
     from config import API_BASE_URL
 
+    # Determine whether any response includes an explicit endpoint. If not,
+    # omit the Endpoint column from the generated table to keep output
+    # concise for test suites that no longer provide endpoint values.
+    include_endpoint = any("endpoint" in resp for resp in responses)
+
+    if include_endpoint:
+        header = "| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Return Code | Status |"
+        sep = "|-----------|------|----------|-------|----------------|---------------|-------------|--------|"
+    else:
+        header = (
+            "| Test Name | Tool | Input | Output Preview | # Output Keys | Return Code | Status |"
+        )
+        sep = "|-----------|------|-------|----------------|---------------|-------------|--------|"
+
     lines = [
         "# MARRVEL API Test Responses",
         "",
@@ -109,18 +136,18 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
         "",
         "## Summary Table",
         "",
-        "| Test Name | Tool | Endpoint | Input | Output Preview | # Output Keys | Return Code | Status |",
-        "|-----------|------|----------|-------|----------------|---------------|-------------|--------|",
+        header,
+        sep,
     ]
 
     for resp in responses:
         # Show full test name (don't truncate)
         test_name = resp["test_name"].split("::")[-1]  # Get last part of test path
         tool = resp["tool_name"]
-        endpoint = resp["endpoint"]
+        endpoint = resp.get("endpoint")
 
-        # Make endpoint a clickable link to MARRVEL API
-        endpoint_link = f"[{endpoint}]({API_BASE_URL}{endpoint})"
+        # Make endpoint a clickable link to MARRVEL API when present
+        endpoint_link = f"[{endpoint}]({API_BASE_URL}{endpoint})" if endpoint else ""
 
         # Format input
         input_str = str(resp["input"])
@@ -224,9 +251,14 @@ def _generate_markdown_table(responses: List[Dict[str, Any]]) -> str:
 
         status_icon = "✅" if resp["status"] == "success" else "❌"
 
-        lines.append(
-            f"| {test_name} | {tool} | {endpoint_link} | `{input_str}` | {output_preview} | {num_keys} | {return_code} | {status_icon} |"
-        )
+        if include_endpoint:
+            lines.append(
+                f"| {test_name} | {tool} | {endpoint_link} | `{input_str}` | {output_preview} | {num_keys} | {return_code} | {status_icon} |"
+            )
+        else:
+            lines.append(
+                f"| {test_name} | {tool} | `{input_str}` | {output_preview} | {num_keys} | {return_code} | {status_icon} |"
+            )
 
     return "\n".join(lines)
 
