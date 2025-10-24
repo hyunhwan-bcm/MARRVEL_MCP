@@ -78,9 +78,21 @@ tool_calls = [
     ("get_gtex_expression", {"entrez_id": "7157"}),
     ("validate_hgvs_variant", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
     ("search_pubmed", {"query": "TP53 cancer", "max_results": 1}),
+    # Liftover tool tests
+    ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
+    ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}),
 ]
 
 
+@pytest.mark.integration_mcp
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "tool_name,params,expected_key",
+    [
+        ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}, "hg19Chr"),
+        ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}, "hg38Chr"),
+    ],
+)
 def try_parse_text(text: str):
     """Try several strategies to parse a text block into a Python object.
 
