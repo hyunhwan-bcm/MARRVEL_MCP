@@ -16,6 +16,9 @@ def register_tools(mcp_instance):
     """Register all ortholog tools with the MCP server."""
     # Register tools
     mcp_instance.tool()(get_diopt_orthologs)
+    # Provide an explicit alias matching other parts of the codebase/tests
+    # which reference `get_diopt_orthologs_by_entrez_id`.
+    mcp_instance.tool()(get_diopt_orthologs_by_entrez_id)
     mcp_instance.tool()(get_diopt_alignment)
 
 
@@ -77,3 +80,16 @@ async def get_diopt_alignment(entrez_id: str) -> str:
         return str(data)
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT alignment data: {str(e)}"
+
+
+async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
+    """
+    Alias for get_diopt_orthologs that matches existing test and documentation naming.
+
+    Args:
+        entrez_id: Human gene Entrez ID
+
+    Returns:
+        JSON string with ortholog predictions (same as get_diopt_orthologs)
+    """
+    return await get_diopt_orthologs(entrez_id)

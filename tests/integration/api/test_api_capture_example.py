@@ -171,7 +171,8 @@ async def test_diopt_api_with_capture(api_capture):
     # Test ortholog search
     gene_symbol = "TP53"
     taxon_id = "9606"  # human
-    endpoint = f"/diopt/entrezId/7157/ortholog"
+    # Use canonical DIOPT endpoint order: /diopt/ortholog/gene/entrezId/{id}
+    endpoint = f"/diopt/ortholog/gene/entrezId/7157"
 
     try:
         result = await fetch_marrvel_data(endpoint)
