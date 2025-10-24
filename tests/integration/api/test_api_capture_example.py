@@ -34,10 +34,9 @@ async def test_gene_api_with_capture(api_capture):
         else:
             return_code = "200"
 
-        # Log the API response
+        # Log the API response (endpoint omitted - optional)
         api_capture.log_response(
             tool_name="get_gene_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -56,7 +55,6 @@ async def test_gene_api_with_capture(api_capture):
         # Log errors too
         api_capture.log_response(
             tool_name="get_gene_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -86,10 +84,9 @@ async def test_variant_api_with_capture(api_capture):
         else:
             return_code = "200"
 
-        # Log the API response
+        # Log the API response (endpoint omitted - optional)
         api_capture.log_response(
             tool_name="get_variant_dbnsfp",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=result,
             status="success",
@@ -106,7 +103,6 @@ async def test_variant_api_with_capture(api_capture):
 
         api_capture.log_response(
             tool_name="get_variant_dbnsfp",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=None,
             status="error",
@@ -134,10 +130,9 @@ async def test_omim_api_with_capture(api_capture):
         else:
             return_code = "200"
 
-        # Log the API response
+        # Log the API response (endpoint omitted - optional)
         api_capture.log_response(
             tool_name="get_omim_for_gene_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol},
             output_data=result,
             status="success",
@@ -154,7 +149,6 @@ async def test_omim_api_with_capture(api_capture):
 
         api_capture.log_response(
             tool_name="get_omim_for_gene_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol},
             output_data=None,
             status="error",
@@ -184,10 +178,9 @@ async def test_diopt_api_with_capture(api_capture):
         else:
             return_code = "200"
 
-        # Log the API response
+        # Log the API response (endpoint omitted - optional)
         api_capture.log_response(
             tool_name="get_diopt_orthologs_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": "7157", "gene_symbol": gene_symbol},
             output_data=result,
             status="success",
@@ -204,7 +197,6 @@ async def test_diopt_api_with_capture(api_capture):
 
         api_capture.log_response(
             tool_name="get_diopt_orthologs_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": "7157"},
             output_data=None,
             status="error",
@@ -232,10 +224,9 @@ async def test_expression_api_with_capture(api_capture):
         else:
             return_code = "200"
 
-        # Log the API response
+        # Log the API response (endpoint omitted - optional)
         api_capture.log_response(
             tool_name="get_gtex_expression",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -252,7 +243,6 @@ async def test_expression_api_with_capture(api_capture):
 
         api_capture.log_response(
             tool_name="get_gtex_expression",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",

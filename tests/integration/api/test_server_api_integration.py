@@ -31,10 +31,9 @@ class TestIntegration:
         try:
             result = await fetch_marrvel_data(endpoint)
 
-            # Log the API response
+            # Log the API response (endpoint omitted - optional)
             api_capture.log_response(
                 tool_name="get_gene_by_entrez_id",
-                endpoint=endpoint,
                 input_data={"entrez_id": entrez_id},
                 output_data=result,
                 status="success",
@@ -46,7 +45,6 @@ class TestIntegration:
             # Log errors
             api_capture.log_response(
                 tool_name="get_gene_by_entrez_id",
-                endpoint=endpoint,
                 input_data={"entrez_id": entrez_id},
                 output_data=None,
                 status="error",
@@ -65,10 +63,9 @@ class TestIntegration:
         try:
             result = await fetch_marrvel_data(endpoint)
 
-            # Log the API response
+            # Log the API response (endpoint omitted - optional)
             api_capture.log_response(
                 tool_name="get_variant_dbnsfp",
-                endpoint=endpoint,
                 input_data={"variant": variant},
                 output_data=result,
                 status="success",
@@ -80,7 +77,6 @@ class TestIntegration:
             # Log errors
             api_capture.log_response(
                 tool_name="get_variant_dbnsfp",
-                endpoint=endpoint,
                 input_data={"variant": variant},
                 output_data=None,
                 status="error",

@@ -26,10 +26,9 @@ class TestFetchMarrvelDataIntegration:
         try:
             result = await fetch_marrvel_data(endpoint)
 
-            # Log the API response
+            # Log the API response (endpoint omitted - optional)
             api_capture.log_response(
                 tool_name="fetch_marrvel_data",
-                endpoint=endpoint,
                 input_data={"entrez_id": entrez_id},
                 output_data=result,
                 status="success",
@@ -41,7 +40,6 @@ class TestFetchMarrvelDataIntegration:
             # Log errors too
             api_capture.log_response(
                 tool_name="fetch_marrvel_data",
-                endpoint=endpoint,
                 input_data={"entrez_id": entrez_id},
                 output_data=None,
                 status="error",
@@ -59,10 +57,9 @@ class TestFetchMarrvelDataIntegration:
         try:
             result = await fetch_marrvel_data(endpoint)
 
-            # Log the response (could be error dict or exception)
+            # Log the response (could be error dict or exception); omit endpoint
             api_capture.log_response(
                 tool_name="fetch_marrvel_data",
-                endpoint=endpoint,
                 input_data={"test": "invalid"},
                 output_data=result,
                 status="error" if "error" in result else "success",
@@ -70,13 +67,13 @@ class TestFetchMarrvelDataIntegration:
             )
 
             # If no exception raised, check for error in response
-            assert "error" in result or result.get("status_code") >= 400
+            status_code = result.get("status_code") if isinstance(result, dict) else None
+            assert "error" in result or (isinstance(status_code, int) and status_code >= 400)
 
         except Exception as e:
             # Log HTTPStatusError or other exceptions
             api_capture.log_response(
                 tool_name="fetch_marrvel_data",
-                endpoint=endpoint,
                 input_data={"test": "invalid"},
                 output_data=None,
                 status="error",
