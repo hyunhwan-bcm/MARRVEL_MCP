@@ -9,7 +9,7 @@
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  1. Write Integration Test with api_capture Fixture            │
+│  1. Write Integration Test with api_capture Fixture             │
 │                                                                 │
 │     @pytest.mark.integration_api                                │
 │     async def test_my_api(api_capture):                         │
