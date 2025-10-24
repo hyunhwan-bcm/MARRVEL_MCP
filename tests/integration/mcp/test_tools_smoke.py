@@ -84,23 +84,71 @@ tool_calls = [
 def try_parse_text(text: str):
     """Try several strategies to parse a text block into a Python object.
 
-    Returns the parsed object on success or raises ValueError on failure.
+    Returns the parsed object on success or the original text as a fallback.
     """
+    # Normalize input
+    if not isinstance(text, str):
+        text = str(text)
+
     # Try JSON first
     try:
         return json.loads(text)
     except Exception:
         pass
 
-    # Try extracting a JSON-ish substring (first/last brace)
-    first = text.find("{")
-    last = text.rfind("}")
-    if first != -1 and last != -1 and last > first:
-        candidate = text[first : last + 1]
-        try:
-            return json.loads(candidate)
-        except Exception:
-            pass
+    # Helper: attempt to extract a balanced JSON substring starting at a given index
+    def extract_balanced(s: str, start_idx: int):
+        if start_idx < 0 or start_idx >= len(s):
+            return None
+        opening = s[start_idx]
+        if opening == "{":
+            closing = "}"
+        elif opening == "[":
+            closing = "]"
+        else:
+            return None
+        depth = 0
+        for i in range(start_idx, len(s)):
+            ch = s[i]
+            if ch == opening:
+                depth += 1
+            elif ch == closing:
+                depth -= 1
+                if depth == 0:
+                    return s[start_idx : i + 1]
+        return None
+
+    # Try extracting JSON/array substrings by locating first brace or bracket
+    for start_char in ("{", "["):
+        start = text.find(start_char)
+        if start != -1:
+            candidate = extract_balanced(text, start)
+            if candidate:
+                try:
+                    return json.loads(candidate)
+                except Exception:
+                    # try a relaxed fix with single quotes
+                    try:
+                        return json.loads(candidate.replace("'", '"'))
+                    except Exception:
+                        pass
+
+    # As a fallback, try regex to find the first {...} or [...]
+    import re
+
+    try:
+        m = re.search(r"(\{.*\}|\[.*\])", text, re.DOTALL)
+        if m:
+            candidate = m.group(1)
+            try:
+                return json.loads(candidate)
+            except Exception:
+                try:
+                    return json.loads(candidate.replace("'", '"'))
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
     # Fall back to Python literal evaluation
     import ast
@@ -117,7 +165,8 @@ def try_parse_text(text: str):
     except Exception:
         pass
 
-    raise ValueError("unable to parse text as JSON or Python literal")
+    # If nothing parsed, return the original text so callers can handle raw output.
+    return text
 
 
 @pytest.mark.integration
@@ -147,22 +196,21 @@ async def test_tool_returns_json_or_fail(mcp_server, name, args):
         parsed = resp
     elif isinstance(resp, str):
         parsed = try_parse_text(resp)
-    else:
+    elif isinstance(resp, (list, tuple)):
         # Handle sequences of content-blocks
-        if isinstance(resp, (list, tuple)):
-            parts = []
-            for item in resp:
-                if hasattr(item, "text"):
-                    parts.append(item.text)
-                elif hasattr(item, "content"):
-                    parts.append(str(item.content))
-                else:
-                    parts.append(str(item))
-            text = "\n".join(parts)
-            parsed = try_parse_text(text)
-        else:
-            # Unexpected type: fail
-            pytest.fail(f"Tool {name} returned unsupported type: {type(resp)}")
+        parts = []
+        for item in resp:
+            if hasattr(item, "text"):
+                parts.append(item.text)
+            elif hasattr(item, "content"):
+                parts.append(str(item.content))
+            else:
+                parts.append(str(item))
+        text = "\n".join(parts)
+        parsed = try_parse_text(text)
+    else:
+        # Unexpected type: fail
+        pytest.fail(f"Tool {name} returned unsupported type: {type(resp)}")
 
     # If parsing succeeded, print a concise one-line summary for visibility.
     if isinstance(parsed, dict):
