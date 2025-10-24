@@ -41,7 +41,7 @@ async def get_omim_by_mim_number(mim_number: str) -> str:
         - Allelic variants
 
     Example:
-        get_omim_by_mim_number("191170")  # Treacher Collins syndrome
+        get_omim_by_mim_number("191170")  #
         get_omim_by_mim_number("114480")  # Breast cancer (BRCA1)
     """
     try:
