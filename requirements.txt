@@ -23,3 +23,4 @@ openai>=1.0.0
 
 # PubMed literature search
 pymed_paperscraper>=0.1.0
+lxml
