@@ -33,6 +33,29 @@ pip install -r requirements.txt
 }
 ```
 
+### MCP Server Setup (mcp.json)
+
+To use MARRVEL-MCP with LM Studio, Claude Desktop, or other MCP-compatible clients, create an `mcp.json` file or add the following block to your client configuration:
+
+```json
+{
+  "mcpServers": {
+    "marrvel-mcp": {
+      "command": "/Users/hyunhwan/CodeWorkspace/MARRVEL_MCP/.venv/bin/python",
+      "args": [
+        "/Users/hyunhwan/CodeWorkspace/MARRVEL_MCP/server.py"
+      ]
+    }
+  }
+}
+```
+
+- **Recommended:** Use a Python virtual environment (`venv`) and specify the full path to your venv's python executable as shown above.
+- If you do not use a venv, you can use the system python (e.g., `"command": "python"` or `"python3"`).
+- Make sure all dependencies are installed in the environment you specify.
+
+This configuration allows your MCP client to launch the MARRVEL server and access all tools.
+
 ### Usage
 
 Ask your AI assistant natural language questions:
@@ -48,7 +71,7 @@ Ask your AI assistant natural language questions:
 
 ## Features
 
-- **28 MCP Tools** for genetics research
+- **32 MCP Tools** for genetics research
 - Gene queries (by symbol, ID, or position)
 - Variant analysis (dbNSFP, ClinVar, gnomAD)
 - Disease associations (OMIM)
