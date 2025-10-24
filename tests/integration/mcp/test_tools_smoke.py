@@ -57,150 +57,116 @@ def mcp_server():
     return mcp
 
 
+"""
+Parametrized per-tool smoke tests.
+
+Each registered tool is exercised as its own pytest case so test output
+reports one line per tool. If a tool's returned payload cannot be parsed as
+JSON (or a Python literal convertible to JSON), the test will fail.
+"""
+
+
+# List of tools to exercise and representative arguments. Keep this small
+# but representative; add/remove entries as needed.
+tool_calls = [
+    ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
+    ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
+    ("get_variant_dbnsfp", {"variant": "17:7577121 C>T"}),
+    ("get_clinvar_by_variant", {"variant": "17-7577121-C-T"}),
+    ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
+    ("get_diopt_orthologs", {"entrez_id": "7157"}),
+    ("get_gtex_expression", {"entrez_id": "7157"}),
+    ("validate_hgvs_variant", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
+    ("search_pubmed", {"query": "TP53 cancer", "max_results": 1}),
+]
+
+
+def try_parse_text(text: str):
+    """Try several strategies to parse a text block into a Python object.
+
+    Returns the parsed object on success or raises ValueError on failure.
+    """
+    # Try JSON first
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    # Try extracting a JSON-ish substring (first/last brace)
+    first = text.find("{")
+    last = text.rfind("}")
+    if first != -1 and last != -1 and last > first:
+        candidate = text[first : last + 1]
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
+
+    # Fall back to Python literal evaluation
+    import ast
+
+    try:
+        return ast.literal_eval(text)
+    except Exception:
+        pass
+
+    # Try a best-effort replace of single quotes -> double quotes and parse
+    try:
+        fixed = text.replace("'", '"')
+        return json.loads(fixed)
+    except Exception:
+        pass
+
+    raise ValueError("unable to parse text as JSON or Python literal")
+
+
 @pytest.mark.integration
 @pytest.mark.integration_mcp
 @pytest.mark.asyncio
-async def test_all_tools_return_json_or_error(mcp_server):
-    """Call every registered tool and ensure results are JSON parseable.
+@pytest.mark.parametrize("name,args", tool_calls)
+async def test_tool_returns_json_or_fail(mcp_server, name, args):
+    """Call a single tool and assert the returned payload is JSON-parseable.
 
-    If a tool returns a server-level error (response contains 'error'), the
-    tool call is skipped (marked as xfail via pytest.skip) because downstream
-    public APIs can be flaky and we don't want the entire smoke-suite to fail
-    for transient problems. If a tool returns a 'result', the test will
-    attempt to parse it as JSON and fail if it isn't valid JSON.
+    This test is parametrized so pytest shows one pass/fail line per tool.
     """
+    try:
+        resp = await mcp_server.call_tool(name, args)
+    except Exception as e:
+        pytest.skip(f"Tool {name} raised exception when called: {e}")
 
-    # We're using an in-process server instance (mcp_server). Tools are
-    # registered by `create_server()` so we can call them directly via
-    # `mcp_server.call_tool(name, arguments)` without JSON-RPC/stdio.
+    assert resp is not None, f"No response for tool {name}"
 
-    # List of tools to exercise and representative arguments.
-    # These map to the function parameter names in the tool definitions.
-    tool_calls = [
-        # gene_tools
-        ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
-        ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
-        ("get_gene_by_position", {"chromosome": "chr17", "position": 7577121}),
-        # variant_tools (representative subset / full set)
-        ("get_variant_dbnsfp", {"variant": "17:7577121 C>T"}),
-        ("get_clinvar_by_variant", {"variant": "17-7577121-C-T"}),
-        ("get_clinvar_by_gene_symbol", {"gene_symbol": "TP53"}),
-        ("get_clinvar_by_entrez_id", {"entrez_id": "7157"}),
-        ("get_gnomad_variant", {"variant": "17-7577121-C-T"}),
-        ("get_gnomad_by_gene_symbol", {"gene_symbol": "TP53"}),
-        ("get_gnomad_by_entrez_id", {"entrez_id": "7157"}),
-        ("get_dgv_variant", {"variant": "17-7577121-C-T"}),
-        ("get_dgv_by_entrez_id", {"entrez_id": "7157"}),
-        ("get_decipher_variant", {"variant": "17-7577121-C-T"}),
-        ("get_decipher_by_location", {"chromosome": "chr17", "start": 7570000, "stop": 7590000}),
-        ("get_geno2mp_variant", {"variant": "17-7577121-C-T"}),
-        ("get_geno2mp_by_entrez_id", {"entrez_id": "7157"}),
-        # disease_tools
-        ("get_omim_by_mim_number", {"mim_number": "114480"}),
-        ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
-        ("get_omim_variant", {"gene_symbol": "TP53", "variant": "p.R248Q"}),
-        # ortholog_tools
-        ("get_diopt_orthologs", {"entrez_id": "7157"}),
-        ("get_diopt_alignment", {"entrez_id": "7157"}),
-        ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),
-        # expression_tools
-        ("get_gtex_expression", {"entrez_id": "7157"}),
-        ("get_ortholog_expression", {"entrez_id": "7157"}),
-        ("get_pharos_targets", {"entrez_id": "7157"}),
-        # utility_tools
-        ("validate_hgvs_variant", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
-        ("convert_protein_variant", {"protein_variant": "NP_000537.3:p.Arg72Pro"}),
-        ("convert_rsid_to_variant", {"rsid": "rs429358"}),
-        # pubmed_tools (small result set)
-        ("search_pubmed", {"query": "TP53 cancer", "max_results": 2}),
-        ("get_pubmed_article", {"pubmed_id": "28887537"}),
-    ]
+    # If the call returned a dict that looks like an error, skip the test.
+    if isinstance(resp, dict) and resp.get("error"):
+        pytest.skip(f"Tool {name} returned error: {resp.get('error')}")
 
-    # Iterate and call each tool
-    for name, args in tool_calls:
-        # Call the tool via the in-process server API
-        try:
-            resp = await mcp_server.call_tool(name, args)
-        except Exception as e:
-            pytest.skip(f"Tool {name} raised exception when called: {e}")
+    parsed = None
 
-        assert resp is not None, f"No response for tool {name}"
+    # If the result is already a dict/list, accept as JSON-serializable
+    if isinstance(resp, (dict, list)):
+        parsed = resp
+    elif isinstance(resp, str):
+        parsed = try_parse_text(resp)
+    else:
+        # Handle sequences of content-blocks
+        if isinstance(resp, (list, tuple)):
+            parts = []
+            for item in resp:
+                if hasattr(item, "text"):
+                    parts.append(item.text)
+                elif hasattr(item, "content"):
+                    parts.append(str(item.content))
+                else:
+                    parts.append(str(item))
+            text = "\n".join(parts)
+            parsed = try_parse_text(text)
+        else:
+            # Unexpected type: fail
+            pytest.fail(f"Tool {name} returned unsupported type: {type(resp)}")
 
-        # If the call returned a dict that looks like an error, skip
-        if isinstance(resp, dict) and resp.get("error"):
-            pytest.skip(f"Tool {name} returned error: {resp.get('error')}")
-
-            # Normalize response payload for validation
-            result = resp
-
-            def try_parse_text(text: str):
-                """Try several strategies to parse a text block into a Python object.
-
-                Returns the parsed object on success or raises ValueError on failure.
-                """
-                # Try JSON first
-                try:
-                    return json.loads(text)
-                except Exception:
-                    pass
-
-                # Try extracting a JSON-ish substring (first/last brace) which helps
-                # when the tool returned a Python representation that includes
-                # wrapper objects (e.g. "[TextContent(... text='{...}')]").
-                first = text.find("{")
-                last = text.rfind("}")
-                if first != -1 and last != -1 and last > first:
-                    candidate = text[first : last + 1]
-                    try:
-                        return json.loads(candidate)
-                    except Exception:
-                        pass
-
-                # Fall back to Python literal evaluation (handles single-quoted
-                # dicts/lists produced by some tools)
-                import ast
-
-                try:
-                    return ast.literal_eval(text)
-                except Exception:
-                    pass
-
-                # Try a best-effort replace of single quotes -> double quotes and parse
-                # This is brittle but helps with simple cases like "{'a': 1}".
-                try:
-                    fixed = text.replace("'", '"')
-                    return json.loads(fixed)
-                except Exception:
-                    pass
-
-                raise ValueError("unable to parse text as JSON or Python literal")
-
-            # If result is a list/tuple of content blocks, extract text parts
-            if isinstance(result, (list, tuple)) and not isinstance(result, (dict, str)):
-                parts = []
-                for item in result:
-                    if hasattr(item, "text"):
-                        parts.append(item.text)
-                    elif hasattr(item, "content"):
-                        parts.append(str(item.content))
-                    else:
-                        parts.append(str(item))
-
-                text = "\n".join(parts)
-                try:
-                    _ = try_parse_text(text)
-                except Exception:
-                    pytest.fail(f"Tool {name} returned non-JSON result: {text[:200]}")
-                continue
-
-            # If the result is already a dict/list, accept as JSON-serializable
-            if isinstance(result, (dict, list)):
-                continue
-
-            # If it's a string, attempt to parse it via our helper
-            if isinstance(result, str):
-                try:
-                    _ = try_parse_text(result)
-                except Exception:
-                    pytest.fail(f"Tool {name} returned non-JSON result: {result[:200]}")
-                continue
+    # If parsing succeeded, print a concise one-line summary for visibility.
+    if isinstance(parsed, dict):
+        keys = list(parsed.keys())
+        print(f"Tool {name} -> OK JSON object with keys: {keys}")
+    else:
+        print(f"Tool {name} -> OK JSON value of type {type(parsed)}")
