@@ -7,7 +7,7 @@ This plugin intercepts API calls and stores the responses for later analysis.
 import json
 import pytest
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 
@@ -21,23 +21,29 @@ class APIResponseLogger:
     def log_api_call(
         self,
         tool_name: str,
-        endpoint: str,
         input_params: Dict[str, Any],
         response_data: Any,
+        endpoint: Optional[str] = None,
         status: str = "success",
-        error: str = None,
+        error: Optional[str] = None,
     ):
-        """Log an API call and its response."""
+        """Log an API call and its response.
+
+        The `endpoint` parameter is optional and will only be included in the
+        recorded payload when provided.
+        """
         record = {
             "test_name": self.current_test or "unknown",
             "tool_name": tool_name,
-            "endpoint": endpoint,
             "input": input_params,
             "output": response_data,
             "status": status,
             "error": error,
             "timestamp": datetime.utcnow().isoformat(),
         }
+
+        if endpoint is not None:
+            record["endpoint"] = endpoint
         self.responses.append(record)
 
     def save_to_file(self, filepath: str):
