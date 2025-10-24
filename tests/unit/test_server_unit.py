@@ -152,7 +152,7 @@ class TestToolRegistration:
         ortholog_tools.register_tools(mock_mcp)
 
         # Verify that tool() was called 2 times (2 DIOPT tools)
-        assert mock_mcp.tool.call_count == 2
+        assert mock_mcp.tool.call_count == 3
 
     def test_expression_tools_registration(self):
         """Test that expression_tools module registers all 3 expression tools."""
