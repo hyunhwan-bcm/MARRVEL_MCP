@@ -46,7 +46,6 @@ async def test_gene_by_entrez_id(api_capture):
 
         api_capture.log_response(
             tool_name="get_gene_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -58,7 +57,6 @@ async def test_gene_by_entrez_id(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_gene_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -80,7 +78,6 @@ async def test_gene_by_symbol(api_capture):
 
         api_capture.log_response(
             tool_name="get_gene_by_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol, "taxon_id": taxon_id},
             output_data=result,
             status="success",
@@ -92,7 +89,6 @@ async def test_gene_by_symbol(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_gene_by_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol, "taxon_id": taxon_id},
             output_data=None,
             status="error",
@@ -114,7 +110,6 @@ async def test_gene_by_position(api_capture):
 
         api_capture.log_response(
             tool_name="get_gene_by_position",
-            endpoint=endpoint,
             input_data={"chromosome": chromosome, "position": position},
             output_data=result,
             status="success",
@@ -125,7 +120,6 @@ async def test_gene_by_position(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_gene_by_position",
-            endpoint=endpoint,
             input_data={"chromosome": chromosome, "position": position},
             output_data=None,
             status="error",
@@ -151,7 +145,6 @@ async def test_variant_dbnsfp(api_capture):
 
         api_capture.log_response(
             tool_name="get_variant_dbnsfp",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=result,
             status="success",
@@ -162,7 +155,6 @@ async def test_variant_dbnsfp(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_variant_dbnsfp",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=None,
             status="error",
@@ -183,7 +175,6 @@ async def test_clinvar_by_variant(api_capture):
 
         api_capture.log_response(
             tool_name="get_clinvar_by_variant",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=result,
             status="success",
@@ -194,7 +185,6 @@ async def test_clinvar_by_variant(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_clinvar_by_variant",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=None,
             status="error",
@@ -215,7 +205,6 @@ async def test_clinvar_by_gene_symbol(api_capture):
 
         api_capture.log_response(
             tool_name="get_clinvar_by_gene_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol},
             output_data=result,
             status="success",
@@ -226,7 +215,6 @@ async def test_clinvar_by_gene_symbol(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_clinvar_by_gene_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol},
             output_data=None,
             status="error",
@@ -247,7 +235,6 @@ async def test_clinvar_by_entrez_id(api_capture):
 
         api_capture.log_response(
             tool_name="get_clinvar_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -258,7 +245,6 @@ async def test_clinvar_by_entrez_id(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_clinvar_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -279,7 +265,6 @@ async def test_gnomad_variant(api_capture):
 
         api_capture.log_response(
             tool_name="get_gnomad_variant",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=result,
             status="success",
@@ -290,7 +275,6 @@ async def test_gnomad_variant(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_gnomad_variant",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=None,
             status="error",
@@ -311,7 +295,6 @@ async def test_gnomad_by_gene_symbol(api_capture):
 
         api_capture.log_response(
             tool_name="get_gnomad_by_gene_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol},
             output_data=result,
             status="success",
@@ -322,7 +305,6 @@ async def test_gnomad_by_gene_symbol(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_gnomad_by_gene_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol},
             output_data=None,
             status="error",
@@ -343,7 +325,6 @@ async def test_gnomad_by_entrez_id(api_capture):
 
         api_capture.log_response(
             tool_name="get_gnomad_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -354,7 +335,6 @@ async def test_gnomad_by_entrez_id(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_gnomad_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -375,7 +355,6 @@ async def test_dgv_variant(api_capture):
 
         api_capture.log_response(
             tool_name="get_dgv_variant",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=result,
             status="success",
@@ -386,7 +365,6 @@ async def test_dgv_variant(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_dgv_variant",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=None,
             status="error",
@@ -407,7 +385,6 @@ async def test_dgv_by_entrez_id(api_capture):
 
         api_capture.log_response(
             tool_name="get_dgv_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -418,7 +395,6 @@ async def test_dgv_by_entrez_id(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_dgv_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -439,7 +415,6 @@ async def test_decipher_variant(api_capture):
 
         api_capture.log_response(
             tool_name="get_decipher_variant",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=result,
             status="success",
@@ -450,7 +425,6 @@ async def test_decipher_variant(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_decipher_variant",
-            endpoint=endpoint,
             input_data={"variant": variant},
             output_data=None,
             status="error",
@@ -473,7 +447,6 @@ async def test_decipher_by_location(api_capture):
 
         api_capture.log_response(
             tool_name="get_decipher_by_location",
-            endpoint=endpoint,
             input_data={"chromosome": chromosome, "start": start, "stop": stop},
             output_data=result,
             status="success",
@@ -484,7 +457,6 @@ async def test_decipher_by_location(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_decipher_by_location",
-            endpoint=endpoint,
             input_data={"chromosome": chromosome, "start": start, "stop": stop},
             output_data=None,
             status="error",
@@ -505,7 +477,6 @@ async def test_geno2mp_by_entrez_id(api_capture):
 
         api_capture.log_response(
             tool_name="get_geno2mp_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -516,7 +487,6 @@ async def test_geno2mp_by_entrez_id(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_geno2mp_by_entrez_id",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -542,7 +512,6 @@ async def test_omim_by_mim_number(api_capture):
 
         api_capture.log_response(
             tool_name="get_omim_by_mim_number",
-            endpoint=endpoint,
             input_data={"mim_number": mim_number},
             output_data=result,
             status="success",
@@ -553,7 +522,6 @@ async def test_omim_by_mim_number(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_omim_by_mim_number",
-            endpoint=endpoint,
             input_data={"mim_number": mim_number},
             output_data=None,
             status="error",
@@ -574,7 +542,6 @@ async def test_omim_by_gene_symbol(api_capture):
 
         api_capture.log_response(
             tool_name="get_omim_by_gene_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol},
             output_data=result,
             status="success",
@@ -585,7 +552,6 @@ async def test_omim_by_gene_symbol(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_omim_by_gene_symbol",
-            endpoint=endpoint,
             input_data={"gene_symbol": gene_symbol},
             output_data=None,
             status="error",
@@ -611,7 +577,6 @@ async def test_diopt_orthologs(api_capture):
 
         api_capture.log_response(
             tool_name="get_diopt_orthologs",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -622,7 +587,6 @@ async def test_diopt_orthologs(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_diopt_orthologs",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -643,7 +607,6 @@ async def test_diopt_alignment(api_capture):
 
         api_capture.log_response(
             tool_name="get_diopt_alignment",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -654,7 +617,6 @@ async def test_diopt_alignment(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_diopt_alignment",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -680,7 +642,6 @@ async def test_gtex_expression(api_capture):
 
         api_capture.log_response(
             tool_name="get_gtex_expression",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -691,7 +652,6 @@ async def test_gtex_expression(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_gtex_expression",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -712,7 +672,6 @@ async def test_ortholog_expression(api_capture):
 
         api_capture.log_response(
             tool_name="get_ortholog_expression",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -723,7 +682,6 @@ async def test_ortholog_expression(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_ortholog_expression",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -744,7 +702,6 @@ async def test_pharos_targets(api_capture):
 
         api_capture.log_response(
             tool_name="get_pharos_targets",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=result,
             status="success",
@@ -755,7 +712,6 @@ async def test_pharos_targets(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="get_pharos_targets",
-            endpoint=endpoint,
             input_data={"entrez_id": entrez_id},
             output_data=None,
             status="error",
@@ -781,7 +737,6 @@ async def test_mutalyzer_hgvs_validation(api_capture):
 
         api_capture.log_response(
             tool_name="validate_hgvs_variant",
-            endpoint=endpoint,
             input_data={"hgvs_variant": hgvs_variant},
             output_data=result,
             status="success",
@@ -793,7 +748,6 @@ async def test_mutalyzer_hgvs_validation(api_capture):
         # Mutalyzer service may be slow or unavailable
         api_capture.log_response(
             tool_name="validate_hgvs_variant",
-            endpoint=endpoint,
             input_data={"hgvs_variant": hgvs_variant},
             output_data=None,
             status="timeout",
@@ -803,7 +757,6 @@ async def test_mutalyzer_hgvs_validation(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="validate_hgvs_variant",
-            endpoint=endpoint,
             input_data={"hgvs_variant": hgvs_variant},
             output_data=None,
             status="error",
@@ -824,7 +777,6 @@ async def test_transvar_protein_variant(api_capture):
 
         api_capture.log_response(
             tool_name="convert_protein_variant",
-            endpoint=endpoint,
             input_data={"protein_variant": protein_variant},
             output_data=result,
             status="success",
@@ -836,7 +788,6 @@ async def test_transvar_protein_variant(api_capture):
         # Transvar service may be slow or unavailable
         api_capture.log_response(
             tool_name="convert_protein_variant",
-            endpoint=endpoint,
             input_data={"protein_variant": protein_variant},
             output_data=None,
             status="timeout",
@@ -846,7 +797,6 @@ async def test_transvar_protein_variant(api_capture):
     except Exception as e:
         api_capture.log_response(
             tool_name="convert_protein_variant",
-            endpoint=endpoint,
             input_data={"protein_variant": protein_variant},
             output_data=None,
             status="error",

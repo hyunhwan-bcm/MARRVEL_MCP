@@ -50,7 +50,6 @@ async def test_basic_queries(api_capture):
             # Log the API response
             api_capture.log_response(
                 tool_name=tool_name,
-                endpoint=endpoint,
                 input_data={"test_name": test_name},
                 output_data=result,
                 status="success",
@@ -89,7 +88,6 @@ async def test_basic_queries(api_capture):
             # Log errors
             api_capture.log_response(
                 tool_name=tool_name,
-                endpoint=endpoint,
                 input_data={"test_name": test_name},
                 output_data=None,
                 status="error",
