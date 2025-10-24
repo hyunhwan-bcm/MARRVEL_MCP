@@ -4,6 +4,8 @@ PubMed Literature Search Tools for MARRVEL-MCP.
 This module provides tools for searching PubMed and retrieving biomedical literature
 using the pymed_paperscraper library. Supports flexible queries for genes, variants,
 symptoms, diseases, and other biomedical terms.
+
+Default PubMed search email: zhandongliulab@bcm.edu (updated for compliance)
 """
 
 import json
