@@ -10,5 +10,6 @@ __all__ = [
     "disease_tools",
     "ortholog_tools",
     "expression_tools",
+    "liftover_tools",
     "utility_tools",
 ]
