@@ -22,9 +22,9 @@ def mcp_server():
 )
 async def test_liftover_tools(mcp_server, chr, pos, expected_key):
     if expected_key == "hg19Chr":
-        result = await mcp_server.call_tool("liftover_hg38_to_hg19", chr=chr, pos=pos)
+        result = await mcp_server.call_tool("liftover_hg38_to_hg19", {"chr": chr, "pos": pos})
     else:
-        result = await mcp_server.call_tool("liftover_hg19_to_hg38", chr=chr, pos=pos)
+        result = await mcp_server.call_tool("liftover_hg19_to_hg38", {"chr": chr, "pos": pos})
     try:
         data = json.loads(result)
     except Exception:
