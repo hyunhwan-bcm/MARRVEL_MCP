@@ -1,4 +1,3 @@
-```python
 """
 Smoke tests for all registered MCP tools.
 
@@ -18,6 +17,8 @@ import pytest
 
 # Re-use the fixture and helper from the existing integration test module
 from .test_server_integration import send_request
+
+
 @pytest.fixture
 def mcp_server():
     """Create an in-process FastMCP server instance for direct calls.
@@ -80,7 +81,6 @@ async def test_all_tools_return_json_or_error(mcp_server):
         ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
         ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
         ("get_gene_by_position", {"chromosome": "chr17", "position": 7577121}),
-
         # variant_tools (representative subset / full set)
         ("get_variant_dbnsfp", {"variant": "17:7577121 C>T"}),
         ("get_clinvar_by_variant", {"variant": "17-7577121-C-T"}),
@@ -95,27 +95,22 @@ async def test_all_tools_return_json_or_error(mcp_server):
         ("get_decipher_by_location", {"chromosome": "chr17", "start": 7570000, "stop": 7590000}),
         ("get_geno2mp_variant", {"variant": "17-7577121-C-T"}),
         ("get_geno2mp_by_entrez_id", {"entrez_id": "7157"}),
-
         # disease_tools
         ("get_omim_by_mim_number", {"mim_number": "114480"}),
         ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
         ("get_omim_variant", {"gene_symbol": "TP53", "variant": "p.R248Q"}),
-
         # ortholog_tools
         ("get_diopt_orthologs", {"entrez_id": "7157"}),
         ("get_diopt_alignment", {"entrez_id": "7157"}),
         ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),
-
         # expression_tools
         ("get_gtex_expression", {"entrez_id": "7157"}),
         ("get_ortholog_expression", {"entrez_id": "7157"}),
         ("get_pharos_targets", {"entrez_id": "7157"}),
-
         # utility_tools
         ("validate_hgvs_variant", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
         ("convert_protein_variant", {"protein_variant": "NP_000537.3:p.Arg72Pro"}),
         ("convert_rsid_to_variant", {"rsid": "rs429358"}),
-
         # pubmed_tools (small result set)
         ("search_pubmed", {"query": "TP53 cancer", "max_results": 2}),
         ("get_pubmed_article", {"pubmed_id": "28887537"}),
