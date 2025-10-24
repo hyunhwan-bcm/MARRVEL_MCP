@@ -304,7 +304,7 @@ api_capture.log_response(tool_name="gene_test", ...)
 # ✅ Good - all parameters documented
 api_capture.log_response(
     tool_name="get_diopt_orthologs",
-    endpoint=f"/diopt/entrezId/{entrez_id}/ortholog",
+    endpoint=f"/diopt/ortholog/gene/entrezId/{entrez_id}",
     input_data={
         "entrez_id": entrez_id,
         "gene_symbol": gene_symbol,
