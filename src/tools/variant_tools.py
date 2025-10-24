@@ -51,9 +51,9 @@ async def get_variant_dbnsfp(variant: str) -> str:
     SIFT, PolyPhen2, CADD scores, conservation scores, and population frequencies.
 
     Args:
-        variant: Variant in format "chromosome-position-reference-alternate"
+        variant: Variant in canonical format "chromosome:position reference>alternate"
                  Uses hg19/GRCh37 coordinates
-                 Example: "17-7577121-C-T"
+                 Example: "17:7577121 C>T"
 
     Returns:
         JSON string with extensive variant annotations:
@@ -64,8 +64,8 @@ async def get_variant_dbnsfp(variant: str) -> str:
         - Gene and protein information
 
     Example:
-        get_variant_dbnsfp("17-7577121-C-T")  # TP53 variant
-        get_variant_dbnsfp("13-32900000-G-A")  # BRCA2 region
+        get_variant_dbnsfp("17:7577121 C>T")  # TP53 variant
+        get_variant_dbnsfp("13:32900000 G>A")  # BRCA2 region
     """
     try:
         data = await fetch_marrvel_data(f"/dbnsfp/variant/{variant}")
