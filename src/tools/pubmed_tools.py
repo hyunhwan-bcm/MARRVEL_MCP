@@ -23,7 +23,7 @@ def register_tools(mcp_instance):
 
 
 async def search_pubmed(
-    query: str, max_results: int = 50, email: str = "marrvel@example.com"
+    query: str, max_results: int = 50, email: str = "zhandongliulab@bcm.edu"
 ) -> str:
     """
     Search PubMed for biomedical literature and retrieve article details.
@@ -42,7 +42,7 @@ async def search_pubmed(
             - Drug names: "aspirin cardiovascular disease"
             - General: "CRISPR gene editing"
         max_results: Maximum number of results to return (default: 50, max: 100)
-        email: Email address for PubMed API identification (default: marrvel@example.com)
+    email: Email address for PubMed API identification (default: zhandongliulab@bcm.edu)
 
     Returns:
         JSON string containing search results with:
@@ -128,7 +128,7 @@ async def search_pubmed(
         return json.dumps({"error": f"PubMed search failed: {str(e)}", "query": query}, indent=2)
 
 
-async def get_pubmed_article(pubmed_id: str, email: str = "marrvel@example.com") -> str:
+async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.edu") -> str:
     """
     Retrieve detailed information for a specific PubMed article by PMID.
 
@@ -137,7 +137,7 @@ async def get_pubmed_article(pubmed_id: str, email: str = "marrvel@example.com")
 
     Args:
         pubmed_id: PubMed ID (PMID) as a string (e.g., "12345678")
-        email: Email address for PubMed API identification (default: marrvel@example.com)
+    email: Email address for PubMed API identification (default: zhandongliulab@bcm.edu)
 
     Returns:
         JSON string containing article details:
