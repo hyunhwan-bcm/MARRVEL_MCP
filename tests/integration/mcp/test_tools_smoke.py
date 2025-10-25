@@ -78,6 +78,7 @@ tool_calls = [
     ("get_decipher_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
     ("get_geno2mp_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
     ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
+    ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
     ("get_diopt_orthologs", {"entrez_id": "7157"}),
     ("get_gtex_expression", {"entrez_id": "7157"}),
     ("validate_hgvs_variant", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
