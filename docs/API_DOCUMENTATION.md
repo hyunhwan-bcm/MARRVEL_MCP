@@ -412,6 +412,120 @@ OMIM ID but want to find relevant genetic disorders.
 
 ---
 
+### `search_hpo_terms`
+
+Search Human Phenotype Ontology (HPO) terms for a phenotype query.
+
+This tool searches the JAX HPO ontology for phenotype terms matching the query.
+Returns a list of matching HPO terms with their IDs and definitions.
+
+**Parameters:**
+- `phenotype_query` (string, required): Phenotype term or symptom to search for
+  - Examples: "dementia", "intellectual disability", "seizures", "developmental delay"
+
+**Returns:**
+- `query`: The search query used
+- `total_terms`: Number of matching terms found
+- `terms`: Array of HPO terms, each containing:
+  - `id`: HPO term ID (e.g., "HP:0000727")
+  - `name`: HPO term name (e.g., "Dementia")
+  - `definition`: Term definition (when available)
+
+**Example Usage:**
+```
+"Search HPO for dementia"
+"Find HPO terms for intellectual disability"
+"Look up seizures in HPO"
+```
+
+**Example Response:**
+```json
+{
+  "query": "dementia",
+  "total_terms": 2,
+  "terms": [
+    {
+      "id": "HP:0000727",
+      "name": "Dementia",
+      "definition": "A loss of cognitive function."
+    },
+    {
+      "id": "HP:0000728",
+      "name": "Dementia, progressive",
+      "definition": "Progressive loss of cognitive function."
+    }
+  ]
+}
+```
+
+**API Endpoint:** `GET https://ontology.jax.org/api/hp/search`
+
+---
+
+### `get_hpo_associated_genes`
+
+Get genes associated with a specific Human Phenotype Ontology (HPO) term.
+
+This tool retrieves genes linked to a given HPO term and identifies the most
+feasible gene based on available annotations and association strength.
+
+**Parameters:**
+- `hpo_id` (string, required): HPO term ID (e.g., "HP:0000727" for Dementia)
+
+**Returns:**
+- `hpo_id`: The HPO term ID queried
+- `all_genes`: Array of all associated genes
+- `gene_count`: Total number of associated genes
+- `most_feasible_gene`: The most feasible gene selected based on criteria
+- `selection_criteria`: Explanation of how the most feasible gene was chosen
+
+**Example Usage:**
+```
+"Get genes associated with HP:0000727"
+"Find genes for dementia HPO term"
+"What genes are linked to HP:0001249?"
+```
+
+**Example Response:**
+```json
+{
+  "hpo_id": "HP:0000727",
+  "all_genes": [
+    {
+      "entrez_id": "7157",
+      "symbol": "TP53",
+      "name": "tumor protein p53"
+    },
+    {
+      "entrez_id": "7422",
+      "symbol": "VEGFA",
+      "name": "vascular endothelial growth factor A"
+    }
+  ],
+  "gene_count": 2,
+  "most_feasible_gene": {
+    "entrez_id": "7422",
+    "symbol": "VEGFA",
+    "name": "vascular endothelial growth factor A"
+  },
+  "selection_criteria": "Selected based on annotation completeness, symbol format, and Entrez ID availability"
+}
+```
+
+**Selection Criteria for Most Feasible Gene:**
+- Genes with more detailed annotations (longer names/descriptions)
+- Genes with standard symbol format (uppercase, ≤10 characters)
+- Genes with Entrez IDs (more established)
+- Alphabetical order as tiebreaker
+
+**API Endpoint:** `GET https://ontology.jax.org/api/network/annotation/{hpo_id}`
+
+---
+
+## Ortholog Tools (DIOPT)
+
+---
+
 ## Ortholog Tools (DIOPT)
 
 ### `get_diopt_orthologs`

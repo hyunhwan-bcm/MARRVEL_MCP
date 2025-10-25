@@ -483,3 +483,33 @@ Agent:
      - Population frequencies
      - Functional predictions
 """
+
+# ============================================================================
+# DISEASE AND PHENOTYPE QUERIES
+# ============================================================================
+
+"""
+Example 4: OMIM disease queries
+-------------------------------
+User: "What diseases are associated with TP53?"
+Agent uses: get_omim_by_gene_symbol("TP53")
+
+User: "Search OMIM for breast cancer"
+Agent uses: search_omim_by_disease_name("breast cancer")
+
+User: "Get OMIM entry 191170"
+Agent uses: get_omim_by_mim_number("191170")
+"""
+
+"""
+Example 5: HPO phenotype queries
+---------------------------------
+User: "Search HPO for dementia"
+Agent uses: search_hpo_terms("dementia")
+
+User: "What genes are associated with HP:0000727?"
+Agent uses: get_hpo_associated_genes("HP:0000727")
+
+User: "Find HPO terms for intellectual disability"
+Agent uses: search_hpo_terms("intellectual disability")
+"""
