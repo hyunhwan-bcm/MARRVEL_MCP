@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "marrvel-mcp": {
+      "command": "python",
+      "args": [
+        "/Users/hyun-hwanjeong/CodeWorkspace/MARRVEL_MCP/server.py"
+      ]
+    }
+  }
+}
