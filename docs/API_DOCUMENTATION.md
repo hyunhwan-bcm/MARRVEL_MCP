@@ -354,6 +354,64 @@ Query OMIM for specific variant information.
 
 ---
 
+### `search_omim_by_disease_name`
+
+Search OMIM (Online Mendelian Inheritance in Man) by disease name or keyword.
+
+This tool allows searching for OMIM entries using disease names, symptoms,
+or related keywords. Useful for researchers who don't know the specific
+OMIM ID but want to find relevant genetic disorders.
+
+**Parameters:**
+- `disease_name` (string, required): Disease name, symptom, or keyword to search for
+  - Examples: "breast cancer", "cystic fibrosis", "diabetes", "Alzheimer's disease"
+
+**Returns:**
+- `query`: The search query used
+- `results`: Array of matching OMIM entries, each containing:
+  - `mim_number`: OMIM MIM number
+  - `title`: Official disease name
+  - `synonyms`: Alternative names and synonyms
+  - `description`: Brief clinical description
+  - `inheritance`: Inheritance pattern (when available)
+  - `gene`: Associated gene symbol (when available)
+
+**Example Usage:**
+```
+"Search OMIM for breast cancer"
+"Find OMIM entries for cystic fibrosis"
+"Look up diabetes in OMIM"
+```
+
+**Example Response:**
+```json
+{
+  "query": "breast cancer",
+  "results": [
+    {
+      "mim_number": "114480",
+      "title": "Breast cancer",
+      "synonyms": ["Mammary cancer", "Breast carcinoma"],
+      "description": "A malignant tumor of the breast tissue",
+      "inheritance": "Multifactorial",
+      "gene": "BRCA1"
+    },
+    {
+      "mim_number": "604370",
+      "title": "Breast cancer, susceptibility to",
+      "synonyms": ["BRCA1-related breast cancer"],
+      "description": "Increased risk of breast cancer due to genetic factors",
+      "inheritance": "Autosomal dominant",
+      "gene": "BRCA1"
+    }
+  ]
+}
+```
+
+**API Endpoint:** `GET /omim/phenotypes/title/:diseaseName`
+
+---
+
 ## Ortholog Tools (DIOPT)
 
 ### `get_diopt_orthologs`
