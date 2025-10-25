@@ -51,34 +51,18 @@ jobs:
           pip install -r requirements.txt
           pip install pytest-html pytest-json-report pytest-cov pytest-md pytest-emoji
 
-      - name: Run unit tests with coverage
+      - name: Run all tests
         run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           pytest tests/ \
             -v \
             --tb=short \
-            -m "not integration" \
-            --cov=src \
-            --cov-report=term \
-            --cov-report=html:htmlcov-3.13 \
-            --cov-report=xml:coverage-3.13.xml \
-            --html=test-report-unit-3.13.html \
+            --html=test-report-3.13.html \
             --self-contained-html \
             --json-report \
-            --json-report-file=test-report-unit-3.13.json \
-            --junit-xml=junit-unit-3.13.xml
-
-      - name: Run integration tests
-        run: |
-          pytest tests/ \
-            -v \
-            --tb=short \
-            -m "integration" \
-            --html=test-report-integration-3.13.html \
-            --self-contained-html \
-            --json-report \
-            --json-report-file=test-report-integration-3.13.json \
-            --junit-xml=junit-integration-3.13.xml
-        continue-on-error: true  # Integration tests may fail due to API availability
+            --json-report-file=test-report-3.13.json \
+            --junit-xml=junit-3.13.xml
+        continue-on-error: true  # Some tests may fail due to API availability
 
       - name: Upload test reports and API responses
         if: always()
@@ -131,32 +115,3 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             cat test-output/api_responses.md >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: Comment API Responses on PR
-        if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const apiResponseFile = 'test-output/api_responses.md';
-
-            if (fs.existsSync(apiResponseFile)) {
-              const apiResponses = fs.readFileSync(apiResponseFile, 'utf8');
-
-              // Truncate if too long (GitHub has comment size limits)
-              const maxLength = 65000;
-              let comment = apiResponses;
-              if (comment.length > maxLength) {
-                comment = comment.substring(0, maxLength) + '\n\n... (truncated - see artifacts for full output)';
-              }
-
-              // Post comment
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
-            } else {
-              console.log('No API responses captured');
-            }

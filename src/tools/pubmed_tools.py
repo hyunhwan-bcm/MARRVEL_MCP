@@ -1,82 +1,213 @@
-"""
-PubMed Literature Search Tools for MARRVEL-MCP.
-
-This module provides tools for searching PubMed and retrieving biomedical literature
-using the pymed_paperscraper library. Supports flexible queries for genes, variants,
-symptoms, diseases, and other biomedical terms.
-
-Default PubMed search email: zhandongliulab@bcm.edu (updated for compliance)
-"""
-
-import json
-from typing import Optional
-from pymed_paperscraper import PubMed
-
-
-def register_tools(mcp_instance):
-    """
-    Register all PubMed tools with the MCP server instance.
-
-    Args:
-        mcp_instance: The FastMCP server instance to register tools with
-    """
-    mcp_instance.tool()(search_pubmed)
-    mcp_instance.tool()(get_pubmed_article)
-
-
 async def search_pubmed(
     query: str, max_results: int = 50, email: str = "zhandongliulab@bcm.edu"
 ) -> str:
     """
     Search PubMed for biomedical literature and retrieve article details.
 
-    This tool performs comprehensive PubMed searches for any biomedical query including
-    gene names, variants, diseases, symptoms, drug names, or research topics. It returns
-    PubMed IDs along with article metadata including titles, abstracts, authors, and
-    publication information.
-
     Args:
-        query: Search query using any biomedical terms. Examples:
-            - Gene names: "TP53 cancer", "BRCA1 breast cancer"
-            - Variants: "rs1042522", "R175H TP53"
-            - Diseases: "Alzheimer's disease genetics"
-            - Symptoms: "fever malaria treatment"
-            - Drug names: "aspirin cardiovascular disease"
-            - General: "CRISPR gene editing"
+        query: Search query using any biomedical terms.
         max_results: Maximum number of results to return (default: 50, max: 100)
-    email: Email address for PubMed API identification (default: zhandongliulab@bcm.edu)
+        email: Email address for PubMed API identification (default: zhandongliulab@bcm.edu)
 
     Returns:
-        JSON string containing search results with:
-        - total_results: Total number of matches found
-        - returned_results: Number of results in this response
-        - articles: List of article objects, each containing:
-            - pubmed_id: PubMed ID (PMID)
-            - title: Article title
-            - abstract: Article abstract (if available)
-            - authors: List of author names
-            - journal: Journal name
-            - publication_date: Publication date
-            - doi: Digital Object Identifier (if available)
-            - keywords: Article keywords (if available)
+        JSON string containing search results with article metadata.
+    """
+    try:
+        if max_results < 1 or max_results > 100:
+            return json.dumps({"error": "max_results must be between 1 and 100"}, indent=2)
+
+        try:
+            pubmed = _init_pubmed_client(email)
+        except ImportError as ie:
+            return json.dumps({"error": str(ie), "query": query}, indent=2)
+
+        try:
+            total_count = pubmed.getTotalResultsCount(query)
+        except Exception:
+            total_count = "unknown"
+
+        results = pubmed.query(query, max_results=max_results)
+        articles = []
+        for article in results:
+            try:
+                article_data = {
+                    "pubmed_id": article.pubmed_id,
+                    "title": article.title,
+                    "abstract": article.abstract,
+                    "authors": (
+                        [str(author) for author in article.authors] if article.authors else []
+                    ),
+                    "journal": article.journal,
+                    "publication_date": (
+                        str(article.publication_date) if article.publication_date else None
+                    ),
+                    "doi": article.doi,
+                    "keywords": article.keywords if article.keywords else [],
+                    "methods": article.methods,
+                    "conclusions": article.conclusions,
+                    "results": article.results,
+                }
+                articles.append(article_data)
+            except Exception:
+                continue
+
+        response = {
+            "query": query,
+            "total_results": total_count,
+            "returned_results": len(articles),
+            "max_results": max_results,
+            "articles": articles,
+        }
+        return json.dumps(response, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"PubMed search failed: {str(e)}", "query": query}, indent=2)
+
+
+def register_tools(mcp_instance):
+    """
+    Register PubMed/PMC tools with the MCP server instance.
+
+    Args:
+        mcp_instance: The FastMCP server instance to register tools with
+    """
+    mcp_instance.tool()(search_pubmed)
+    mcp_instance.tool()(pmid_to_pmcid)
+    mcp_instance.tool()(get_pmc_fulltext_by_pmcid)
+
+
+import httpx
+from lxml import etree
+
+
+async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
+    """
+    Retrieve and return the plain text body of a PMC article using its PMCID.
+
+    Args:
+        pmcid: PMC ID as a string (e.g., "PMC3257301")
+
+    Returns:
+        JSON string with keys:
+            - pmcid: The PMC ID
+            - fulltext: The cleaned plain text body of the article
+            - error: Error message if applicable
 
     Example:
-        search_pubmed("TP53 cancer therapy", max_results=10)
-        search_pubmed("BRCA1 mutation breast cancer", max_results=25)
-        search_pubmed("Alzheimer's disease APOE", max_results=50)
+        get_pmc_fulltext_by_pmcid("PMC3257301")
 
-    Note:
-        - Results are limited to max_results for performance
-        - Not all articles have full abstracts available
-        - Some articles may have limited metadata
+    API Endpoint: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=PMC3257301
     """
+    try:
+        if not pmcid or not pmcid.startswith("PMC"):
+            return json.dumps({"pmcid": pmcid, "fulltext": "", "error": "Invalid PMCID"}, indent=2)
+
+        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            xml = resp.content
+        root = etree.fromstring(xml)
+        body = root.find(".//body")
+        if body is None:
+            return json.dumps(
+                {"pmcid": pmcid, "fulltext": "", "error": "No full text body found."}, indent=2
+            )
+        text_parts = []
+        for elem in body.iter():
+            if elem.tag in ("p", "sec", "title"):
+                if elem.text:
+                    cleaned = " ".join(elem.text.split())
+                    if cleaned:
+                        text_parts.append(cleaned)
+        output = "\n".join([line for line in text_parts if line.strip()])
+        return json.dumps({"pmcid": pmcid, "fulltext": output}, indent=2)
+    except httpx.HTTPStatusError as e:
+        return json.dumps(
+            {"pmcid": pmcid, "fulltext": "", "error": f"HTTP error: {e.response.status_code}"},
+            indent=2,
+        )
+    except Exception as e:
+        return json.dumps({"pmcid": pmcid, "fulltext": "", "error": str(e)}, indent=2)
+
+
+import json
+from typing import Optional
+
+import httpx
+
+
+def _init_pubmed_client(email: str):
+    """
+    Convert a PubMed ID (PMID) to a PMC ID (PMCID) using NCBI E-utilities API.
+
+    Args:
+        pmid: PubMed ID as a string (e.g., "37741276")
+
+    Returns:
+        PMCID as a string in format "PMC{ID}" if mapping exists, or empty string if not mapped.
+
+    Example:
+        pmid_to_pmcid("37741276")
+
+    API Endpoint: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=pmc&id=<PMID>&retmode=json
+    """
+
+
+async def pmid_to_pmcid(pmid: str) -> str:
+    """
+    Convert a PubMed ID (PMID) to a PMC ID (PMCID) using NCBI E-utilities API.
+
+    Args:
+        pmid: PubMed ID as a string (e.g., "37741276")
+
+    Returns:
+        PMCID as a string in format "PMC{ID}" if mapping exists, or empty string if not mapped.
+
+    Example:
+        pmid_to_pmcid("37741276")
+
+    API Endpoint: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=pmc&id=<PMID>&retmode=json
+    """
+    try:
+        if not pmid or not pmid.isdigit():
+            return json.dumps({"pmid": pmid, "pmcid": "", "error": "Invalid PMID"}, indent=2)
+
+        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=pmc&id={pmid}&retmode=json"
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+        # Parse PMCID from response
+        pmcid = ""
+        try:
+            linksets = data.get("linksets", [])
+            if linksets:
+                linksetdbs = linksets[0].get("linksetdbs", [])
+                if linksetdbs and "links" in linksetdbs[0]:
+                    pmc_id_num = linksetdbs[0]["links"][0]
+                    pmcid = f"PMC{pmc_id_num}"
+        except Exception:
+            pmcid = ""
+
+        return json.dumps({"pmid": pmid, "pmcid": pmcid}, indent=2)
+    except httpx.HTTPStatusError as e:
+        return json.dumps(
+            {"pmid": pmid, "pmcid": "", "error": f"HTTP error: {e.response.status_code}"}, indent=2
+        )
+    except Exception as e:
+        return json.dumps({"pmid": pmid, "pmcid": "", "error": str(e)}, indent=2)
+
     try:
         # Validate max_results
         if max_results < 1 or max_results > 100:
             return json.dumps({"error": "max_results must be between 1 and 100"}, indent=2)
 
-        # Initialize PubMed client
-        pubmed = PubMed(tool="MARRVEL_MCP", email=email)
+        # Initialize PubMed client (lazy import)
+        try:
+            pubmed = _init_pubmed_client(email)
+        except ImportError as ie:
+            return json.dumps({"error": str(ie), "query": query}, indent=2)
 
         # Get total count first
         try:
@@ -166,8 +297,11 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
           for all articles depending on publisher restrictions
     """
     try:
-        # Initialize PubMed client
-        pubmed = PubMed(tool="MARRVEL_MCP", email=email)
+        # Initialize PubMed client (lazy import)
+        try:
+            pubmed = _init_pubmed_client(email)
+        except ImportError as ie:
+            return json.dumps({"error": str(ie), "pubmed_id": pubmed_id}, indent=2)
 
         # Search for specific PMID
         results = pubmed.query(pubmed_id, max_results=1)
