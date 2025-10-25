@@ -51,18 +51,18 @@ jobs:
           pip install -r requirements.txt
           pip install pytest-html pytest-json-report pytest-cov pytest-md pytest-emoji
 
-      - name: Run integration tests
+      - name: Run all tests
         run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           pytest tests/ \
             -v \
             --tb=short \
-            -m "integration" \
-            --html=test-report-integration-3.13.html \
+            --html=test-report-3.13.html \
             --self-contained-html \
             --json-report \
-            --json-report-file=test-report-integration-3.13.json \
-            --junit-xml=junit-integration-3.13.xml
-        continue-on-error: true  # Integration tests may fail due to API availability
+            --json-report-file=test-report-3.13.json \
+            --junit-xml=junit-3.13.xml
+        continue-on-error: true  # Some tests may fail due to API availability
 
       - name: Upload test reports and API responses
         if: always()
