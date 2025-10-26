@@ -28,7 +28,16 @@ def create_server() -> FastMCP:
         FastMCP: Configured MCP server instance with all tools registered.
     """
 
-    mcp = FastMCP("MARRVEL")
+    mcp = FastMCP(
+        "MARRVEL-MCP",
+        instructions=(
+            "MARRVEL-MCP provides curated data and analysis tools for variant and gene "
+            "prioritization using public resources (OMIM, ExAC, ClinVar, Geno2MP, DGV, "
+            "DECIPHER) and model-organism annotations via DIOPT and model organism "
+            "databases. Assume genomic coordinates are hg38 unless otherwise noted. "
+            "When data is unavailable, state that clearly."
+        ),
+    )
 
     gene_tools.register_tools(mcp)
     variant_tools.register_tools(mcp)
