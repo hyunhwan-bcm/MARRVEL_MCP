@@ -76,6 +76,7 @@ tool_calls = [
     ("get_gnomad_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
     ("get_dgv_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
     ("get_decipher_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
+    ("get_decipher_by_location", {"chr": "17", "start": 7570000, "stop": 7590000}),
     ("get_geno2mp_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
     ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),

@@ -327,12 +327,12 @@ async def get_decipher_variant(chr: str, pos: str, ref: str, alt: str) -> str:
         return f"Error fetching DECIPHER data: {str(e)}"
 
 
-async def get_decipher_by_location(chromosome: str, start: int, stop: int) -> str:
+async def get_decipher_by_location(chr: str, start: int, stop: int) -> str:
     """
     Query DECIPHER by genomic location (hg19 coordinates).
 
     Args:
-        chromosome: Chromosome (e.g., "chr17")
+        chr: Chromosome (e.g., "17")
         start: Start position (hg19)
         stop: End position (hg19)
 
@@ -340,10 +340,10 @@ async def get_decipher_by_location(chromosome: str, start: int, stop: int) -> st
         JSON string with DECIPHER data for the genomic region
 
     Example:
-        get_decipher_by_location("chr17", 7570000, 7590000)
+        get_decipher_by_location("17", 7570000, 7590000)
     """
     try:
-        data = await fetch_marrvel_data(f"/decipher/genomloc/{chromosome}/{start}/{stop}")
+        data = await fetch_marrvel_data(f"/decipher/genomloc/{chr}/{start}/{stop}")
         return str(data)
     except httpx.HTTPError as e:
         return f"Error fetching DECIPHER data: {str(e)}"
