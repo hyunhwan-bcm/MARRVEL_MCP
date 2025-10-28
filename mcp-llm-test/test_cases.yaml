@@ -1,0 +1,111 @@
+- case:
+    name: "Gene for NM_001045477.4:c.187C>T"
+    input: "What gene is associated with the variant NM_001045477.4:c.187C>T?"
+    expected: "The gene associated is NUTM2G."
+
+- case:
+    name: "Protein change for NM_001045477.4:c.187C>T"
+    input: "What is the protein change resulting from NM_001045477.4:c.187C>T?"
+    expected: "The protein change is p.P63S."
+
+- case:
+    name: "NUTM2G OMIM entries"
+    input: "Does NUTM2G have any OMIM entries or associated Mendelian phenotypes?"
+    expected: "NUTM2G has no OMIM match and no known Mendelian phenotypes."
+
+- case:
+    name: "Average dbNSFP rank score"
+    input: "What is the average dbNSFP rank score for Chr9:99694174 C>T?"
+    expected: "The average dbNSFP rank score is 0.160."
+
+- case:
+    name: "CADD phred score"
+    input: "What is the CADD phred score for the variant NM_001045477.4:c.187C>T?"
+    expected: "CADD phred score is 8.103."
+
+- case:
+    name: "REVEL prediction"
+    input: "Tell me about the variant NM_001045477.4:c.187C>T. According to REVEL, how is this variant classified?"
+    expected: "REVEL predicts it with a score of 0.027."
+
+- case:
+    name: "PolyPhen-2 prediction"
+    input: "According to PolyPhen-2, how is NM_001045477.4:c.187C>T predicted?"
+    expected: "PolyPhen-2 HumDiv and HumVar both classify it as 'Benign'."
+
+
+- case:
+    name: "ClinVar records for NUTM2G"
+    input: "Are there any ClinVar records associated with NUTM2G?"
+    expected: "Yes, NUTM2G has 99 reported variants in ClinVar."
+
+- case:
+    name: "ClinVar pathogenic allele count"
+    input: "How many NUTM2G alleles are reported as pathogenic (not likely pathogenic) in ClinVar?"
+    expected: "33 alleles are reported as pathogenic."
+
+- case:
+    name: "ClinVar likely pathogenic allele count"
+    input: "How many alleles are reported as likely pathogenic in ClinVar?"
+    expected: "3 alleles are reported as likely pathogenic."
+
+
+- case:
+    name: "gnomAD presence"
+    input: "Is Chr9:99694174 C>T present in gnomAD?"
+    expected: "Chr9:99694174 C>T is found 0 times in gnomAD control populations."
+
+- case:
+    name: "LoF o/e score"
+    input: "What is the LoF o/e (loss-of-function observed/expected) score for NUTM2G?"
+    expected: "The LoF o/e score is 0.35"
+
+- case:
+    name: "LoF o/e implication"
+    input: "What does the LoF o/e score imply about NUTM2G?"
+    expected: "Since the upper bound of the confidence interval is above 0.35, NUTM2G is tolerant of loss-of-function alleles."
+
+- case:
+    name: "DGV entries"
+    input: "Are there any DGV entries for NUTM2G?"
+    expected: "No DGV matches were found."
+
+- case:
+    name: "DECIPHER control variants"
+    input: "Are there any DECIPHER control variants involving NUTM2G?"
+    expected: "Yes, there are 2 control individuals with deletions containing NUTM2G."
+
+- case:
+    name: "DIOPT ortholog mouse"
+    input: "What is the DIOPT ortholog of NUTM2G in mouse?"
+    expected: "The mouse ortholog is Nutm2."
+
+- case:
+    name: "DIOPT ortholog rat"
+    input: "What is the DIOPT ortholog of NUTM2G in rat?"
+    expected: "The rat ortholog is Nutm2f."
+
+- case:
+    name: "Highest GTEx expression"
+    input: "Which tissue expresses NUTM2G the most according to GTEx?"
+    expected: "Highest expression is observed in the testis."
+
+- case:
+    name: "Protein domain"
+    input: "What type of protein domain does NUTM2G contain?"
+    expected: "It contains an MFS (Major Facilitator Superfamily) domain."
+
+- case:
+    name: "Drugs or ligands"
+    input: "Are there any approved drugs or active ligands targeting NUTM2G?"
+    expected: "No approved drugs or active ligands were found for NUTM2G."
+
+- case:
+    name: "UniProt ID and name"
+    input: "What is the UniProt ID and protein name associated with NUTM2G?"
+    expected: "UniProt ID Q5VZR4, Hippocampus abundant transcript-like protein 2."
+
+- case:
+    name: "GO functions for TP53"
+    input: "What GO molecular functions are associated with TP53 or its orthologs?"
+    expected: "Development"
