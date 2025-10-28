@@ -111,19 +111,21 @@ async def run_test_case(
     semaphore: asyncio.Semaphore,
     mcp_client: Client,
     test_case: Dict[str, Any],
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     """
     Runs a single test case and returns the results for the table.
     """
     async with semaphore:
-        name = test_case["vars"]["name"]
-        user_input = test_case["vars"]["input"]
-        expected = test_case["vars"]["expected"]
+        name = test_case["case"]["name"]
+        user_input = test_case["case"]["input"]
+        expected = test_case["case"]["expected"]
 
         print(f"--- Running: {name} ---")
 
         try:
-            openrouter_response, _ = await get_openrouter_response(mcp_client, user_input)
+            openrouter_response, tool_history = await get_openrouter_response(
+                mcp_client, user_input
+            )
             classification = await evaluate_with_gemini(openrouter_response, expected)
             print(f"--- Finished: {name} ---")
             return {
@@ -131,6 +133,7 @@ async def run_test_case(
                 "expected": expected,
                 "response": openrouter_response,
                 "classification": classification,
+                "tool_calls": tool_history,
             }
         except Exception as e:
             print(f"--- Error in {name}: {e} ---")
@@ -139,10 +142,11 @@ async def run_test_case(
                 "expected": expected,
                 "response": "**No response generated due to error.**",
                 "classification": f"**Error:** {e}",
+                "tool_calls": [],
             }
 
 
-def save_markdown_table(results: List[Dict[str, str]]):
+def save_markdown_table(results: List[Dict[str, Any]]):
     """Saves the final results as a Markdown table to a file."""
     output_path = os.path.join(
         os.path.dirname(__file__), "..", "test-output", "evaluation_results.md"
@@ -150,16 +154,30 @@ def save_markdown_table(results: List[Dict[str, str]]):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     content = [
-        "| Question | Expected | Response | Classification |",
-        "|----------|----------|----------|----------------|",
+        "| Question | Expected | Response | Tool Calls | Classification |",
+        "|----------|----------|----------|------------|----------------|",
     ]
     for result in results:
         # Sanitize content for Markdown table cells
         question = result["question"].replace("\n", "<br>").replace("|", "\\|")
         expected = result["expected"].replace("\n", "<br>").replace("|", "\\|")
         response = result.get("response", "").replace("\n", "<br>").replace("|", "\\|")
+
+        tool_calls_list = result.get("tool_calls", [])
+        if tool_calls_list:
+            tool_calls_str = "<ul>"
+            for tc in tool_calls_list:
+                args_str = json.dumps(tc.get("args", {}))
+                tool_calls_str += f"<li><code>{tc.get('name', 'N/A')}({args_str})</code></li>"
+            tool_calls_str += "</ul>"
+        else:
+            tool_calls_str = "None"
+        tool_calls_str = tool_calls_str.replace("|", "\\|")
+
         classification = result["classification"].replace("\n", "<br>").replace("|", "\\|")
-        content.append(f"| {question} | {expected} | {response} | {classification} |")
+        content.append(
+            f"| {question} | {expected} | {response} | {tool_calls_str} | {classification} |"
+        )
 
     with open(output_path, "w") as f:
         f.write("\n".join(content))
@@ -188,7 +206,7 @@ async def main():
     # Sort results to match the original order of test cases
     results_map = {res["question"]: res for res in results}
     ordered_results = [
-        results_map[tc["vars"]["input"]] for tc in test_cases if tc["vars"]["input"] in results_map
+        results_map[tc["case"]["input"]] for tc in test_cases if tc["case"]["input"] in results_map
     ]
 
     save_markdown_table(ordered_results)
