@@ -12,4 +12,5 @@ __all__ = [
     "expression_tools",
     "liftover_tools",
     "utility_tools",
+    "decipher_tools",
 ]

@@ -69,25 +69,25 @@ JSON (or a Python literal convertible to JSON), the test will fail.
 
 # List of tools to exercise and representative arguments. Keep this small
 # but representative; add/remove entries as needed.
+TEST_VARIANT = {"chr": "6", "pos": "99365567", "ref": "T", "alt": "C"}
 tool_calls = [
     ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
-    ("get_variant_dbnsfp", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
-    ("get_clinvar_by_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
-    ("get_gnomad_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
-    ("get_dgv_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
-    ("get_decipher_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
-    ("get_decipher_by_location", {"chr": "17", "start": 7570000, "stop": 7590000}),
-    ("get_geno2mp_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
+    ("get_variant_dbnsfp", TEST_VARIANT),
+    ("get_clinvar_by_variant", TEST_VARIANT),
+    ("get_gnomad_variant", TEST_VARIANT),
+    ("get_gnomad_by_entrez_id", {"entrez_id": "1080"}),
+    ("get_dgv_by_entrez_id", {"entrez_id": "26235"}),
+    ("get_geno2mp_by_entrez_id", {"entrez_id": "1080"}),
     ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
     ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),
     ("get_gtex_expression", {"entrez_id": "7157"}),
     ("convert_hgvs_to_genomic", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
-    ("search_pubmed", {"query": "TP53 cancer", "max_results": 1}),
-    # Liftover tool tests
+    ("search_pubmed", {"query": "MECP2 Rett Syndrome", "max_results": 1}),
     ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
     ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}),
+    ("get_decipher_by_location", {"chr": "6", "start": 99316420, "stop": 99395849}),
 ]
 
 

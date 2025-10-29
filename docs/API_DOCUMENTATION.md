@@ -250,6 +250,28 @@ Access DECIPHER database for developmental disorders and rare variants.
 
 ---
 
+### `get_decipher_disease_by_location`
+
+Query DECIPHER Disease database by genomic location (hg19 coordinates).
+
+**Parameters:**
+- `chr` (string, required): Chromosome (e.g., "17")
+- `start` (integer, required): Start position (hg19)
+- `stop` (integer, required): End position (hg19)
+
+**Returns:**
+- JSON string with DECIPHER Disease data for the genomic region
+
+**Example Usage:**
+
+```python
+"Get DECIPHER Disease data for chr6:99316420-99395849"
+```
+
+**API Endpoint:** `GET /DECIPHERDisease/genomloc/:hg19Chr/:hg19Start/:hg19Stop`
+
+---
+
 ### `get_variant_geno2mp`
 
 Query Geno2MP for genotype-to-phenotype associations.
@@ -267,7 +289,8 @@ Query Geno2MP for genotype-to-phenotype associations.
 - Patient data
 
 **Example Usage:**
-```
+
+```python
 "What phenotypes are associated with variants in TP53?"
 "Get Geno2MP data for this variant"
 ```
@@ -296,7 +319,8 @@ Retrieve OMIM entry by MIM number.
 - Allelic variants
 
 **Example Usage:**
-```
+
+```python
 "Get OMIM entry 191170"
 "What is OMIM 600060?"
 ```
@@ -320,7 +344,8 @@ Find all OMIM diseases associated with a gene symbol.
 - Gene-disease relationships
 
 **Example Usage:**
-```
+
+```python
 "What diseases are associated with TP53?"
 "Show me OMIM entries for BRCA1"
 "List all disorders linked to CFTR gene"
@@ -345,7 +370,8 @@ Query OMIM for specific variant information.
 - Molecular consequences
 
 **Example Usage:**
-```
+
+```python
 "Get OMIM information for TP53 variant p.R248Q"
 "What diseases are caused by BRCA1 variant p.C61G?"
 ```
@@ -377,13 +403,15 @@ OMIM ID but want to find relevant genetic disorders.
   - `gene`: Associated gene symbol (when available)
 
 **Example Usage:**
-```
+
+```python
 "Search OMIM for breast cancer"
 "Find OMIM entries for cystic fibrosis"
 "Look up diabetes in OMIM"
 ```
 
 **Example Response:**
+
 ```json
 {
   "query": "breast cancer",
@@ -432,13 +460,15 @@ Returns a list of matching HPO terms with their IDs and definitions.
   - `definition`: Term definition (when available)
 
 **Example Usage:**
-```
+
+```python
 "Search HPO for dementia"
 "Find HPO terms for intellectual disability"
 "Look up seizures in HPO"
 ```
 
 **Example Response:**
+
 ```json
 {
   "query": "dementia",
@@ -480,13 +510,15 @@ feasible gene based on available annotations and association strength.
 - `selection_criteria`: Explanation of how the most feasible gene was chosen
 
 **Example Usage:**
-```
+
+```python
 "Get genes associated with HP:0000727"
 "Find genes for dementia HPO term"
 "What genes are linked to HP:0001249?"
 ```
 
 **Example Response:**
+
 ```json
 {
   "hpo_id": "HP:0000727",
@@ -524,10 +556,6 @@ feasible gene based on available annotations and association strength.
 
 ## Ortholog Tools (DIOPT)
 
----
-
-## Ortholog Tools (DIOPT)
-
 ### `get_diopt_orthologs`
 
 Find orthologs across model organisms using DIOPT.
@@ -543,7 +571,8 @@ Find orthologs across model organisms using DIOPT.
 - Species: Human, Mouse, Rat, Zebrafish, Drosophila, C. elegans, Yeast
 
 **Example Usage:**
-```
+
+```python
 "Find orthologs for human TP53"
 "What's the Drosophila ortholog of BRCA1?"
 "Get DIOPT predictions for gene 7157"
@@ -569,7 +598,8 @@ Get protein sequence alignments for orthologs.
 - Aligned sequences across species
 
 **Example Usage:**
-```
+
+```python
 "Show alignment for TP53 orthologs"
 "Get protein alignment for gene 7157 across species"
 ```
@@ -595,7 +625,8 @@ Access GTEx (Genotype-Tissue Expression) data.
 - Expression variability
 
 **Example Usage:**
-```
+
+```python
 "Show GTEx expression for TP53"
 "Where is BRCA1 most highly expressed?"
 "Get tissue expression for gene 7157"
@@ -621,7 +652,8 @@ Get expression data for orthologs across model organisms.
 - Comparative expression data
 
 **Example Usage:**
-```
+
+```python
 "Show expression of TP53 orthologs across species"
 "Where is the mouse ortholog of BRCA1 expressed?"
 ```
@@ -645,7 +677,8 @@ Query Pharos for drug target information.
 - Target class
 
 **Example Usage:**
-```
+
+```python
 "Is TP53 a drug target?"
 "Get druggability information for BRCA1"
 "Show Pharos data for gene 7157"
@@ -678,7 +711,8 @@ Validate and parse HGVS variant nomenclature using Mutalyzer.
 - Alternative descriptions
 
 **Example Usage:**
-```
+
+```python
 "Validate variant NM_000546.5:c.215C>G"
 "Is this HGVS nomenclature correct: NM_000059.3:c.68_69del?"
 "Parse HGVS string for me"
@@ -707,7 +741,8 @@ Convert protein-level variants to genomic coordinates using Transvar.
 - Alternative annotations
 
 **Example Usage:**
-```
+
+```python
 "Convert protein variant p.R248Q to genomic coordinates"
 "What's the genomic position of ENSP00000269305:p.R248Q?"
 ```
@@ -754,7 +789,8 @@ This tool performs comprehensive PubMed searches for any biomedical query includ
   - `conclusions`: Conclusions section (if available)
 
 **Example Usage:**
-```
+
+```python
 "Search PubMed for TP53 cancer therapy"
 "Find recent publications about BRCA1 mutations"
 "Look up Alzheimer's disease APOE literature"
@@ -762,6 +798,7 @@ This tool performs comprehensive PubMed searches for any biomedical query includ
 ```
 
 **Example Response:**
+
 ```json
 {
   "query": "TP53 cancer",
@@ -819,13 +856,15 @@ This tool fetches comprehensive details for a single PubMed article including ti
 - `copyrights`: Copyright information (if available)
 
 **Example Usage:**
-```
+
+```python
 "Get details for PubMed article 32601318"
 "Retrieve article information for PMID 28887537"
 "Show me the abstract for PubMed ID 12345678"
 ```
 
 **Example Response:**
+
 ```json
 {
   "pubmed_id": "32601318",
@@ -857,10 +896,12 @@ This tool fetches comprehensive details for a single PubMed article including ti
 ### Variant Formats
 
 **Standard Format:** `chromosome-position-reference-alternate`
+
 - Example: `17-7577121-C-T`
 - Coordinates: hg19/GRCh37
 
 **HGVS Format:**
+
 - Genomic: `NC_000017.10:g.7577121C>T`
 - Coding: `NM_000546.5:c.215C>G`
 - Protein: `NP_000537.3:p.Arg72Pro`
@@ -885,6 +926,7 @@ This tool fetches comprehensive details for a single PubMed article including ti
 ### Response Formats
 
 All tools return JSON data structures. Common fields include:
+
 - `status`: Response status
 - `data`: Main response data
 - `error`: Error message (if applicable)
@@ -901,6 +943,7 @@ All tools handle errors gracefully and return descriptive messages:
 - **500 Server Error**: MARRVEL API issues
 
 Example error response:
+
 ```json
 {
   "status": "error",
@@ -914,6 +957,7 @@ Example error response:
 ## Rate Limiting
 
 Be mindful of API usage:
+
 - Recommended: < 10 requests per second
 - For bulk queries, add delays between requests
 - Cache results when possible
@@ -922,9 +966,9 @@ Be mindful of API usage:
 
 ## Additional Resources
 
-- **MARRVEL Website:** https://marrvel.org
-- **API Documentation:** https://marrvel.org/doc
-- **Python Examples:** https://colab.research.google.com/drive/1Iierhoprr6JfUoX99FKu6xyb2Pr87aAf
+- **MARRVEL Website:** [https://marrvel.org](https://marrvel.org)
+- **API Documentation:** [https://marrvel.org/doc](https://marrvel.org/doc)
+- **Python Examples:** [https://colab.research.google.com/drive/1Iierhoprr6JfUoX99FKu6xyb2Pr87aAf](https://colab.research.google.com/drive/1Iierhoprr6JfUoX99FKu6xyb2Pr87aAf)
 - **Publication:** Wang J, et al. (2017) Am J Hum Genet 100(6):843-853
 
 ---

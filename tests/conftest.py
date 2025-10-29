@@ -13,9 +13,23 @@ import ssl
 import certifi
 import httpx
 import json
+import sys
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
+
+
+# Add the project root to sys.path for test discovery
+repo_root = None
+for p in Path(__file__).resolve().parents:
+    if (p / "pyproject.toml").exists() or (p / "server.py").exists():
+        repo_root = p
+        break
+
+if repo_root is not None:
+    repo_str = str(repo_root)
+    if repo_str not in sys.path:
+        sys.path.insert(0, repo_str)
 
 
 # Global storage for API responses
