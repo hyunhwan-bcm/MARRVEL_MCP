@@ -17,6 +17,7 @@ from src.tools import (
     utility_tools,
     pubmed_tools,
     liftover_tools,
+    decipher_tools,
 )
 
 
@@ -47,6 +48,7 @@ def create_server() -> FastMCP:
     liftover_tools.register_tools(mcp)
     utility_tools.register_tools(mcp)
     pubmed_tools.register_tools(mcp)
+    decipher_tools.register_tools(mcp)
 
     return mcp
 

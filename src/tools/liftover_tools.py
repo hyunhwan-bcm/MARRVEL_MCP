@@ -37,7 +37,7 @@ async def liftover_hg38_to_hg19(chr: str, pos: int) -> str:
         By default, assume input coordinates are hg38 unless user or database specifies hg19.
     """
     try:
-        endpoint = f"/data/liftover/hg38/chr/{chr}/pos/{pos}/hg19"
+        endpoint = f"/liftover/hg38/chr/{chr}/pos/{pos}/hg19"
         data = await fetch_marrvel_data(endpoint)
         return data
     except httpx.HTTPError as e:
@@ -56,13 +56,13 @@ async def liftover_hg19_to_hg38(chr: str, pos: int) -> str:
         JSON string with hg38 coordinates (e.g., {"hg38Chr": "3", "hg38Pos": 12345})
 
     Example:
-        liftover_hg19_to_hg38("3", 75271215)
+        liftover_hg19to_hg38("3", 75271215)
 
     Note:
         Use this only if the database or user specifically provides hg19 coordinates; otherwise, default to hg38.
     """
     try:
-        endpoint = f"/data/liftover/hg19/chr/{chr}/pos/{pos}/hg38"
+        endpoint = f"/liftover/hg19/chr/{chr}/pos/{pos}/hg38"
         data = await fetch_marrvel_data(endpoint)
         return data
     except httpx.HTTPError as e:
