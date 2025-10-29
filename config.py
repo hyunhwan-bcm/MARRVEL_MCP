@@ -15,12 +15,9 @@ API_MAX_RETRIES = 3
 VERIFY_SSL = False  # Set to True for production
 
 # Server Configuration
-SERVER_NAME = "MARRVEL"
+SERVER_NAME = "MARRVEL-MCP"
 SERVER_VERSION = "1.0.0"
 
-# Logging Configuration
-LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Cache Configuration (if implemented)
 ENABLE_CACHE = False

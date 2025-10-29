@@ -257,17 +257,7 @@ async with ClientSession(...) as session:
 - Real-world queries
 - Edge case scenarios
 
-## Monitoring & Logging
 
-```python
-# Future enhancement: Structured logging
-import logging
-
-logger = logging.getLogger(__name__)
-logger.info(f"Tool called: {tool_name}")
-logger.debug(f"API request: {endpoint}")
-logger.error(f"Error: {error_message}")
-```
 
 ## Version Compatibility
 
