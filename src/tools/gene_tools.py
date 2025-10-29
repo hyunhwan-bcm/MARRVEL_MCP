@@ -47,7 +47,7 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
 
@@ -79,7 +79,7 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/gene/taxonId/{taxon_id}/symbol/{gene_symbol}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
 
@@ -108,6 +108,6 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/gene/chr/{chromosome}/pos/{position}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"

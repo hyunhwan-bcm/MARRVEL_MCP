@@ -33,7 +33,7 @@ async def get_omim_by_mim_number(mim_number: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/omim/mimNumber/{mim_number}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching OMIM data: {str(e)}"
 
@@ -62,7 +62,7 @@ async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/omim/gene/symbol/{gene_symbol}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching OMIM data: {str(e)}"
 
@@ -87,7 +87,7 @@ async def get_omim_variant(gene_symbol: str, variant: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/omim/gene/symbol/{gene_symbol}/variant/{variant}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching OMIM data: {str(e)}"
 
@@ -123,7 +123,7 @@ async def search_omim_by_disease_name(disease_name: str) -> str:
 
         encoded_disease = urllib.parse.quote(disease_name)
         data = await fetch_marrvel_data(f"/omim/phenotypes/title/{encoded_disease}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching OMIM data: {str(e)}"
 

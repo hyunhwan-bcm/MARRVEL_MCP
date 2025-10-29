@@ -70,7 +70,7 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
 
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/dbnsfp/variant/{variant_uri}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching dbNSFP data: {str(e)}"
 
@@ -107,7 +107,7 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/clinvar/variant/{variant_uri}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching ClinVar data: {str(e)}"
 
@@ -131,7 +131,7 @@ async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/clinvar/gene/symbol/{gene_symbol}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching ClinVar data: {str(e)}"
 
@@ -151,7 +151,7 @@ async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/clinvar/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching ClinVar data: {str(e)}"
 
@@ -188,7 +188,7 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/gnomad/variant/{variant_uri}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching gnomAD data: {str(e)}"
 
@@ -208,7 +208,7 @@ async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/gnomad/gene/symbol/{gene_symbol}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching gnomAD data: {str(e)}"
 
@@ -228,7 +228,7 @@ async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/gnomad/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching gnomAD data: {str(e)}"
 
@@ -265,7 +265,7 @@ async def get_dgv_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/dgv/variant/{variant_uri}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching DGV data: {str(e)}"
 
@@ -285,7 +285,7 @@ async def get_dgv_by_entrez_id(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/dgv/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching DGV data: {str(e)}"
 
@@ -322,7 +322,7 @@ async def get_decipher_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/decipher/variant/{variant_uri}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching DECIPHER data: {str(e)}"
 
@@ -344,7 +344,7 @@ async def get_decipher_by_location(chr: str, start: int, stop: int) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/decipher/genomloc/{chr}/{start}/{stop}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching DECIPHER data: {str(e)}"
 
@@ -381,7 +381,7 @@ async def get_geno2mp_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/geno2mp/variant/{variant_uri}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching Geno2MP data: {str(e)}"
 
@@ -401,6 +401,6 @@ async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/geno2mp/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching Geno2MP data: {str(e)}"
