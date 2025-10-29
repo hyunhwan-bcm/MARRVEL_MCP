@@ -42,9 +42,7 @@ htmlcov/
 .tox/
 
 # Test output (but keep the README)
-test-output/*.json
-test-output/*.md
-!test-output/README.md
+test-output/
 
 # Logs
 *.log
