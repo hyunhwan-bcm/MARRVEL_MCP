@@ -8,7 +8,6 @@ the project is installed in editable mode.
 
 import logging, sys, os
 
-# If env flipped you to DEBUG, ignore it for stdio runs
 os.environ.pop("PYTHONLOGLEVEL", None)
 os.environ.pop("LOG_LEVEL", None)
 
@@ -23,7 +22,6 @@ root.setLevel(logging.WARNING)
 
 
 from mcp.server.fastmcp import FastMCP
-import sys
 
 from src.tools import (
     gene_tools,
