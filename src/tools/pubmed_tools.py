@@ -1,3 +1,15 @@
+"""
+PubMed and PubMed Central tools for MARRVEL-MCP.
+
+This module provides tools for searching biomedical literature and retrieving
+full-text articles from PubMed and PubMed Central databases.
+"""
+
+import json
+from typing import Optional
+
+import httpx
+from lxml import etree
 from pymed_paperscraper import PubMed
 
 
@@ -84,22 +96,6 @@ async def search_pubmed(
         return json.dumps({"error": f"PubMed search failed: {str(e)}", "query": query}, indent=2)
 
 
-def register_tools(mcp_instance):
-    """
-    Register PubMed/PMC tools with the MCP server instance.
-
-    Args:
-        mcp_instance: The FastMCP server instance to register tools with
-    """
-    mcp_instance.tool()(search_pubmed)
-    mcp_instance.tool()(pmid_to_pmcid)
-    mcp_instance.tool()(get_pmc_fulltext_by_pmcid)
-
-
-import httpx
-from lxml import etree
-
-
 async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
     """
     Retrieve full text of a PubMed Central (PMC) open-access article.
@@ -149,27 +145,17 @@ async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
         return json.dumps({"pmcid": pmcid, "fulltext": "", "error": str(e)}, indent=2)
 
 
-import json
-from typing import Optional
-
-import httpx
-
-
-def _init_pubmed_client(email: str):
+def _init_pubmed_client(email: str) -> PubMed:
     """
-    Convert a PubMed ID (PMID) to a PMC ID (PMCID) using NCBI E-utilities API.
+    Initialize and return a PubMed client.
 
     Args:
-        pmid: PubMed ID as a string (e.g., "37741276")
+        email: Email address for PubMed API identification
 
     Returns:
-        PMCID as a string in format "PMC{ID}" if mapping exists, or empty string if not mapped.
-
-    Example:
-        pmid_to_pmcid("37741276")
-
-    API Endpoint: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=pmc&id=<PMID>&retmode=json
+        PubMed client instance
     """
+    return PubMed(tool="MARRVEL_MCP", email=email)
 
 
 async def pmid_to_pmcid(pmid: str) -> str:
@@ -241,11 +227,8 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
     Note: Full text sections may not be available for all articles.
     """
     try:
-        # Initialize PubMed client (lazy import)
-        try:
-            pubmed = _init_pubmed_client(email)
-        except ImportError as ie:
-            return json.dumps({"error": str(ie), "pubmed_id": pubmed_id}, indent=2)
+        # Initialize PubMed client
+        pubmed = _init_pubmed_client(email)
 
         # Search for specific PMID
         results = pubmed.query(pubmed_id, max_results=1)
@@ -279,3 +262,16 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
             {"error": f"Failed to retrieve article: {str(e)}", "pubmed_id": pubmed_id},
             indent=2,
         )
+
+
+def register_tools(mcp_instance):
+    """
+    Register PubMed/PMC tools with the MCP server instance.
+
+    Args:
+        mcp_instance: The FastMCP server instance to register tools with
+    """
+    mcp_instance.tool()(search_pubmed)
+    mcp_instance.tool()(get_pmc_fulltext_by_pmcid)
+    mcp_instance.tool()(pmid_to_pmcid)
+    mcp_instance.tool()(get_pubmed_article)
