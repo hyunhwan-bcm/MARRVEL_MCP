@@ -6,7 +6,24 @@ GitHub Actions test suite and by external clients via ``import server`` after
 the project is installed in editable mode.
 """
 
+import logging, sys, os
+
+# If env flipped you to DEBUG, ignore it for stdio runs
+os.environ.pop("PYTHONLOGLEVEL", None)
+os.environ.pop("LOG_LEVEL", None)
+
+# Nuke existing handlers some lib may have added
+root = logging.getLogger()
+for h in list(root.handlers):
+    root.removeHandler(h)
+handler = logging.StreamHandler(sys.stderr)
+handler.setLevel(logging.WARNING)
+root.addHandler(handler)
+root.setLevel(logging.WARNING)
+
+
 from mcp.server.fastmcp import FastMCP
+import sys
 
 from src.tools import (
     gene_tools,
@@ -30,7 +47,7 @@ def create_server() -> FastMCP:
     """
 
     mcp = FastMCP(
-        "MARRVEL-MCP",
+        name="MARRVEL-MCP",
         instructions=(
             "MARRVEL-MCP provides curated data and analysis tools for variant and gene "
             "prioritization using public resources (OMIM, ExAC, ClinVar, Geno2MP, DGV, "
