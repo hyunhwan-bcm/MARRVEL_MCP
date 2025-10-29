@@ -91,126 +91,6 @@ tool_calls = [
 ]
 
 
-@pytest.mark.integration_mcp
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "tool_name,params,expected_key",
-    [
-        ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}, "hg19Chr"),
-        ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}, "hg38Chr"),
-    ],
-)
-def try_parse_text(text: str):
-    """Try several strategies to parse a text block into a Python object.
-
-    Returns the parsed object on success or the original text as a fallback.
-    """
-    # Normalize input
-    if not isinstance(text, str):
-        text = str(text)
-
-    # Try JSON first
-    try:
-        return json.loads(text)
-    except Exception:
-        pass
-
-    # Helper: attempt to extract a balanced JSON substring starting at a given index
-    def extract_balanced(s: str, start_idx: int):
-        if start_idx < 0 or start_idx >= len(s):
-            return None
-        opening = s[start_idx]
-        if opening == "{":
-            closing = "}"
-        elif opening == "[":
-            closing = "]"
-        else:
-            return None
-        depth = 0
-        for i in range(start_idx, len(s)):
-            ch = s[i]
-            if ch == opening:
-                depth += 1
-            elif ch == closing:
-                depth -= 1
-                if depth == 0:
-                    return s[start_idx : i + 1]
-        return None
-
-    # Try extracting JSON/array substrings by locating first brace or bracket
-    for start_char in ("{", "["):
-        start = text.find(start_char)
-        if start != -1:
-            candidate = extract_balanced(text, start)
-            if candidate:
-                try:
-                    return json.loads(candidate)
-                except Exception:
-                    # try a relaxed fix with single quotes
-                    try:
-                        return json.loads(candidate.replace("'", '"'))
-                    except Exception:
-                        pass
-
-    # As a fallback, try regex to find the first {...} or [...]
-    import re
-
-    try:
-        m = re.search(r"(\{.*\}|\[.*\])", text, re.DOTALL)
-        if m:
-            candidate = m.group(1)
-            try:
-                return json.loads(candidate)
-            except Exception:
-                try:
-                    return json.loads(candidate.replace("'", '"'))
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
-    # Fall back to Python literal evaluation
-    import ast
-
-    try:
-        return ast.literal_eval(text)
-    except Exception:
-        pass
-
-    # Try a best-effort replace of single quotes -> double quotes and parse
-    try:
-        fixed = text.replace("'", '"')
-        return json.loads(fixed)
-    except Exception:
-        pass
-
-    # If nothing parsed, return the original text so callers can handle raw output.
-    return text
-
-
-def _unwrap_if_necessary(obj: any) -> any:
-    """
-    Unwrap a {'result': 'JSON string'} structure if found.
-
-    This helper checks if the input object is a dictionary containing a single
-    key 'result' whose value is a string. If so, it attempts to parse that
-    string as JSON and returns the result. Otherwise, it returns the original
-    object.
-    """
-    if (
-        isinstance(obj, dict)
-        and len(obj) == 1
-        and "result" in obj
-        and isinstance(obj["result"], str)
-    ):
-        try:
-            return json.loads(obj["result"])
-        except json.JSONDecodeError:
-            # The string wasn't valid JSON, so return the original object
-            return obj
-    return obj
-
-
 @pytest.mark.integration
 @pytest.mark.integration_mcp
 @pytest.mark.asyncio
@@ -225,24 +105,11 @@ async def test_tool_returns_json_or_fail(mcp_server, name, args):
     """
     try:
         resp = await mcp_server.call_tool(name, args)
+        resp = resp[-1]["result"]
     except Exception as e:
-        pytest.skip(f"Tool {name} raised exception when called: {e}")
+        pytest.fail(f"Tool {name} raised exception when called: {type(e).__name__}: {e}")
 
     assert resp is not None, f"No response for tool {name}"
-
-    # Some MCP call interfaces return a tuple where the last element is a
-    # server response dict containing a `result` string. Normalize that case
-    # and then try to parse the result into a Python object so the rest of
-    # the test can treat `resp` as JSON-like (dict/list) when saving.
-    if isinstance(resp, tuple):
-        resp = resp[-1].get("result", resp[-1])
-
-    # If the result is a dict wrapper like {'result': '<json string>'},
-    # unwrap it. If it's still a string, attempt parsing (JSON, python
-    # literal, or relaxed fixes) so we end up with a Python object.
-    resp = _unwrap_if_necessary(resp)
-    if isinstance(resp, str):
-        resp = try_parse_text(resp)
 
     # Save output if requested
     if os.getenv("SAVE_SMOKE_TEST_OUTPUT"):
@@ -252,4 +119,4 @@ async def test_tool_returns_json_or_fail(mcp_server, name, args):
         output_file = output_dir / f"{name}.json"
 
         with open(output_file, "w") as f:
-            json.dump(resp, f, indent=2)
+            f.write(resp)

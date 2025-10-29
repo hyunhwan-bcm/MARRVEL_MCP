@@ -66,39 +66,20 @@ async def fetch_marrvel_data(endpoint: str) -> str:
         except json.JSONDecodeError:
             # Try a safe fallback for Python-style literals (e.g. "[{'a':1}]") using ast.literal_eval
             text = await _maybe_await(getattr(response, "text", ""))
-            try:
-                parsed = ast.literal_eval(text)
-                # normalize and return like above
-                if isinstance(parsed, list):
-                    result = {"status": "success", "data": parsed, "count": len(parsed)}
-                    return json.dumps(result, indent=2)
-                if isinstance(parsed, dict):
-                    return json.dumps(parsed, indent=2)
-                return json.dumps({"status": "success", "data": parsed}, indent=2)
-            except Exception:
-                err = {
-                    "error": "Invalid JSON response",
-                    "status_code": getattr(response, "status_code", None),
-                    "content": str(text)[:200],
-                }
-                return json.dumps(err, indent=2)
+            content_type = response.headers.get("Content-Type", "").lower()
+            is_json_content_type = "application/json" in content_type or "text/json" in content_type
 
-        # Normalize arrays to a consistent dict shape so callers don't need to special-case lists
-        if isinstance(data, list):
-            result = {"status": "success", "data": data, "count": len(data)}
-            return json.dumps(result, indent=2)
-        if isinstance(data, dict):
-            return json.dumps(data, indent=2)
+            error_message = (
+                "Invalid JSON response"
+                if is_json_content_type
+                else "Unexpected API response format"
+            )
+            err = {
+                "error": error_message,
+                "status_code": getattr(response, "status_code", None),
+                "content": str(text),
+                "content_type": content_type,  # Include content type for debugging
+            }
+            return json.dumps(err, indent=2)
 
-        # For primitives (str, int, etc.), wrap into data key
-        result = {"status": "success", "data": data}
-        return json.dumps(result, indent=2)
-
-
-# Future enhancements that can be added to this module:
-# - Response caching with TTL
-# - Request retry logic with exponential backoff
-# - Rate limiting
-# - Request logging and metrics
-# - Response validation
-# - Error categorization and custom exceptions
+        return json.dumps(data, indent=2)
