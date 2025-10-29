@@ -15,7 +15,6 @@ from src.utils.api_client import fetch_marrvel_data
 def register_tools(mcp_instance):
     """Register all ortholog tools with the MCP server."""
     # Register tools
-    mcp_instance.tool()(get_diopt_orthologs)
     # Provide an explicit alias matching other parts of the codebase/tests
     # which reference `get_diopt_orthologs_by_entrez_id`.
     mcp_instance.tool()(get_diopt_orthologs_by_entrez_id)
@@ -27,7 +26,7 @@ def register_tools(mcp_instance):
 # ============================================================================
 
 
-async def get_diopt_orthologs(entrez_id: str) -> str:
+async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
     """
     Find orthologs across model organisms using DIOPT.
 
@@ -45,8 +44,8 @@ async def get_diopt_orthologs(entrez_id: str) -> str:
         - Gene symbols in each species
 
     Example:
-        get_diopt_orthologs("7157")  # TP53 orthologs
-        get_diopt_orthologs("672")   # BRCA1 orthologs
+        get_diopt_orthologs_by_entrez_id("7157")  # TP53 orthologs
+        get_diopt_orthologs_by_entrez_id("672")   # BRCA1 orthologs
     """
     try:
         data = await fetch_marrvel_data(f"/diopt/ortholog/gene/entrezId/{entrez_id}")
@@ -80,16 +79,3 @@ async def get_diopt_alignment(entrez_id: str) -> str:
         return str(data)
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT alignment data: {str(e)}"
-
-
-async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
-    """
-    Alias for get_diopt_orthologs that matches existing test and documentation naming.
-
-    Args:
-        entrez_id: Human gene Entrez ID
-
-    Returns:
-        JSON string with ortholog predictions (same as get_diopt_orthologs)
-    """
-    return await get_diopt_orthologs(entrez_id)
