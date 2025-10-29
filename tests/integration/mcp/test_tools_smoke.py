@@ -13,6 +13,8 @@ the suite.
 """
 
 import json
+import os
+from pathlib import Path
 import pytest
 
 # Re-use the fixture and helper from the existing integration test module
@@ -31,7 +33,6 @@ def mcp_server():
     # regardless of package import paths used by pytest.
     import importlib.util
     import sys
-    from pathlib import Path
 
     repo_root = None
     for p in Path(__file__).resolve().parents:
@@ -82,7 +83,7 @@ tool_calls = [
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
     ("get_diopt_orthologs", {"entrez_id": "7157"}),
     ("get_gtex_expression", {"entrez_id": "7157"}),
-    ("validate_hgvs_variant", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
+    ("convert_hgvs_to_genomic", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
     ("search_pubmed", {"query": "TP53 cancer", "max_results": 1}),
     # Liftover tool tests
     ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
@@ -187,14 +188,40 @@ def try_parse_text(text: str):
     return text
 
 
+def _unwrap_if_necessary(obj: any) -> any:
+    """
+    Unwrap a {'result': 'JSON string'} structure if found.
+
+    This helper checks if the input object is a dictionary containing a single
+    key 'result' whose value is a string. If so, it attempts to parse that
+    string as JSON and returns the result. Otherwise, it returns the original
+    object.
+    """
+    if (
+        isinstance(obj, dict)
+        and len(obj) == 1
+        and "result" in obj
+        and isinstance(obj["result"], str)
+    ):
+        try:
+            return json.loads(obj["result"])
+        except json.JSONDecodeError:
+            # The string wasn't valid JSON, so return the original object
+            return obj
+    return obj
+
+
 @pytest.mark.integration
 @pytest.mark.integration_mcp
 @pytest.mark.asyncio
 @pytest.mark.parametrize("name,args", tool_calls)
 async def test_tool_returns_json_or_fail(mcp_server, name, args):
-    """Call a single tool and assert the returned payload is JSON-parseable.
+    """
+    Call a single tool and assert the returned payload is JSON-parseable.
 
     This test is parametrized so pytest shows one pass/fail line per tool.
+    If the SAVE_SMOKE_TEST_OUTPUT environment variable is set, the JSON response
+    for each tool will be saved to `test-output/smoke-test-json/{tool_name}.json`.
     """
     try:
         resp = await mcp_server.call_tool(name, args)
@@ -229,6 +256,31 @@ async def test_tool_returns_json_or_fail(mcp_server, name, args):
     else:
         # Unexpected type: fail
         pytest.fail(f"Tool {name} returned unsupported type: {type(resp)}")
+
+    # After initial parsing, unwrap if necessary
+    parsed = _unwrap_if_necessary(parsed)
+
+    # Save output if environment variable is set
+    if os.getenv("SAVE_SMOKE_TEST_OUTPUT"):
+        # Project root is 3 levels up from this test file's directory
+        # tests/integration/mcp/test_tools_smoke.py -> ... -> root
+        project_root = Path(__file__).resolve().parents[3]
+        output_dir = project_root / "test-output" / "smoke-test-json"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / f"{name}.json"
+
+        content_to_write = ""
+        if isinstance(parsed, (dict, list)):
+            try:
+                content_to_write = json.dumps(parsed, indent=2)
+            except TypeError:
+                content_to_write = str(parsed)  # Fallback for non-serializable
+        else:
+            content_to_write = str(parsed)  # Fallback for non-dict/list
+
+        with open(output_file, "w") as f:
+            f.write(content_to_write)
+        print(f"\nSaved output for {name} to {output_file}")
 
     # If parsing succeeded, print a concise one-line summary for visibility.
     if isinstance(parsed, dict):
