@@ -81,7 +81,7 @@ async def get_openrouter_response(
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "name": function_name,
-                            "content": json.dumps(tool_result.data),
+                            "content": tool_result.data,
                         }
                     )
                 except Exception as e:

@@ -81,7 +81,7 @@ tool_calls = [
     ("get_geno2mp_variant", {"chr": "17", "pos": "7577121", "ref": "C", "alt": "T"}),
     ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
-    ("get_diopt_orthologs", {"entrez_id": "7157"}),
+    ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),
     ("get_gtex_expression", {"entrez_id": "7157"}),
     ("convert_hgvs_to_genomic", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
     ("search_pubmed", {"query": "TP53 cancer", "max_results": 1}),
@@ -230,61 +230,26 @@ async def test_tool_returns_json_or_fail(mcp_server, name, args):
 
     assert resp is not None, f"No response for tool {name}"
 
-    # If the call returned a dict that looks like an error, skip the test.
-    if isinstance(resp, dict) and resp.get("error"):
-        pytest.skip(f"Tool {name} returned error: {resp.get('error')}")
+    # Some MCP call interfaces return a tuple where the last element is a
+    # server response dict containing a `result` string. Normalize that case
+    # and then try to parse the result into a Python object so the rest of
+    # the test can treat `resp` as JSON-like (dict/list) when saving.
+    if isinstance(resp, tuple):
+        resp = resp[-1].get("result", resp[-1])
 
-    parsed = None
+    # If the result is a dict wrapper like {'result': '<json string>'},
+    # unwrap it. If it's still a string, attempt parsing (JSON, python
+    # literal, or relaxed fixes) so we end up with a Python object.
+    resp = _unwrap_if_necessary(resp)
+    if isinstance(resp, str):
+        resp = try_parse_text(resp)
 
-    # If the result is already a dict/list, accept as JSON-serializable
-    if isinstance(resp, (dict, list)):
-        parsed = resp
-    elif isinstance(resp, str):
-        parsed = try_parse_text(resp)
-    elif isinstance(resp, (list, tuple)):
-        # Handle sequences of content-blocks
-        parts = []
-        for item in resp:
-            if hasattr(item, "text"):
-                parts.append(item.text)
-            elif hasattr(item, "content"):
-                parts.append(str(item.content))
-            else:
-                parts.append(str(item))
-        text = "\n".join(parts)
-        parsed = try_parse_text(text)
-    else:
-        # Unexpected type: fail
-        pytest.fail(f"Tool {name} returned unsupported type: {type(resp)}")
-
-    # After initial parsing, unwrap if necessary
-    parsed = _unwrap_if_necessary(parsed)
-
-    # Save output if environment variable is set
+    # Save output if requested
     if os.getenv("SAVE_SMOKE_TEST_OUTPUT"):
-        # Project root is 3 levels up from this test file's directory
-        # tests/integration/mcp/test_tools_smoke.py -> ... -> root
         project_root = Path(__file__).resolve().parents[3]
         output_dir = project_root / "test-output" / "smoke-test-json"
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / f"{name}.json"
 
-        content_to_write = ""
-        if isinstance(parsed, (dict, list)):
-            try:
-                content_to_write = json.dumps(parsed, indent=2)
-            except TypeError:
-                content_to_write = str(parsed)  # Fallback for non-serializable
-        else:
-            content_to_write = str(parsed)  # Fallback for non-dict/list
-
         with open(output_file, "w") as f:
-            f.write(content_to_write)
-        print(f"\nSaved output for {name} to {output_file}")
-
-    # If parsing succeeded, print a concise one-line summary for visibility.
-    if isinstance(parsed, dict):
-        keys = list(parsed.keys())
-        print(f"Tool {name} -> OK JSON object with keys: {keys}")
-    else:
-        print(f"Tool {name} -> OK JSON value of type {type(parsed)}")
+            json.dump(resp, f, indent=2)

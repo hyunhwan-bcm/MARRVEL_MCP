@@ -49,7 +49,7 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/diopt/ortholog/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT data: {str(e)}"
 
@@ -76,6 +76,6 @@ async def get_diopt_alignment(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/diopt/alignment/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT alignment data: {str(e)}"

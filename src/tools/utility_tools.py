@@ -60,7 +60,7 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
     try:
         encoded_variant = quote(hgvs_variant)
         data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{encoded_variant}")
-        return json.dumps(data, indent=2)
+        return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error converting HGVS variant: {str(e)}"}, indent=2)
     except Exception as e:
@@ -94,7 +94,7 @@ async def convert_protein_variant(protein_variant: str) -> str:
     try:
         encoded_variant = quote(protein_variant)
         data = await fetch_marrvel_data(f"/transvar/protein/{encoded_variant}")
-        return json.dumps(data, indent=2)
+        return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error converting protein variant: {str(e)}"}, indent=2)
     except Exception as e:

@@ -50,7 +50,7 @@ async def get_gtex_expression(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/gtex/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching GTEx data: {str(e)}"
 
@@ -77,7 +77,7 @@ async def get_ortholog_expression(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/expression/orthologs/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching ortholog expression data: {str(e)}"
 
@@ -112,6 +112,6 @@ async def get_pharos_targets(entrez_id: str) -> str:
     """
     try:
         data = await fetch_marrvel_data(f"/pharos/targets/gene/entrezId/{entrez_id}")
-        return str(data)
+        return data
     except httpx.HTTPError as e:
         return f"Error fetching Pharos data: {str(e)}"
