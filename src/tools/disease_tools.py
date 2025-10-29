@@ -12,23 +12,19 @@ from mcp.server.fastmcp import FastMCP
 
 async def get_omim_by_mim_number(mim_number: str) -> str:
     """
-    Retrieve OMIM (Online Mendelian Inheritance in Man) entry by MIM number.
+    Retrieve OMIM disease entry by MIM number.
 
-    OMIM is a comprehensive database of human genes and genetic disorders.
+    Returns detailed genetic disorder information including clinical features,
+    inheritance pattern, and molecular genetics. Use when you have a specific MIM ID.
 
     Args:
         mim_number: OMIM MIM number (e.g., "191170" for Treacher Collins syndrome)
 
     Returns:
-        JSON string with OMIM entry:
-        - Disease/phenotype description
-        - Clinical features
-        - Inheritance pattern
-        - Molecular genetics
-        - Allelic variants
+        JSON with disease description, clinical features, inheritance, genetics, and variants
 
     Example:
-        get_omim_by_mim_number("191170")  #
+        get_omim_by_mim_number("191170")  # Treacher Collins syndrome
         get_omim_by_mim_number("114480")  # Breast cancer (BRCA1)
     """
     try:
@@ -40,25 +36,20 @@ async def get_omim_by_mim_number(mim_number: str) -> str:
 
 async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
     """
-    Find all OMIM diseases associated with a gene symbol.
+    Find all OMIM diseases associated with a gene.
 
-    This tool retrieves all OMIM entries (diseases, phenotypes) that are
-    associated with a particular gene.
+    Returns all genetic disorders linked to the gene. Essential for understanding
+    gene-disease relationships and phenotypic consequences of gene variants.
 
     Args:
         gene_symbol: Official gene symbol (e.g., "TP53", "BRCA1", "CFTR")
 
     Returns:
-        JSON string with list of OMIM diseases including:
-        - MIM numbers
-        - Disease names
-        - Inheritance patterns
-        - Gene-disease relationships
+        JSON with disease names, MIM numbers, inheritance patterns, and gene-disease relationships
 
     Example:
         get_omim_by_gene_symbol("TP53")  # Li-Fraumeni syndrome
         get_omim_by_gene_symbol("BRCA1")  # Breast/ovarian cancer
-        get_omim_by_gene_symbol("CFTR")  # Cystic fibrosis
     """
     try:
         data = await fetch_marrvel_data(f"/omim/gene/symbol/{gene_symbol}")
@@ -69,17 +60,17 @@ async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
 
 async def get_omim_variant(gene_symbol: str, variant: str) -> str:
     """
-    Query OMIM for specific variant information.
+    Get OMIM data for a specific variant.
 
-    Get OMIM data for a specific variant in a gene, including disease
-    associations and clinical significance.
+    Returns disease associations and clinical significance for a particular variant.
+    Use for variant-specific OMIM information.
 
     Args:
         gene_symbol: Gene symbol (e.g., "TP53")
-        variant: Variant description (e.g., "p.R248Q", "c.743G>A")
+        variant: Variant description in HGVS format (e.g., "p.R248Q", "c.743G>A")
 
     Returns:
-        JSON string with variant-specific OMIM information
+        JSON with variant-specific disease associations and clinical data
 
     Example:
         get_omim_variant("TP53", "p.R248Q")
@@ -94,28 +85,20 @@ async def get_omim_variant(gene_symbol: str, variant: str) -> str:
 
 async def search_omim_by_disease_name(disease_name: str) -> str:
     """
-    Search OMIM (Online Mendelian Inheritance in Man) by disease name or keyword.
+    Search OMIM by disease name or keyword.
 
-    This tool allows searching for OMIM entries using disease names, symptoms,
-    or related keywords. Useful for researchers who don't know the specific
-    OMIM ID but want to find relevant genetic disorders.
+    Returns matching OMIM entries based on disease names, symptoms, or keywords.
+    Use when you don't have a specific MIM ID or gene symbol.
 
     Args:
-        disease_name: Disease name, symptom, or keyword to search for
-                     (e.g., "breast cancer", "cystic fibrosis", "diabetes")
+        disease_name: Disease name, symptom, or keyword (e.g., "breast cancer", "dementia")
 
     Returns:
-        JSON string with matching OMIM entries including:
-        - MIM numbers and disease names
-        - Alternative names and synonyms
-        - Brief descriptions and clinical features
-        - Inheritance patterns
-        - Associated genes (when available)
+        JSON with MIM numbers, disease names, synonyms, clinical features, inheritance, and genes
 
     Example:
         search_omim_by_disease_name("breast cancer")
         search_omim_by_disease_name("cystic fibrosis")
-        search_omim_by_disease_name("diabetes")
     """
     try:
         # URL encode the disease name for the API call
@@ -130,27 +113,20 @@ async def search_omim_by_disease_name(disease_name: str) -> str:
 
 async def search_hpo_terms(phenotype_query: str) -> str:
     """
-    Search Human Phenotype Ontology (HPO) terms for a phenotype query.
+    Search Human Phenotype Ontology (HPO) terms by phenotype.
 
-    This tool searches the JAX HPO ontology for phenotype terms matching the query.
-    Returns a list of matching HPO terms with their IDs and definitions.
+    Returns matching HPO terms with IDs and definitions. Essential for standardizing
+    clinical phenotypes and enabling phenotype-driven gene discovery.
 
     Args:
-        phenotype_query: Phenotype term or symptom to search for
-                        (e.g., "dementia", "intellectual disability", "seizures")
+        phenotype_query: Phenotype or symptom (e.g., "dementia", "seizures")
 
     Returns:
-        JSON string with HPO search results:
-        - query: The search query used
-        - total_terms: Number of matching terms found
-        - terms: Array of HPO terms with id, name, and definition
+        JSON with query, total_terms count, and array of HPO terms (ID, name, definition)
 
     Example:
-        search_hpo_terms("dementia")
         search_hpo_terms("intellectual disability")
         search_hpo_terms("seizures")
-
-    API Endpoint: GET https://ontology.jax.org/api/hp/search
     """
     try:
         import json
@@ -213,27 +189,20 @@ async def search_hpo_terms(phenotype_query: str) -> str:
 
 async def get_hpo_associated_genes(hpo_id: str) -> str:
     """
-    Get genes associated with a specific Human Phenotype Ontology (HPO) term.
+    Get genes associated with an HPO term for phenotype-driven gene discovery.
 
-    This tool retrieves genes linked to a given HPO term and identifies the most
-    feasible gene based on available annotations and association strength.
+    Returns all genes linked to a clinical phenotype and identifies the most feasible
+    candidate. Critical for reverse phenotyping and rare disease diagnosis.
 
     Args:
         hpo_id: HPO term ID (e.g., "HP:0000727" for Dementia)
 
     Returns:
-        JSON string with gene associations:
-        - hpo_id: The HPO term ID queried
-        - all_genes: Array of all associated genes
-        - gene_count: Total number of associated genes
-        - most_feasible_gene: The most feasible gene selected based on criteria
-        - selection_criteria: Explanation of how the most feasible gene was chosen
+        JSON with genes array, gene_count, most_feasible_gene, and selection_criteria
 
     Example:
         get_hpo_associated_genes("HP:0000727")  # Dementia
         get_hpo_associated_genes("HP:0001249")  # Intellectual disability
-
-    API Endpoint: GET https://ontology.jax.org/api/network/annotation/{hpo_id}
     """
     try:
         import json

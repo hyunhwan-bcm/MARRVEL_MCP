@@ -21,20 +21,20 @@ def register_tools(mcp_instance: FastMCP):
 
 async def liftover_hg38_to_hg19(chr: str, pos: int) -> str:
     """
-    Convert hg38 coordinates to hg19 using MARRVEL liftover API.
+    Convert genome coordinates from hg38/GRCh38 to hg19/GRCh37.
+
+    Returns hg19 coordinates for MARRVEL tool compatibility. Essential when source
+    data uses hg38 but MARRVEL tools require hg19.
 
     Args:
-        chr: Chromosome (e.g., "3")
-        pos: Position (integer, e.g., 12345)
+        chr: Chromosome without 'chr' prefix (e.g., "3", "X")
+        pos: Position in hg38 coordinates (integer)
 
     Returns:
-        JSON string with hg19 coordinates (e.g., {"hg19Chr": "3", "hg19Pos": 75271215})
+        JSON with hg19Chr and hg19Pos
 
     Example:
         liftover_hg38_to_hg19("3", 12345)
-
-    Note:
-        By default, assume input coordinates are hg38 unless user or database specifies hg19.
     """
     try:
         endpoint = f"/liftover/hg38/chr/{chr}/pos/{pos}/hg19"
@@ -46,20 +46,20 @@ async def liftover_hg38_to_hg19(chr: str, pos: int) -> str:
 
 async def liftover_hg19_to_hg38(chr: str, pos: int) -> str:
     """
-    Convert hg19 coordinates to hg38 using MARRVEL liftover API.
+    Convert genome coordinates from hg19/GRCh37 to hg38/GRCh38.
+
+    Returns hg38 coordinates. Use when MARRVEL returns hg19 data but you need
+    hg38 for other tools or databases.
 
     Args:
-        chr: Chromosome (e.g., "3")
-        pos: Position (integer, e.g., 75271215)
+        chr: Chromosome without 'chr' prefix (e.g., "3", "X")
+        pos: Position in hg19 coordinates (integer)
 
     Returns:
-        JSON string with hg38 coordinates (e.g., {"hg38Chr": "3", "hg38Pos": 12345})
+        JSON with hg38Chr and hg38Pos
 
     Example:
-        liftover_hg19to_hg38("3", 75271215)
-
-    Note:
-        Use this only if the database or user specifically provides hg19 coordinates; otherwise, default to hg38.
+        liftover_hg19_to_hg38("3", 75271215)
     """
     try:
         endpoint = f"/liftover/hg19/chr/{chr}/pos/{pos}/hg38"

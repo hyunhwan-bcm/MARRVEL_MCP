@@ -42,7 +42,10 @@ def register_tools(mcp_instance: FastMCP):
 
 async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
     """
-    Retrieve comprehensive variant annotations from dbNSFP database.
+    Get comprehensive pathogenicity predictions and functional annotations from dbNSFP.
+
+    Returns SIFT, PolyPhen2, CADD scores, conservation scores, and multiple in-silico
+    predictions. Essential for variant pathogenicity assessment.
 
     Args:
         chr: Chromosome (e.g., "17", "X")
@@ -51,14 +54,11 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
         alt: Alternate allele (e.g., "T")
 
     Returns:
-        JSON string with extensive variant annotations.
+        JSON with functional predictions, conservation, frequencies, and pathogenicity scores
 
     Example:
-        get_variant_dbnsfp("17", "7577121", "C", "T") # from "17:7577121 C>T" in prompt
-        get_variant_dbnsfp("6", "99365567", "T", "C") # from "6-99365567-T-C" in prompt
-        get_variant_dbnsfp("11", "5227002", "G", "A") # from "11-5227002G>A" in prompt
-        get_variant_dbnsfp("X", "154247", "A", "G") # from "X-154247A>G" in prompt
-        get_variant_dbnsfp("2", "47630779", "C", "T") # from "chromosome 2, position at 47630779, variant of C>T" in prompt
+        get_variant_dbnsfp("17", "7577121", "C", "T")
+        get_variant_dbnsfp("X", "154247", "A", "G")
     """
     try:
         # Build canonical variant string for URI
@@ -79,7 +79,10 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
 
 async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     """
-    Query ClinVar for clinical significance of a specific variant.
+    Get ClinVar clinical significance and interpretation for a specific variant.
+
+    Returns pathogenic/benign classification, review status, disease associations,
+    and submission details. Critical for clinical variant interpretation.
 
     Args:
         chr: Chromosome (e.g., "17", "X")
@@ -88,14 +91,11 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
         alt: Alternate allele (e.g., "T")
 
     Returns:
-        JSON string with ClinVar data.
+        JSON with clinical significance, condition, review status, and HGVS nomenclature
 
     Example:
-        get_clinvar_by_variant("17", "7577121", "C", "T") # from "17:7577121 C>T" in prompt
-        get_clinvar_by_variant("6", "99365567", "T", "C") # from "6-99365567-T-C" in prompt
-        get_clinvar_by_variant("11", "5227002", "G", "A") # from "11-5227002G>A" in prompt
-        get_clinvar_by_variant("X", "154247", "A", "G") # from "X-154247A>G" in prompt
-        get_clinvar_by_variant("2", "47630779", "C", "T") # from "chromosome 2, position at 47630779, variant of C>T" in prompt
+        get_clinvar_by_variant("17", "7577121", "C", "T")
+        get_clinvar_by_variant("13", "32900000", "G", "A")
     """
     try:
         # Build canonical variant string for URI
@@ -111,16 +111,16 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
 async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
     """
-    Get all ClinVar variants associated with a gene symbol.
+    Get all ClinVar variants for a gene.
 
-    Retrieves all variants in ClinVar that are located within or associated
-    with the specified gene.
+    Returns all clinically significant variants within a gene. Useful for
+    comprehensive gene-level variant review and pathogenic variant discovery.
 
     Args:
         gene_symbol: Official gene symbol (e.g., "TP53", "BRCA1")
 
     Returns:
-        JSON string with all ClinVar variants for the gene
+        JSON with all ClinVar variants, their significance, and disease associations
 
     Example:
         get_clinvar_by_gene_symbol("TP53")
@@ -135,13 +135,16 @@ async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
 
 async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
     """
-    Get all ClinVar variants for a gene using Entrez ID.
+    Get all ClinVar variants for a gene by Entrez ID.
+
+    Returns all clinically significant variants. Use when you have Entrez ID
+    instead of gene symbol.
 
     Args:
-        entrez_id: NCBI Entrez Gene ID
+        entrez_id: NCBI Entrez Gene ID (e.g., "7157" for TP53)
 
     Returns:
-        JSON string with all ClinVar variants for the gene
+        JSON with all ClinVar variants and their clinical interpretations
 
     Example:
         get_clinvar_by_entrez_id("7157")  # TP53
@@ -160,8 +163,10 @@ async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
 
 async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     """
-    Access population allele frequencies from gnomAD database.
+    Get population allele frequencies from gnomAD for a specific variant.
 
+    Returns global and population-specific frequencies (AF, AFR, AMR, EAS, NFE, SAS).
+    Essential for determining if a variant is common or rare in populations.
 
     Args:
         chr: Chromosome (e.g., "17", "X")
@@ -170,14 +175,11 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
         alt: Alternate allele (e.g., "T")
 
     Returns:
-        JSON string with population frequency data.
+        JSON with allele frequencies across populations and homozygote counts
 
     Example:
-        get_gnomad_variant("17", "7577121", "C", "T") # from "17:7577121 C>T" in prompt
-        get_gnomad_variant("6", "99365567", "T", "C") # from "6-99365567-T-C" in prompt
-        get_gnomad_variant("11", "5227002", "G", "A") # from "11-5227002G>A" in prompt
-        get_gnomad_variant("X", "154247", "A", "G") # from "X-154247A>G" in prompt
-        get_gnomad_variant("2", "47630779", "C", "T") # from "chromosome 2, position at 47630779, variant of C>T" in prompt
+        get_gnomad_variant("17", "7577121", "C", "T")
+        get_gnomad_variant("X", "154247", "A", "G")
     """
     try:
         variant = f"{chr}:{pos} {ref}>{alt}"
@@ -192,13 +194,16 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
 async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
     """
-    Get gnomAD variant data for all variants in a gene.
+    Get gnomAD population frequencies for all variants in a gene.
+
+    Returns frequency data for every variant in the gene. Useful for identifying
+    common vs. rare variants within a gene.
 
     Args:
-        gene_symbol: Official gene symbol
+        gene_symbol: Official gene symbol (e.g., "TP53")
 
     Returns:
-        JSON string with gnomAD data for all variants in the gene
+        JSON with gnomAD allele frequencies for all gene variants
 
     Example:
         get_gnomad_by_gene_symbol("TP53")
@@ -212,13 +217,16 @@ async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
 
 async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
     """
-    Get gnomAD variant data for a gene using Entrez ID.
+    Get gnomAD population frequencies for a gene by Entrez ID.
+
+    Returns frequency data for all variants. Use when you have Entrez ID instead
+    of gene symbol.
 
     Args:
-        entrez_id: NCBI Entrez Gene ID
+        entrez_id: NCBI Entrez Gene ID (e.g., "7157" for TP53)
 
     Returns:
-        JSON string with gnomAD data for all variants in the gene
+        JSON with gnomAD allele frequencies for all gene variants
 
     Example:
         get_gnomad_by_entrez_id("7157")  # TP53
@@ -232,13 +240,16 @@ async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
 
 async def get_dgv_by_entrez_id(entrez_id: str) -> str:
     """
-    Get DGV structural variants for a gene.
+    Get DGV structural variants and copy number variations (CNVs) for a gene.
+
+    Returns benign structural variants from DGV database. Useful for identifying
+    common CNVs that may confound pathogenic variant interpretation.
 
     Args:
-        entrez_id: NCBI Entrez Gene ID
+        entrez_id: NCBI Entrez Gene ID (e.g., "7157" for TP53)
 
     Returns:
-        JSON string with DGV data for the gene region
+        JSON with structural variants, CNVs, and deletion/duplication events
 
     Example:
         get_dgv_by_entrez_id("7157")  # TP53
@@ -252,13 +263,16 @@ async def get_dgv_by_entrez_id(entrez_id: str) -> str:
 
 async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
     """
-    Get Geno2MP phenotype associations for a gene.
+    Get Geno2MP phenotypes matched to a gene.
+
+    Returns clinical phenotypes associated with the gene from Geno2MP database.
+    Essential for phenotype-driven gene prioritization in rare disease diagnosis.
 
     Args:
-        entrez_id: NCBI Entrez Gene ID
+        entrez_id: NCBI Entrez Gene ID (e.g., "7157" for TP53)
 
     Returns:
-        JSON string with phenotype data for the gene
+        JSON with matched phenotypes, HPO terms, and clinical features
 
     Example:
         get_geno2mp_by_entrez_id("7157")  # TP53

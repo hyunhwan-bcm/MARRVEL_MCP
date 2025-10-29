@@ -22,15 +22,15 @@ def register_tools(mcp_instance: FastMCP):
 
 async def get_decipher_by_location(chr: str, start: int, stop: int) -> str:
     """
-    Query DECIPHER by genomic location (hg19 coordinates).
+    Query DECIPHER for control variant statistics in a genomic region.
 
     Args:
-        chr: Chromosome (e.g., "17")
-        start: Start position (hg19)
-        stop: End position (hg19)
+        chr: Chromosome without 'chr' prefix (e.g., "17")
+        start: Start position in hg19 (integer)
+        stop: End position in hg19 (integer)
 
     Returns:
-        JSON string with DECIPHER data for the genomic region
+        JSON with DECIPHER reported control variants
 
     Example:
         get_decipher_by_location("17", 7570000, 7590000)

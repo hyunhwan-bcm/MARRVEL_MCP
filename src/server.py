@@ -49,11 +49,12 @@ def create_server() -> FastMCP:
     mcp = FastMCP(
         name="MARRVEL-MCP",
         instructions=(
-            "MARRVEL-MCP provides curated data and analysis tools for variant and gene "
-            "prioritization using public resources (OMIM, ExAC, ClinVar, Geno2MP, DGV, "
-            "DECIPHER) and model-organism annotations via DIOPT and model organism "
-            "databases. Assume genomic coordinates are hg38 unless otherwise noted. "
-            "When data is unavailable, state that clearly."
+            "MARRVEL-MCP enables rare disease research through 32+ genetics tools. "
+            "Query genes (symbol/ID/position), analyze variants (dbNSFP, ClinVar, gnomAD), "
+            "find disease associations (OMIM, DECIPHER), discover orthologs (DIOPT), "
+            "search tissue expression (GTEx), identify drug targets (Pharos), and search "
+            "literature (PubMed). Supports liftover between genome builds. "
+            "Default coordinates: hg19/GRCh37. State clearly when data is unavailable."
         ),
     )
 
