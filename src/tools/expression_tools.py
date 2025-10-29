@@ -29,20 +29,16 @@ def register_tools(mcp_instance):
 
 async def get_gtex_expression(entrez_id: str) -> str:
     """
-    Access GTEx (Genotype-Tissue Expression) data.
+    Get GTEx tissue-specific gene expression across 54 human tissues.
 
-    GTEx provides gene expression levels across 54 human tissues from
-    healthy donors.
+    Returns median TPM (Transcripts Per Million) for each tissue from healthy donors.
+    Essential for understanding tissue specificity and normal expression patterns.
 
     Args:
-        entrez_id: Gene Entrez ID
+        entrez_id: Gene Entrez ID (e.g., "7157" for TP53)
 
     Returns:
-        JSON string with expression data:
-        - Median TPM (Transcripts Per Million) per tissue
-        - Expression variability
-        - Sample sizes
-        - Tissue-specific expression patterns
+        JSON with median TPM per tissue, expression variability, and sample sizes
 
     Example:
         get_gtex_expression("7157")  # TP53 expression
@@ -57,19 +53,16 @@ async def get_gtex_expression(entrez_id: str) -> str:
 
 async def get_ortholog_expression(entrez_id: str) -> str:
     """
-    Get expression data for orthologs across model organisms.
+    Get expression patterns for orthologs across model organisms.
 
-    Provides comparative expression patterns for gene orthologs in
-    model organisms including developmental stages and tissue types.
+    Returns developmental stage and tissue expression in mouse, fly, zebrafish, etc.
+    Useful for understanding conserved expression and planning model organism experiments.
 
     Args:
-        entrez_id: Human gene Entrez ID
+        entrez_id: Human gene Entrez ID (e.g., "7157" for TP53)
 
     Returns:
-        JSON string with ortholog expression data:
-        - Expression in mouse, fly, zebrafish, etc.
-        - Developmental stage expression
-        - Tissue-specific patterns in models
+        JSON with expression in model organisms, developmental stages, and tissue patterns
 
     Example:
         get_ortholog_expression("7157")  # TP53 orthologs
@@ -84,27 +77,19 @@ async def get_ortholog_expression(entrez_id: str) -> str:
 
 async def get_pharos_targets(entrez_id: str) -> str:
     """
-    Query Pharos for drug target information.
+    Get drug target information and druggability assessment from Pharos.
 
-    Pharos is the user interface to the Knowledge Management Center (KMC)
-    for the Illuminating the Druggable Genome (IDG) program.
+    Returns target development level (Tclin/Tchem/Tbio/Tdark), approved drugs,
+    clinical trials, and druggability. Essential for therapeutic target evaluation.
 
     Args:
-        entrez_id: Gene Entrez ID
+        entrez_id: Gene Entrez ID (e.g., "7157" for TP53)
 
     Returns:
-        JSON string with drug target information:
-        - Target Development Level (Tclin, Tchem, Tbio, Tdark)
-        - Known drugs and compounds
-        - Clinical trial information
-        - Target class and family
-        - Druggability assessment
+        JSON with target level, drugs, trials, target class, and druggability assessment
 
-    Target Levels:
-        - Tclin: Clinical target with approved drugs
-        - Tchem: Target with known chemical probes
-        - Tbio: Biological target with evidence
-        - Tdark: Understudied protein
+    Target Levels: Tclin (approved drugs), Tchem (chemical probes), Tbio (biological),
+    Tdark (understudied)
 
     Example:
         get_pharos_targets("7157")  # TP53 druggability

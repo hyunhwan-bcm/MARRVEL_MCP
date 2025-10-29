@@ -28,20 +28,16 @@ def register_tools(mcp_instance):
 
 async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
     """
-    Find orthologs across model organisms using DIOPT.
+    Find high-confidence orthologs across model organisms using DIOPT.
 
-    DIOPT (DRSC Integrative Ortholog Prediction Tool) integrates multiple
-    ortholog prediction algorithms to identify orthologs with high confidence.
+    Returns orthologs in mouse, rat, zebrafish, fly, worm, and yeast with confidence
+    scores. Essential for translating human genetics to model organism research.
 
     Args:
-        entrez_id: Human gene Entrez ID
+        entrez_id: Human gene Entrez ID (e.g., "7157" for TP53)
 
     Returns:
-        JSON string with ortholog predictions:
-        - Orthologs in multiple species (Mouse, Rat, Zebrafish, Fly, Worm, Yeast)
-        - DIOPT confidence scores
-        - Number of supporting algorithms
-        - Gene symbols in each species
+        JSON with orthologs per species, DIOPT scores, supporting algorithms, and gene symbols
 
     Example:
         get_diopt_orthologs_by_entrez_id("7157")  # TP53 orthologs
@@ -56,19 +52,16 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
 
 async def get_diopt_alignment(entrez_id: str) -> str:
     """
-    Get protein sequence alignments for orthologs.
+    Get protein sequence alignment across orthologous species.
 
-    Provides multiple sequence alignment of protein sequences across species
-    to visualize conservation patterns.
+    Returns multiple sequence alignment showing conservation patterns and protein
+    domains. Useful for identifying functionally important residues.
 
     Args:
-        entrez_id: Human gene Entrez ID
+        entrez_id: Human gene Entrez ID (e.g., "7157" for TP53)
 
     Returns:
-        JSON string with sequence alignment data:
-        - Aligned protein sequences
-        - Conservation patterns
-        - Protein domain information
+        JSON with aligned sequences, conservation patterns, and domain annotations
 
     Example:
         get_diopt_alignment("7157")  # TP53 alignment

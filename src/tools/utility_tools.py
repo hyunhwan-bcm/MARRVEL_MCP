@@ -31,27 +31,18 @@ def register_tools(mcp_instance):
 
 async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
     """
-    Convert an HGVS variant to its genomic representation and validate it using Mutalyzer.
+    Convert and validate HGVS variant nomenclature to genomic coordinates using Mutalyzer.
 
-    This tool takes a variant in HGVS format (genomic, coding, or protein) and
-    returns its parsed components, including genomic coordinates, which can be
-    used to construct other variant formats like the MARRVEL format (chr-pos-ref-alt).
+    Accepts genomic, coding, or protein HGVS formats and returns parsed genomic
+    coordinates. Essential for standardizing variant notation.
 
     Args:
-        hgvs_variant: Variant in HGVS format.
-            Examples:
-            - Genomic: "NC_000017.10:g.7577121C>T"
-            - Coding: "NM_000546.5:c.215C>G"
-            - Protein: "NP_000537.3:p.Arg72Pro"
+        hgvs_variant: HGVS format variant (e.g., "NM_000546.5:c.215C>G",
+            "NC_000017.10:g.7577121C>T", "NP_000537.3:p.Arg72Pro")
 
     Returns:
-        JSON string with validation and conversion results from Mutalyzer:
-        - Validation status (valid/invalid)
-        - Parsed components (chromosome, position, ref, alt)
-        - Genomic coordinates
-        - Gene and transcript information
-        - Protein changes
-        - Alternative descriptions
+        JSON with validation status, genomic coordinates (chr, pos, ref, alt), gene,
+        transcript, protein changes, and alternative descriptions
 
     Example:
         convert_hgvs_to_genomic("NM_000546.5:c.215C>G")
@@ -69,23 +60,18 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
 
 async def convert_protein_variant(protein_variant: str) -> str:
     """
-    Convert protein-level variants to genomic coordinates using Transvar.
+    Convert protein-level variant to genomic coordinates using Transvar.
 
-    Transvar is a tool for converting between different variant annotation
-    formats and coordinate systems.
+    Maps protein changes to genomic positions across multiple transcripts.
+    Use when you have protein notation and need genomic coordinates.
 
     Args:
-        protein_variant: Protein variant description
-            Examples:
-            - "ENSP00000269305:p.R248Q"
-            - "NP_000537.3:p.Arg72Pro"
+        protein_variant: Protein variant in HGVS format (e.g., "ENSP00000269305:p.R248Q",
+            "NP_000537.3:p.Arg72Pro")
 
     Returns:
-        JSON string with converted coordinates:
-        - Genomic coordinates (hg19, hg38)
-        - cDNA changes
-        - Multiple transcript mappings
-        - Alternative annotations
+        JSON with genomic coordinates (hg19/hg38), cDNA changes, transcript mappings,
+        and alternative annotations
 
     Example:
         convert_protein_variant("ENSP00000269305:p.R248Q")
@@ -103,42 +89,23 @@ async def convert_protein_variant(protein_variant: str) -> str:
 
 async def convert_rsid_to_variant(rsid: str) -> str:
     """
-    Convert rsID to MARRVEL variant format using NLM Clinical Tables SNP API.
+    Convert dbSNP rsID to MARRVEL variant format (chr-pos-ref-alt).
 
-    Queries the NLM Clinical Tables API to retrieve SNP information and converts
-    it to the MARRVEL variant format (chromosome-position-reference-alternate).
-    Uses GRCh37/hg19 coordinates to match MARRVEL's coordinate system.
+    Queries NLM Clinical Tables API and returns GRCh37/hg19 coordinates compatible
+    with MARRVEL tools. Essential for converting rsIDs from literature or databases.
 
     Args:
-        rsid: dbSNP reference SNP ID, with or without "rs" prefix
-              Examples: "rs12345", "12345", "rs429358"
+        rsid: dbSNP rsID with or without "rs" prefix (e.g., "rs12345", "429358")
 
     Returns:
-        JSON string with variant conversion results:
-        - rsid: The original rsID
-        - variant: MARRVEL format (chromosome-position-ref-alt)
-        - chr: Chromosome number
-        - pos: Position on chromosome (GRCh37/hg19)
-        - alleles: Reference and alternate alleles
-        - gene: Associated gene symbols (if available)
-        - assembly: Genome assembly (GRCh37)
-
-        If multiple alleles exist, returns information for the first variant.
-        In case of errors, returns error message with details.
+        JSON with rsid, variant (chr-pos-ref-alt format), chr, pos, ref, alt, alleles,
+        gene, and assembly (GRCh37)
 
     Example:
         convert_rsid_to_variant("rs12345")
-        # Returns: {"rsid": "rs12345", "variant": "22-25459491-G-A", ...}
-
         convert_rsid_to_variant("429358")  # APOE variant
-        # Returns: {"rsid": "rs429358", "variant": "19-45411941-T-C", ...}
 
-    API Endpoint: GET https://clinicaltables.nlm.nih.gov/api/snps/v3/search
-
-    Note:
-        - Uses GRCh37 (hg19) coordinates to match MARRVEL API requirements
-        - Handles SNPs on autosomes, X, Y, and MT chromosomes
-        - For multi-allelic sites, returns the first alternate allele
+    Note: Returns first alternate allele for multi-allelic sites. Uses hg19 coordinates.
     """
     try:
         # Normalize rsID - ensure it starts with "rs"

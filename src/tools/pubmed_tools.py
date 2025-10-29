@@ -5,47 +5,24 @@ async def search_pubmed(
     query: str, max_results: int = 50, email: str = "marrvel@example.com"
 ) -> str:
     """
-    Search PubMed for biomedical literature and retrieve article details.
+    Search PubMed for biomedical literature on genes, variants, diseases, or drugs.
 
-    This tool performs comprehensive PubMed searches for any biomedical query including
-    gene names, variants, diseases, symptoms, drug names, or research topics. It returns
-    PubMed IDs along with article metadata including titles, abstracts, authors, and
-    publication information.
+    Returns PMIDs with titles, abstracts, authors, journal, and publication metadata.
+    Essential for literature review and evidence gathering.
 
     Args:
-        query: Search query using any biomedical terms. Examples:
-            - Gene names: "TP53 cancer", "BRCA1 breast cancer"
-            - Variants: "rs1042522", "R175H TP53"
-            - Diseases: "Alzheimer's disease genetics"
-            - Symptoms: "fever malaria treatment"
-            - Drug names: "aspirin cardiovascular disease"
-            - General: "CRISPR gene editing"
-        max_results: Maximum number of results to return (default: 50, max: 100)
-        email: Email address for PubMed API identification (default: marrvel@example.com)
+        query: Biomedical search terms (e.g., "TP53 cancer", "BRCA1 mutation",
+            "Alzheimer's disease genetics")
+        max_results: Maximum results to return (default: 50, max: 100)
+        email: Email for PubMed API (default: marrvel@example.com)
 
     Returns:
-        JSON string containing search results with:
-        - total_results: Total number of matches found
-        - returned_results: Number of results in this response
-        - articles: List of article objects, each containing:
-            - pubmed_id: PubMed ID (PMID)
-            - title: Article title
-            - abstract: Article abstract (if available)
-            - authors: List of author names
-            - journal: Journal name
-            - publication_date: Publication date
-            - doi: Digital Object Identifier (if available)
-            - keywords: Article keywords (if available)
+        JSON with total_results, returned_results, and articles array containing
+        pubmed_id, title, abstract, authors, journal, publication_date, doi, keywords
 
     Example:
         search_pubmed("TP53 cancer therapy", max_results=10)
-        search_pubmed("BRCA1 mutation breast cancer", max_results=25)
-        search_pubmed("Alzheimer's disease APOE", max_results=50)
-
-    Note:
-        - Results are limited to max_results for performance
-        - Not all articles have full abstracts available
-        - Some articles may have limited metadata
+        search_pubmed("BRCA1 mutation breast cancer")
     """
     try:
         # Validate max_results
@@ -125,21 +102,19 @@ from lxml import etree
 
 async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
     """
-    Retrieve and return the plain text body of a PMC article using its PMCID.
+    Retrieve full text of a PubMed Central (PMC) open-access article.
+
+    Returns plain text body of the article. Use for detailed content analysis
+    when abstract isn't sufficient.
 
     Args:
-        pmcid: PMC ID as a string (e.g., "PMC3257301")
+        pmcid: PMC ID (e.g., "PMC3257301")
 
     Returns:
-        JSON string with keys:
-            - pmcid: The PMC ID
-            - fulltext: The cleaned plain text body of the article
-            - error: Error message if applicable
+        JSON with pmcid, fulltext (plain text body), and error (if applicable)
 
     Example:
         get_pmc_fulltext_by_pmcid("PMC3257301")
-
-    API Endpoint: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=PMC3257301
     """
     try:
         if not pmcid or not pmcid.startswith("PMC"):
@@ -199,18 +174,19 @@ def _init_pubmed_client(email: str):
 
 async def pmid_to_pmcid(pmid: str) -> str:
     """
-    Convert a PubMed ID (PMID) to a PMC ID (PMCID) using NCBI E-utilities API.
+    Convert PubMed ID (PMID) to PMC ID (PMCID) for full-text access.
+
+    Returns PMCID if the article is available in PMC open-access. Use before
+    fetching full text with get_pmc_fulltext_by_pmcid.
 
     Args:
-        pmid: PubMed ID as a string (e.g., "37741276")
+        pmid: PubMed ID (e.g., "37741276")
 
     Returns:
-        PMCID as a string in format "PMC{ID}" if mapping exists, or empty string if not mapped.
+        JSON with pmid, pmcid (format "PMC{ID}" or empty if not available), and error
 
     Example:
         pmid_to_pmcid("37741276")
-
-    API Endpoint: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=pmc&id=<PMID>&retmode=json
     """
     try:
         if not pmid or not pmid.isdigit():
@@ -247,36 +223,22 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
     """
     Retrieve detailed information for a specific PubMed article by PMID.
 
-    This tool fetches comprehensive details for a single PubMed article including
-    title, abstract, authors, journal information, keywords, and publication metadata.
+    Returns comprehensive metadata for a single article. Use when you have a specific
+    PMID and need detailed information.
 
     Args:
-        pubmed_id: PubMed ID (PMID) as a string (e.g., "12345678")
-    email: Email address for PubMed API identification (default: zhandongliulab@bcm.edu)
+        pubmed_id: PubMed ID (e.g., "32601318")
+        email: Email for PubMed API (default: zhandongliulab@bcm.edu)
 
     Returns:
-        JSON string containing article details:
-        - pubmed_id: PubMed ID
-        - title: Article title
-        - abstract: Full abstract
-        - authors: List of authors
-        - journal: Journal name
-        - publication_date: Date of publication
-        - doi: Digital Object Identifier
-        - keywords: Article keywords
-        - methods: Methods section (if available)
-        - results: Results section (if available)
-        - conclusions: Conclusions section (if available)
-        - copyrights: Copyright information (if available)
+        JSON with pubmed_id, title, abstract, authors, journal, publication_date, doi,
+        keywords, methods, results, conclusions, copyrights
 
     Example:
-        get_pubmed_article("32601318")  # COVID-19 related article
+        get_pubmed_article("32601318")  # COVID-19 article
         get_pubmed_article("28887537")  # TP53 cancer article
 
-    Note:
-        - Not all articles have all fields available
-        - Full text sections (methods, results, conclusions) may not be available
-          for all articles depending on publisher restrictions
+    Note: Full text sections may not be available for all articles.
     """
     try:
         # Initialize PubMed client (lazy import)
