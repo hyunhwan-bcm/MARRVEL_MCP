@@ -71,7 +71,7 @@ TOOL_CATEGORIES = {
         "get_geno2mp_by_entrez_id",
     ],
     "disease": ["get_omim_by_mim_number", "get_omim_by_gene_symbol", "get_omim_variant"],
-    "ortholog": ["get_diopt_orthologs", "get_diopt_alignment"],
+    "ortholog": ["get_diopt_orthologs_by_entrez_id", "get_diopt_alignment"],
     "expression": ["get_gtex_expression", "get_ortholog_expression", "get_pharos_targets"],
     "utility": ["validate_hgvs_variant", "convert_protein_variant"],
 }
