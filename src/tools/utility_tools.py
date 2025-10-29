@@ -12,13 +12,14 @@ Includes:
 
 import httpx
 import json
+from urllib.parse import quote
 from src.utils.api_client import fetch_marrvel_data
 
 
 def register_tools(mcp_instance):
     """Register all utility tools with the MCP server."""
     # Register tools
-    mcp_instance.tool()(validate_hgvs_variant)
+    mcp_instance.tool()(convert_hgvs_to_genomic)
     mcp_instance.tool()(convert_protein_variant)
     mcp_instance.tool()(convert_rsid_to_variant)
 
@@ -28,37 +29,42 @@ def register_tools(mcp_instance):
 # ============================================================================
 
 
-async def validate_hgvs_variant(hgvs_variant: str) -> str:
+async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
     """
-    Validate and parse HGVS variant nomenclature using Mutalyzer.
+    Convert an HGVS variant to its genomic representation and validate it using Mutalyzer.
 
-    Mutalyzer checks if variant descriptions are correct according to HGVS
-    nomenclature standards and provides parsed components.
+    This tool takes a variant in HGVS format (genomic, coding, or protein) and
+    returns its parsed components, including genomic coordinates, which can be
+    used to construct other variant formats like the MARRVEL format (chr-pos-ref-alt).
 
     Args:
-        hgvs_variant: Variant in HGVS format
+        hgvs_variant: Variant in HGVS format.
             Examples:
             - Genomic: "NC_000017.10:g.7577121C>T"
             - Coding: "NM_000546.5:c.215C>G"
             - Protein: "NP_000537.3:p.Arg72Pro"
 
     Returns:
-        JSON string with validation results:
+        JSON string with validation and conversion results from Mutalyzer:
         - Validation status (valid/invalid)
-        - Parsed components
+        - Parsed components (chromosome, position, ref, alt)
         - Genomic coordinates
+        - Gene and transcript information
         - Protein changes
         - Alternative descriptions
 
     Example:
-        validate_hgvs_variant("NM_000546.5:c.215C>G")
-        validate_hgvs_variant("NC_000017.10:g.7577121C>T")
+        convert_hgvs_to_genomic("NM_000546.5:c.215C>G")
+        convert_hgvs_to_genomic("NC_000017.10:g.7577121C>T")
     """
     try:
-        data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{hgvs_variant}")
-        return str(data)
+        encoded_variant = quote(hgvs_variant)
+        data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{encoded_variant}")
+        return json.dumps(data, indent=2)
     except httpx.HTTPError as e:
-        return f"Error validating HGVS variant: {str(e)}"
+        return json.dumps({"error": f"Error converting HGVS variant: {str(e)}"}, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, indent=2)
 
 
 async def convert_protein_variant(protein_variant: str) -> str:
@@ -86,10 +92,13 @@ async def convert_protein_variant(protein_variant: str) -> str:
         convert_protein_variant("NP_000537.3:p.Arg72Pro")
     """
     try:
-        data = await fetch_marrvel_data(f"/transvar/protein/{protein_variant}")
-        return str(data)
+        encoded_variant = quote(protein_variant)
+        data = await fetch_marrvel_data(f"/transvar/protein/{encoded_variant}")
+        return json.dumps(data, indent=2)
     except httpx.HTTPError as e:
-        return f"Error converting protein variant: {str(e)}"
+        return json.dumps({"error": f"Error converting protein variant: {str(e)}"}, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, indent=2)
 
 
 async def convert_rsid_to_variant(rsid: str) -> str:
