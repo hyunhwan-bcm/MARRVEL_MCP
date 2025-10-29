@@ -39,7 +39,7 @@ async def liftover_hg38_to_hg19(chr: str, pos: int) -> str:
     try:
         endpoint = f"/data/liftover/hg38/chr/{chr}/pos/{pos}/hg19"
         data = await fetch_marrvel_data(endpoint)
-        return json.dumps(data, indent=2)
+        return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error fetching liftover data: {str(e)}"})
 
@@ -64,6 +64,6 @@ async def liftover_hg19_to_hg38(chr: str, pos: int) -> str:
     try:
         endpoint = f"/data/liftover/hg19/chr/{chr}/pos/{pos}/hg38"
         data = await fetch_marrvel_data(endpoint)
-        return json.dumps(data, indent=2)
+        return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error fetching liftover data: {str(e)}"})
