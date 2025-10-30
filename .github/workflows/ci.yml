@@ -53,7 +53,7 @@ jobs:
 
       - name: Run all tests
         run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
           pytest tests/ \
             -v \
             --tb=short \
