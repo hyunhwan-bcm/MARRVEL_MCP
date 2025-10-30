@@ -18,7 +18,6 @@ from pathlib import Path
 import pytest
 
 # Re-use the fixture and helper from the existing integration test module
-from .test_server_integration import send_request
 
 
 @pytest.fixture
