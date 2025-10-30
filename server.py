@@ -218,7 +218,6 @@ def get_example_genes() -> dict:
 @mcp.tool(
     name="get_gene_by_entrez_id",
     description="Retrieve comprehensive gene information by NCBI Entrez Gene ID including symbol, location, summary, and transcripts",
-    tags={"gene", "entrez", "annotation"},
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_entrez_id(entrez_id: str) -> str:
@@ -232,7 +231,6 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
 @mcp.tool(
     name="get_gene_by_symbol",
     description="Find gene information by gene symbol across multiple species (human, mouse, fly, worm, etc.)",
-    tags={"gene", "symbol", "cross-species"},
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
@@ -246,7 +244,6 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
 @mcp.tool(
     name="get_gene_by_position",
     description="Identify genes at a specific chromosomal position in hg19/GRCh37 coordinates",
-    tags={"gene", "genomic-position", "hg19"},
     meta={"category": "gene", "version": "1.0", "genome_build": "hg19"},
 )
 async def get_gene_by_position(chromosome: str, position: int) -> str:
@@ -265,7 +262,6 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
 @mcp.tool(
     name="get_variant_dbnsfp",
     description="Get comprehensive pathogenicity predictions and functional annotations from dbNSFP including SIFT, PolyPhen2, CADD scores",
-    tags={"variant", "pathogenicity", "prediction", "dbnsfp"},
     meta={"category": "variant", "database": "dbNSFP", "version": "1.0"},
 )
 async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
@@ -286,7 +282,6 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
 @mcp.tool(
     name="get_clinvar_by_variant",
     description="Get ClinVar clinical significance and interpretation for a specific variant including pathogenic/benign classification",
-    tags={"variant", "clinical", "clinvar", "pathogenic"},
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
 async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
@@ -302,7 +297,6 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 @mcp.tool(
     name="get_clinvar_by_gene_symbol",
     description="Get all ClinVar variants for a gene by symbol for comprehensive gene-level variant review",
-    tags={"variant", "clinical", "clinvar", "gene"},
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
 async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
@@ -316,7 +310,6 @@ async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
 @mcp.tool(
     name="get_clinvar_by_entrez_id",
     description="Get all ClinVar variants for a gene by Entrez ID with clinical significance data",
-    tags={"variant", "clinical", "clinvar", "entrez"},
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
 async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
@@ -335,7 +328,6 @@ async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
 @mcp.tool(
     name="get_gnomad_variant",
     description="Get population allele frequencies from gnomAD for a specific variant across global and ancestry-specific populations",
-    tags={"variant", "frequency", "gnomad", "population"},
     meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
 )
 async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
@@ -351,7 +343,6 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 @mcp.tool(
     name="get_gnomad_by_gene_symbol",
     description="Get gnomAD population frequencies for all variants in a gene to identify common vs rare variants",
-    tags={"variant", "frequency", "gnomad", "gene"},
     meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
 )
 async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
@@ -365,7 +356,6 @@ async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
 @mcp.tool(
     name="get_gnomad_by_entrez_id",
     description="Get gnomAD population frequencies for a gene by Entrez ID with allele frequency data",
-    tags={"variant", "frequency", "gnomad", "entrez"},
     meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
 )
 async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
@@ -384,7 +374,6 @@ async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
 @mcp.tool(
     name="get_dgv_by_entrez_id",
     description="Get DGV structural variants and copy number variations (CNVs) for a gene to identify benign structural variants",
-    tags={"variant", "structural", "dgv", "cnv"},
     meta={"category": "variant", "database": "DGV", "version": "1.0"},
 )
 async def get_dgv_by_entrez_id(entrez_id: str) -> str:
@@ -398,7 +387,6 @@ async def get_dgv_by_entrez_id(entrez_id: str) -> str:
 @mcp.tool(
     name="get_geno2mp_by_entrez_id",
     description="Get Geno2MP phenotypes matched to a gene for phenotype-driven gene prioritization in rare disease diagnosis",
-    tags={"variant", "phenotype", "geno2mp", "hpo"},
     meta={"category": "variant", "database": "Geno2MP", "version": "1.0"},
 )
 async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
@@ -417,7 +405,6 @@ async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
 @mcp.tool(
     name="get_omim_by_mim_number",
     description="Retrieve OMIM disease entry by MIM number with detailed genetic disorder information and clinical features",
-    tags={"disease", "omim", "disorder", "clinical"},
     meta={"category": "disease", "database": "OMIM", "version": "1.0"},
 )
 async def get_omim_by_mim_number(mim_number: str) -> str:
@@ -431,7 +418,6 @@ async def get_omim_by_mim_number(mim_number: str) -> str:
 @mcp.tool(
     name="get_omim_by_gene_symbol",
     description="Find all OMIM diseases associated with a gene by symbol for gene-disease relationship analysis",
-    tags={"disease", "omim", "gene", "association"},
     meta={"category": "disease", "database": "OMIM", "version": "1.0"},
 )
 async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
@@ -445,7 +431,6 @@ async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
 @mcp.tool(
     name="get_omim_variant",
     description="Get OMIM data for a specific variant with disease associations and clinical significance",
-    tags={"disease", "omim", "variant", "hgvs"},
     meta={"category": "disease", "database": "OMIM", "version": "1.0"},
 )
 async def get_omim_variant(gene_symbol: str, variant: str) -> str:
@@ -459,7 +444,6 @@ async def get_omim_variant(gene_symbol: str, variant: str) -> str:
 @mcp.tool(
     name="search_omim_by_disease_name",
     description="Search OMIM by disease name or keyword to find matching genetic disorders and associated genes",
-    tags={"disease", "omim", "search", "phenotype"},
     meta={"category": "disease", "database": "OMIM", "version": "1.0"},
 )
 async def search_omim_by_disease_name(disease_name: str) -> str:
@@ -479,7 +463,6 @@ async def search_omim_by_disease_name(disease_name: str) -> str:
 @mcp.tool(
     name="search_hpo_terms",
     description="Search Human Phenotype Ontology (HPO) terms by phenotype for standardized clinical phenotype representation",
-    tags={"disease", "hpo", "phenotype", "ontology"},
     meta={"category": "disease", "database": "HPO", "version": "1.0"},
 )
 async def search_hpo_terms(phenotype_query: str) -> str:
@@ -540,7 +523,6 @@ async def search_hpo_terms(phenotype_query: str) -> str:
 @mcp.tool(
     name="get_hpo_associated_genes",
     description="Get genes associated with an HPO term for phenotype-driven gene discovery and reverse phenotyping",
-    tags={"disease", "hpo", "phenotype", "gene-discovery"},
     meta={"category": "disease", "database": "HPO", "version": "1.0"},
 )
 async def get_hpo_associated_genes(hpo_id: str) -> str:
@@ -640,7 +622,6 @@ async def get_hpo_associated_genes(hpo_id: str) -> str:
 @mcp.tool(
     name="get_diopt_orthologs_by_entrez_id",
     description="Find high-confidence orthologs across model organisms (mouse, fly, worm, zebrafish) using DIOPT",
-    tags={"ortholog", "diopt", "model-organism", "comparative"},
     meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
 )
 async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
@@ -654,7 +635,6 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
 @mcp.tool(
     name="get_diopt_alignment",
     description="Get protein sequence alignment across orthologous species showing conservation patterns and functional domains",
-    tags={"ortholog", "diopt", "alignment", "conservation"},
     meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
 )
 async def get_diopt_alignment(entrez_id: str) -> str:
@@ -673,7 +653,6 @@ async def get_diopt_alignment(entrez_id: str) -> str:
 @mcp.tool(
     name="get_gtex_expression",
     description="Get GTEx tissue-specific gene expression across 54 human tissues with median TPM values",
-    tags={"expression", "gtex", "tissue", "transcriptomics"},
     meta={"category": "expression", "database": "GTEx", "version": "1.0"},
 )
 async def get_gtex_expression(entrez_id: str) -> str:
@@ -687,7 +666,6 @@ async def get_gtex_expression(entrez_id: str) -> str:
 @mcp.tool(
     name="get_ortholog_expression",
     description="Get expression patterns for orthologs across model organisms including developmental stages and tissues",
-    tags={"expression", "ortholog", "model-organism", "development"},
     meta={"category": "expression", "version": "1.0"},
 )
 async def get_ortholog_expression(entrez_id: str) -> str:
@@ -701,7 +679,6 @@ async def get_ortholog_expression(entrez_id: str) -> str:
 @mcp.tool(
     name="get_pharos_targets",
     description="Get drug target information and druggability assessment from Pharos including approved drugs and clinical trials",
-    tags={"drug", "pharos", "druggability", "therapeutic"},
     meta={"category": "expression", "database": "Pharos", "version": "1.0"},
 )
 async def get_pharos_targets(entrez_id: str) -> str:
@@ -720,7 +697,6 @@ async def get_pharos_targets(entrez_id: str) -> str:
 @mcp.tool(
     name="convert_hgvs_to_genomic",
     description="Convert and validate HGVS variant nomenclature to genomic coordinates using Mutalyzer",
-    tags={"utility", "hgvs", "nomenclature", "mutalyzer"},
     meta={"category": "utility", "service": "Mutalyzer", "version": "1.0"},
 )
 async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
@@ -737,7 +713,6 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
 @mcp.tool(
     name="convert_protein_variant",
     description="Convert protein-level variant to genomic coordinates using Transvar across multiple transcripts",
-    tags={"utility", "protein", "transvar", "conversion"},
     meta={"category": "utility", "service": "Transvar", "version": "1.0"},
 )
 async def convert_protein_variant(protein_variant: str) -> str:
@@ -754,7 +729,6 @@ async def convert_protein_variant(protein_variant: str) -> str:
 @mcp.tool(
     name="convert_rsid_to_variant",
     description="Convert dbSNP rsID to MARRVEL variant format with GRCh37/hg19 coordinates",
-    tags={"utility", "rsid", "dbsnp", "conversion"},
     meta={"category": "utility", "service": "dbSNP", "version": "1.0", "genome_build": "hg19"},
 )
 async def convert_rsid_to_variant(rsid: str) -> str:
@@ -845,7 +819,6 @@ async def convert_rsid_to_variant(rsid: str) -> str:
 @mcp.tool(
     name="search_pubmed",
     description="Search PubMed for biomedical literature on genes, variants, diseases, or drugs with titles, abstracts, and metadata",
-    tags={"literature", "pubmed", "search", "biomedical"},
     meta={"category": "literature", "database": "PubMed", "version": "1.0"},
 )
 async def search_pubmed(
@@ -905,7 +878,6 @@ async def search_pubmed(
 @mcp.tool(
     name="get_pmc_fulltext_by_pmcid",
     description="Retrieve full text of a PubMed Central (PMC) open-access article for detailed content analysis",
-    tags={"literature", "pmc", "fulltext", "open-access"},
     meta={"category": "literature", "database": "PMC", "version": "1.0"},
 )
 async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
@@ -945,7 +917,6 @@ async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
 @mcp.tool(
     name="pmid_to_pmcid",
     description="Convert PubMed ID (PMID) to PMC ID (PMCID) for full-text access to open-access articles",
-    tags={"literature", "pubmed", "pmc", "conversion"},
     meta={"category": "literature", "version": "1.0"},
 )
 async def pmid_to_pmcid(pmid: str) -> str:
@@ -982,7 +953,6 @@ async def pmid_to_pmcid(pmid: str) -> str:
 @mcp.tool(
     name="get_pubmed_article",
     description="Retrieve detailed information for a specific PubMed article by PMID with comprehensive metadata",
-    tags={"literature", "pubmed", "article", "metadata"},
     meta={"category": "literature", "database": "PubMed", "version": "1.0"},
 )
 async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.edu") -> str:
@@ -1026,7 +996,6 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
 @mcp.tool(
     name="liftover_hg38_to_hg19",
     description="Convert genome coordinates from hg38/GRCh38 to hg19/GRCh37 for MARRVEL tool compatibility",
-    tags={"liftover", "genome-build", "hg38", "hg19"},
     meta={"category": "liftover", "from": "hg38", "to": "hg19", "version": "1.0"},
 )
 async def liftover_hg38_to_hg19(chr: str, pos: int) -> str:
@@ -1041,7 +1010,6 @@ async def liftover_hg38_to_hg19(chr: str, pos: int) -> str:
 @mcp.tool(
     name="liftover_hg19_to_hg38",
     description="Convert genome coordinates from hg19/GRCh37 to hg38/GRCh38 for modern genome builds",
-    tags={"liftover", "genome-build", "hg19", "hg38"},
     meta={"category": "liftover", "from": "hg19", "to": "hg38", "version": "1.0"},
 )
 async def liftover_hg19_to_hg38(chr: str, pos: int) -> str:
@@ -1061,7 +1029,6 @@ async def liftover_hg19_to_hg38(chr: str, pos: int) -> str:
 @mcp.tool(
     name="get_decipher_by_location",
     description="Query DECIPHER for control variant statistics in a genomic region for developmental disorders",
-    tags={"variant", "decipher", "developmental", "region"},
     meta={"category": "variant", "database": "DECIPHER", "version": "1.0", "genome_build": "hg19"},
 )
 async def get_decipher_by_location(chr: str, start: int, stop: int) -> str:
@@ -1075,6 +1042,17 @@ async def get_decipher_by_location(chr: str, start: int, stop: int) -> str:
 # ============================================================================
 # ENTRY POINT
 # ============================================================================
+
+
+def create_server():
+    """
+    Return the FastMCP server instance for testing or programmatic usage.
+
+    Returns:
+        FastMCP: The configured MARRVEL MCP server instance
+    """
+    return mcp
+
 
 if __name__ == "__main__":
     mcp.run()
