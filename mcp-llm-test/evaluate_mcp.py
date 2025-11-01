@@ -28,7 +28,7 @@ openrouter_client = AsyncOpenAI(
     api_key=OPENROUTER_API_KEY,
 )
 
-MODEL = "openai/gpt-oss-120b" #"google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
+MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
 
 
 def convert_tool_format(tool: Any) -> Dict[str, Any]:
@@ -141,10 +141,11 @@ async def evaluate_response(actual: str, expected: str) -> str:
     prompt = f"Is the actual response consistent with the expected response? Answer 'yes' or 'no', and provide a brief reason.\n\nExpected: {expected}\nActual: {actual}"
     messages = [{"role": "user", "content": prompt}]
     response = await openrouter_client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-        )
+        model=MODEL,
+        messages=messages,
+    )
     return response.choices[0].message.content
+
 
 async def run_test_case(
     semaphore: asyncio.Semaphore,
