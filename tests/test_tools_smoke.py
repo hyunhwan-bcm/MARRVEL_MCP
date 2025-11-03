@@ -78,6 +78,7 @@ tool_calls = [
     ("get_gnomad_by_entrez_id", {"entrez_id": "1080"}),
     ("get_dgv_by_entrez_id", {"entrez_id": "26235"}),
     ("get_geno2mp_by_entrez_id", {"entrez_id": "1080"}),
+    ("get_clinvar_by_gene_symbol", {"gene_symbol": "TP53"}),
     ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
     ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),

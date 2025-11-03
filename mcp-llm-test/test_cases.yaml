@@ -46,7 +46,7 @@
 
 - case:
     name: "ClinVar likely pathogenic allele count"
-    input: "How many alleles are reported as likely pathogenic in ClinVar?"
+    input: "How many NUTM2G alleles are reported as likely pathogenic in ClinVar?"
     expected: "3 alleles are reported as likely pathogenic."
 
 

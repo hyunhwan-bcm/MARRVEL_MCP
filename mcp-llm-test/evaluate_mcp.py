@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Tuple
 # Add project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import google.generativeai as genai
 import yaml
 from dotenv import load_dotenv
 from fastmcp.client import Client
@@ -22,14 +21,14 @@ load_dotenv()
 
 # Configure API keys
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
 
 # Configure OpenRouter client
 openrouter_client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
 )
+
+MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
 
 
 def convert_tool_format(tool: Any) -> Dict[str, Any]:
@@ -76,7 +75,7 @@ async def get_openrouter_response(
 
     while True:
         response = await openrouter_client.chat.completions.create(
-            model="google/gemini-2.5-flash",  # Switched to a model with guaranteed tool support
+            model=MODEL,
             messages=messages,
             tools=available_tools,
             tool_choice="auto",
@@ -135,14 +134,17 @@ async def get_openrouter_response(
             return message.content, tool_history, messages
 
 
-async def evaluate_with_gemini(actual: str, expected: str) -> str:
+async def evaluate_response(actual: str, expected: str) -> str:
     """
-    Evaluate the response with Gemini and return the classification text.
+    Evaluate the response with the same model and return the classification text.
     """
-    model = genai.GenerativeModel("gemini-2.5-flash")
     prompt = f"Is the actual response consistent with the expected response? Answer 'yes' or 'no', and provide a brief reason.\n\nExpected: {expected}\nActual: {actual}"
-    response = await model.generate_content_async(prompt)
-    return response.text.strip()
+    messages = [{"role": "user", "content": prompt}]
+    response = await openrouter_client.chat.completions.create(
+        model=MODEL,
+        messages=messages,
+    )
+    return response.choices[0].message.content
 
 
 async def run_test_case(
@@ -164,7 +166,7 @@ async def run_test_case(
             openrouter_response, tool_history, full_conversation = await get_openrouter_response(
                 mcp_client, user_input
             )
-            classification = await evaluate_with_gemini(openrouter_response, expected)
+            classification = await evaluate_response(openrouter_response, expected)
             print(f"--- Finished: {name} ---")
             return {
                 "question": user_input,
