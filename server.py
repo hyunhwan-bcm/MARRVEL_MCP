@@ -29,6 +29,8 @@ from typing import Optional
 from urllib.parse import quote
 import urllib.parse
 
+import requests
+
 import httpx
 from lxml import etree
 from pymed_paperscraper import PubMed
@@ -54,7 +56,7 @@ root.setLevel(logging.WARNING)
 # API CONFIGURATION
 # ============================================================================
 
-API_BASE_URL = "https://marrvel.org/data"
+API_BASE_URL = "https://marrvel.org/graphql"
 API_TIMEOUT = 30.0
 VERIFY_SSL = False  # Set to True for production
 
@@ -64,7 +66,7 @@ VERIFY_SSL = False  # Set to True for production
 # ============================================================================
 
 
-async def fetch_marrvel_data(endpoint: str) -> str:
+async def fetch_marrvel_data(query: str) -> str:
     """
     Fetch data from MARRVEL API with proper error handling.
 
@@ -77,7 +79,9 @@ async def fetch_marrvel_data(endpoint: str) -> str:
     Raises:
         httpx.HTTPError: If the HTTP request fails
     """
-    url = f"{API_BASE_URL}{endpoint}"
+    payload = {"query": query}
+    headers = {"Content-Type": "application/json"}
+
     verify = ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False
 
     async def _maybe_await(obj):
@@ -95,7 +99,13 @@ async def fetch_marrvel_data(endpoint: str) -> str:
             return obj
 
     async with httpx.AsyncClient(verify=verify, timeout=API_TIMEOUT) as client:
-        response = await client.get(url)
+        response = requests.post(
+            API_BASE_URL,
+            json=payload,
+            headers=headers,
+            timeout=10,
+            verify=VERIFY_SSL,  # Set a timeout for the request
+        )
 
         # Some test mocks make raise_for_status() a coroutine
         rfs = response.raise_for_status()
@@ -105,6 +115,12 @@ async def fetch_marrvel_data(endpoint: str) -> str:
         # Parse JSON (handle mocks that return coroutines)
         try:
             data = response.json()
+
+            if data.get("errors"):
+                # Raise an exception if GraphQL errors are present in the response body
+                error_details = json.dumps(data["errors"], indent=2)
+                raise Exception(f"GraphQL query failed with execution errors:\n{error_details}")
+
             if inspect.isawaitable(data):
                 data = await data
         except json.JSONDecodeError:
@@ -222,7 +238,28 @@ def get_example_genes() -> dict:
 )
 async def get_gene_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                geneByEntrezId(entrezId: {entrez_id}) {{
+                    alias
+                    chr
+                    entrezId
+                    hg19Start
+                    hg19Stop
+                    hg38Start
+                    hg38Stop
+                    hgncId
+                    locusType
+                    name
+                    status
+                    taxonId
+                    symbol
+                    uniprotKBId
+                }}
+            }}
+            """
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
@@ -235,7 +272,35 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
     try:
-        data = await fetch_marrvel_data(f"/gene/taxonId/{taxon_id}/symbol/{gene_symbol}")
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                geneBySymbol(symbol: "{gene_symbol}", taxonId: {taxon_id}) {{
+                    alias
+                    chr
+                    entrezId
+                    hg19Start
+                    hg19Stop
+                    hg38Stop
+                    hgncId
+                    uniprotKBId
+                    taxonId
+                    symbol
+                    status
+                    name
+                    locusType
+                    hg38Start
+                    xref {{
+                        ensemblId
+                        hgncId
+                        mgiId
+                        omimId
+                        pomBaseId
+                    }}
+                }}
+            }}
+            """
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
@@ -246,9 +311,37 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
     description="Identify genes at a specific chromosomal position in hg19/GRCh37 coordinates",
     meta={"category": "gene", "version": "1.0", "genome_build": "hg19"},
 )
-async def get_gene_by_position(chromosome: str, position: int) -> str:
+async def get_gene_by_position(chromosome: str, position: int, build: str = "hg19") -> str:
     try:
-        data = await fetch_marrvel_data(f"/gene/chr/{chromosome}/pos/{position}")
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                genesByGenomicLocation(chr: "{chromosome}", posStart: {position}, posStop: {position}, build: "{build}") {{
+                    alias
+                    chr
+                    entrezId
+                    hg19Start
+                    hg38Start
+                    hg19Stop
+                    hg38Stop
+                    hgncId
+                    locusType
+                    name
+                    status
+                    symbol
+                    taxonId
+                    uniprotKBId
+                    xref {{
+                        ensemblId
+                        mgiId
+                        hgncId
+                        omimId
+                        pomBaseId
+                    }}
+                }}
+            }}
+            """
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
@@ -312,9 +405,28 @@ async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
     description="Get all ClinVar variants for a gene by Entrez ID with clinical significance data",
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
-async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
+async def get_clinvar_by_entrez_id(entrez_id: str, build: str = "hg19") -> str:
     try:
-        data = await fetch_marrvel_data(f"/clinvar/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                clinvarByGeneEntrezId(entrezId: {entrez_id}) {{
+                    uid
+                    alt
+                    band
+                    chr
+                    condition
+                    grch38Start
+                    interpretation
+                    ref
+                    start
+                    significance {{
+                    description
+                    }}
+                }}
+            }}
+            """
+        )
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})

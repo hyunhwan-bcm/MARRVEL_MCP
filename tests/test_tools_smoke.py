@@ -72,6 +72,7 @@ TEST_VARIANT = {"chr": "6", "pos": "99365567", "ref": "T", "alt": "C"}
 tool_calls = [
     ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
+    ("get_gene_by_position", {"chromosome": "17", "position": 7565099, "taxon_id": "9606"}),
     ("get_variant_dbnsfp", TEST_VARIANT),
     ("get_clinvar_by_variant", TEST_VARIANT),
     ("get_gnomad_variant", TEST_VARIANT),
