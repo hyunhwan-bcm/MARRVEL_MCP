@@ -29,9 +29,9 @@ openrouter_client = AsyncOpenAI(
 )
 
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
-#MODEL = "meta-llama/llama-4-maverick:free"
-#MODEL = "mistralai/mixtral-8x22b-instruct"
-#MODEL = "mistralai/voxtral-small-24b-2507"
+# MODEL = "meta-llama/llama-4-maverick:free"
+# MODEL = "mistralai/mixtral-8x22b-instruct"
+# MODEL = "mistralai/voxtral-small-24b-2507"
 
 
 def convert_tool_format(tool: Any) -> Dict[str, Any]:

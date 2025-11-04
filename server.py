@@ -79,13 +79,8 @@ async def fetch_marrvel_data(query: str) -> str:
     Raises:
         httpx.HTTPError: If the HTTP request fails
     """
-    payload = {
-        'query': query
-    }
-    headers = {
-        'Content-Type': 'application/json'
-    }
-    
+    payload = {"query": query}
+    headers = {"Content-Type": "application/json"}
 
     verify = ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False
 
@@ -109,7 +104,7 @@ async def fetch_marrvel_data(query: str) -> str:
             json=payload,
             headers=headers,
             timeout=10,
-            verify=VERIFY_SSL # Set a timeout for the request
+            verify=VERIFY_SSL,  # Set a timeout for the request
         )
 
         # Some test mocks make raise_for_status() a coroutine
@@ -121,11 +116,11 @@ async def fetch_marrvel_data(query: str) -> str:
         try:
             data = response.json()
 
-            if data.get('errors'):
+            if data.get("errors"):
                 # Raise an exception if GraphQL errors are present in the response body
-                error_details = json.dumps(data['errors'], indent=2)
+                error_details = json.dumps(data["errors"], indent=2)
                 raise Exception(f"GraphQL query failed with execution errors:\n{error_details}")
-            
+
             if inspect.isawaitable(data):
                 data = await data
         except json.JSONDecodeError:
@@ -244,7 +239,7 @@ def get_example_genes() -> dict:
 async def get_gene_by_entrez_id(entrez_id: str) -> str:
     try:
         data = await fetch_marrvel_data(
-            '''
+            """
             query MyQuery {
                 geneByEntrezId(entrezId: %s) {
                     alias
@@ -263,7 +258,8 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
                     uniprotKBId
                 }
             }
-            ''' % entrez_id
+            """
+            % entrez_id
         )
         return data
     except httpx.HTTPError as e:
@@ -278,7 +274,7 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
 async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
     try:
         data = await fetch_marrvel_data(
-            '''
+            """
             query MyQuery {
                 geneBySymbol(symbol: "%s", taxonId: %s) {
                     alias
@@ -304,7 +300,9 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
                     }
                 }
             }
-            ''' % (gene_symbol, taxon_id))
+            """
+            % (gene_symbol, taxon_id)
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
@@ -318,7 +316,7 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
 async def get_gene_by_position(chromosome: str, position: int, build: str = "hg19") -> str:
     try:
         data = await fetch_marrvel_data(
-            '''
+            """
             query MyQuery {
                 genesByGenomicLocation(chr: "%s", posStart: %i, posStop: %i, build: "%s") {
                     alias
@@ -344,7 +342,9 @@ async def get_gene_by_position(chromosome: str, position: int, build: str = "hg1
                     }
                 }
             }
-            '''%(chromosome, position, position, build))
+            """
+            % (chromosome, position, position, build)
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
@@ -411,7 +411,7 @@ async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
 async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
     try:
         data = await fetch_marrvel_data(
-            '''
+            """
             query MyQuery {
                 clinvarByGeneEntrezId(entrezId: %s) {
                     uid
@@ -428,7 +428,8 @@ async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
                     }
                 }
             }
-            ''' % entrez_id
+            """
+            % entrez_id
         )
         return data
     except Exception as e:
