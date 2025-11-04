@@ -239,9 +239,9 @@ def get_example_genes() -> dict:
 async def get_gene_by_entrez_id(entrez_id: str) -> str:
     try:
         data = await fetch_marrvel_data(
-            """
-            query MyQuery {
-                geneByEntrezId(entrezId: %s) {
+            f"""
+            query MyQuery {{
+                geneByEntrezId(entrezId: {entrez_id}) {{
                     alias
                     chr
                     entrezId
@@ -256,10 +256,9 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
                     taxonId
                     symbol
                     uniprotKBId
-                }
-            }
+                }}
+            }}
             """
-            % entrez_id
         )
         return data
     except httpx.HTTPError as e:
@@ -274,9 +273,9 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
 async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
     try:
         data = await fetch_marrvel_data(
-            """
-            query MyQuery {
-                geneBySymbol(symbol: "%s", taxonId: %s) {
+            f"""
+            query MyQuery {{
+                geneBySymbol(symbol: "{gene_symbol}", taxonId: {taxon_id}) {{
                     alias
                     chr
                     entrezId
@@ -291,17 +290,16 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
                     name
                     locusType
                     hg38Start
-                    xref {
+                    xref {{
                         ensemblId
                         hgncId
                         mgiId
                         omimId
                         pomBaseId
-                    }
-                }
-            }
+                    }}
+                }}
+            }}
             """
-            % (gene_symbol, taxon_id)
         )
         return data
     except httpx.HTTPError as e:
@@ -316,9 +314,9 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
 async def get_gene_by_position(chromosome: str, position: int, build: str = "hg19") -> str:
     try:
         data = await fetch_marrvel_data(
-            """
-            query MyQuery {
-                genesByGenomicLocation(chr: "%s", posStart: %i, posStop: %i, build: "%s") {
+            f"""
+            query MyQuery {{
+                genesByGenomicLocation(chr: "{chromosome}", posStart: {position}, posStop: {position}, build: "{build}") {{
                     alias
                     chr
                     entrezId
@@ -333,17 +331,16 @@ async def get_gene_by_position(chromosome: str, position: int, build: str = "hg1
                     symbol
                     taxonId
                     uniprotKBId
-                    xref {
-                    ensemblId
-                    mgiId
-                    hgncId
-                    omimId
-                    pomBaseId
-                    }
-                }
-            }
+                    xref {{
+                        ensemblId
+                        mgiId
+                        hgncId
+                        omimId
+                        pomBaseId
+                    }}
+                }}
+            }}
             """
-            % (chromosome, position, position, build)
         )
         return data
     except httpx.HTTPError as e:
@@ -363,38 +360,37 @@ async def get_gene_by_position(chromosome: str, position: int, build: str = "hg1
 async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str, build: str) -> str:
     try:
         data = await fetch_marrvel_data(
-            """
-            query MyQuery {
-                dbnsfpByVariant(build: "%s", chr: "%s", pos: %s, alt: "%s", ref: "%s") {
-                    scores {
-                        CADD {
+            f"""
+            query MyQuery {{
+                dbnsfpByVariant(build: "{build}", chr: "{chr}", pos: {pos}, alt: "{alt}", ref: "{ref}") {{
+                    scores {{
+                        CADD {{
                             phred
                             rankscore
                             rawScore
-                        }
-                        Polyphen2HDIV {
+                        }}
+                        Polyphen2HDIV {{
                             predictions
                             rankscore
                             scores
-                        }
-                        Polyphen2HVAR {
+                        }}
+                        Polyphen2HVAR {{
                             predictions
                             rankscore
                             scores
-                        }
-                        SIFT {
+                        }}
+                        SIFT {{
                             predictions
                             scores
-                        }
-                        SIFT4G {
+                        }}
+                        SIFT4G {{
                             predictions
                             rankscore
-                        }
-                    }
-                }
-            }
+                        }}
+                    }}
+                }}
+            }}
             """
-            % (build, chr, pos, alt, ref)
         )
         return data
     except Exception as e:
@@ -439,12 +435,12 @@ async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
     description="Get all ClinVar variants for a gene by Entrez ID with clinical significance data",
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
-async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
+async def get_clinvar_by_entrez_id(entrez_id: str, build: str = "hg19") -> str:
     try:
         data = await fetch_marrvel_data(
-            """
-            query MyQuery {
-                clinvarByGeneEntrezId(entrezId: %s) {
+            f"""
+            query MyQuery {{
+                clinvarByGeneEntrezId(entrezId: {entrez_id}) {{
                     uid
                     alt
                     band
@@ -454,13 +450,12 @@ async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
                     interpretation
                     ref
                     start
-                    significance {
+                    significance {{
                     description
-                    }
-                }
-            }
+                    }}
+                }}
+            }}
             """
-            % entrez_id
         )
         return data
     except Exception as e:
