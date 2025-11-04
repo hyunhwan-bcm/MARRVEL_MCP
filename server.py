@@ -780,10 +780,12 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
                     taxonId2
                 }}
             }}
-            """)
+            """
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT data: {str(e)}"
+
 
 @mcp.tool(
     name="get_diopt_alignment",
