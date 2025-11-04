@@ -357,41 +357,11 @@ async def get_gene_by_position(chromosome: str, position: int, build: str = "hg1
     description="Get comprehensive pathogenicity predictions and functional annotations from dbNSFP including SIFT, PolyPhen2, CADD scores",
     meta={"category": "variant", "database": "dbNSFP", "version": "1.0"},
 )
-async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str, build: str) -> str:
+async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
-            query MyQuery {{
-                dbnsfpByVariant(build: "{build}", chr: "{chr}", pos: {pos}, alt: "{alt}", ref: "{ref}") {{
-                    scores {{
-                        CADD {{
-                            phred
-                            rankscore
-                            rawScore
-                        }}
-                        Polyphen2HDIV {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        Polyphen2HVAR {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        SIFT {{
-                            predictions
-                            scores
-                        }}
-                        SIFT4G {{
-                            predictions
-                            rankscore
-                        }}
-                    }}
-                }}
-            }}
-            """
-        )
+        variant = f"{chr}:{pos} {ref}>{alt}"
+        variant_uri = quote(variant, safe="")
+        data = await fetch_marrvel_data(f"/dbnsfp/variant/{variant_uri}")
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
