@@ -68,7 +68,7 @@ JSON (or a Python literal convertible to JSON), the test will fail.
 
 # List of tools to exercise and representative arguments. Keep this small
 # but representative; add/remove entries as needed.
-TEST_VARIANT = {"chr": "6", "pos": "99365567", "ref": "T", "alt": "C"}
+TEST_VARIANT = {"chr": "6", "pos": "99365567", "ref": "T", "alt": "C", "build": "hg19"}
 tool_calls = [
     ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
