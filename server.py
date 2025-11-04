@@ -764,12 +764,25 @@ async def get_hpo_associated_genes(hpo_id: str) -> str:
 
 @mcp.tool(
     name="get_diopt_orthologs_by_entrez_id",
-    description="Find high-confidence orthologs across model organisms (mouse, fly, worm, zebrafish) using DIOPT",
+    description="Find high-confidence orthologs across model organisms (mouse, fly, worm, zebrafish) for a specific gene id using DIOPT",
     meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
 )
 async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/diopt/ortholog/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                dioptOrthologsByEntrezId(entrezId: {entrez_id}) {{
+                    bestScore
+                    bestScoreRev
+                    confidence
+                    entrezId2
+                    score
+                    taxonId2
+                }}
+            }}
+            """
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT data: {str(e)}"
