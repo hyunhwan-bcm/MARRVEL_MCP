@@ -412,14 +412,15 @@ async def get_clinvar_by_entrez_id(entrez_id: str, build: str = "hg19") -> str:
             query MyQuery {{
                 clinvarByGeneEntrezId(entrezId: {entrez_id}) {{
                     uid
+                    ref
                     alt
                     band
                     chr
+                    {"""start
+                    stop""" if build == "hg19" else """grch38Start
+                    grch38Stop"""}
                     condition
-                    grch38Start
                     interpretation
-                    ref
-                    start
                     significance {{
                     description
                     }}
