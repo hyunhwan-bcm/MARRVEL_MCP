@@ -772,15 +772,18 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
             f"""
             query MyQuery {{
                 dioptOrthologsByEntrezId(entrezId: {entrez_id}) {{
-                    entrezId1
+                    bestScore
+                    bestScoreRev
+                    confidence
                     entrezId2
+                    score
+                    taxonId2
                 }}
             }}
             """)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT data: {str(e)}"
-    
 
 @mcp.tool(
     name="get_diopt_alignment",
