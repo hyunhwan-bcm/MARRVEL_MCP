@@ -56,7 +56,8 @@ root.setLevel(logging.WARNING)
 # API CONFIGURATION
 # ============================================================================
 
-API_BASE_URL = "https://marrvel.org/graphql"
+API_BASE_URL = "https://marrvel.org/graphql"  # GraphQL endpoint
+API_REST_BASE_URL = "https://marrvel.org/data"  # REST endpoint
 API_TIMEOUT = 30.0
 VERIFY_SSL = False  # Set to True for production
 
@@ -66,12 +67,13 @@ VERIFY_SSL = False  # Set to True for production
 # ============================================================================
 
 
-async def fetch_marrvel_data(query: str) -> str:
+async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) -> str:
     """
     Fetch data from MARRVEL API with proper error handling.
 
     Args:
-        endpoint: API endpoint path (e.g., "/gene/entrezId/7157")
+        query_or_endpoint: GraphQL query string if is_graphql=True, or REST API endpoint path if is_graphql=False
+        is_graphql: If True, uses GraphQL API with POST request. If False, uses REST API with GET request.
 
     Returns:
         JSON response as string
@@ -79,9 +81,6 @@ async def fetch_marrvel_data(query: str) -> str:
     Raises:
         httpx.HTTPError: If the HTTP request fails
     """
-    payload = {"query": query}
-    headers = {"Content-Type": "application/json"}
-
     verify = ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False
 
     async def _maybe_await(obj):
@@ -99,13 +98,19 @@ async def fetch_marrvel_data(query: str) -> str:
             return obj
 
     async with httpx.AsyncClient(verify=verify, timeout=API_TIMEOUT) as client:
-        response = requests.post(
-            API_BASE_URL,
-            json=payload,
-            headers=headers,
-            timeout=10,
-            verify=VERIFY_SSL,  # Set a timeout for the request
-        )
+        if is_graphql:
+            # GraphQL API call (POST request)
+            payload = {"query": query_or_endpoint}
+            headers = {"Content-Type": "application/json"}
+            response = await client.post(
+                API_BASE_URL,
+                json=payload,
+                headers=headers,
+            )
+        else:
+            # REST API call (GET request)
+            url = f"{API_REST_BASE_URL}{query_or_endpoint}"
+            response = await client.get(url)
 
         # Some test mocks make raise_for_status() a coroutine
         rfs = response.raise_for_status()
@@ -116,7 +121,8 @@ async def fetch_marrvel_data(query: str) -> str:
         try:
             data = response.json()
 
-            if data.get("errors"):
+            # Check for GraphQL errors only if using GraphQL API
+            if is_graphql and data.get("errors"):
                 # Raise an exception if GraphQL errors are present in the response body
                 error_details = json.dumps(data["errors"], indent=2)
                 raise Exception(f"GraphQL query failed with execution errors:\n{error_details}")
@@ -411,7 +417,7 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
         variant = f"{chr}:{pos} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
-        data = await fetch_marrvel_data(f"/clinvar/variant/{variant_uri}")
+        data = await fetch_marrvel_data(f"/clinvar/variant/{variant_uri}", is_graphql=False)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -424,7 +430,7 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 )
 async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/clinvar/gene/symbol/{gene_symbol}")
+        data = await fetch_marrvel_data(f"/clinvar/gene/symbol/{gene_symbol}", is_graphql=False)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -477,7 +483,7 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
         variant = f"{chr}:{pos} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
-        data = await fetch_marrvel_data(f"/gnomAD/variant/{variant_uri}")
+        data = await fetch_marrvel_data(f"/gnomAD/variant/{variant_uri}", is_graphql=False)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -490,7 +496,7 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 )
 async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/gnomAD/gene/symbol/{gene_symbol}")
+        data = await fetch_marrvel_data(f"/gnomAD/gene/symbol/{gene_symbol}", is_graphql=False)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -503,7 +509,7 @@ async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
 )
 async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/gnomad/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(f"/gnomad/gene/entrezId/{entrez_id}", is_graphql=False)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -521,7 +527,7 @@ async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_dgv_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/DGV/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(f"/DGV/gene/entrezId/{entrez_id}", is_graphql=False)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -534,7 +540,7 @@ async def get_dgv_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/geno2mp/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(f"/geno2mp/gene/entrezId/{entrez_id}", is_graphql=False)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -552,7 +558,7 @@ async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_omim_by_mim_number(mim_number: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/omim/mimNumber/{mim_number}")
+        data = await fetch_marrvel_data(f"/omim/mimNumber/{mim_number}", is_graphql=False)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching OMIM data: {str(e)}"
@@ -565,7 +571,7 @@ async def get_omim_by_mim_number(mim_number: str) -> str:
 )
 async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/omim/gene/symbol/{gene_symbol}")
+        data = await fetch_marrvel_data(f"/omim/gene/symbol/{gene_symbol}", is_graphql=False)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching OMIM data: {str(e)}"
@@ -578,7 +584,9 @@ async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
 )
 async def get_omim_variant(gene_symbol: str, variant: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/omim/gene/symbol/{gene_symbol}/variant/{variant}")
+        data = await fetch_marrvel_data(
+            f"/omim/gene/symbol/{gene_symbol}/variant/{variant}", is_graphql=False
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching OMIM data: {str(e)}"
@@ -592,7 +600,9 @@ async def get_omim_variant(gene_symbol: str, variant: str) -> str:
 async def search_omim_by_disease_name(disease_name: str) -> str:
     try:
         encoded_disease = urllib.parse.quote(disease_name)
-        data = await fetch_marrvel_data(f"/omim/phenotypes/title/{encoded_disease}")
+        data = await fetch_marrvel_data(
+            f"/omim/phenotypes/title/{encoded_disease}", is_graphql=False
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching OMIM data: {str(e)}"
@@ -795,7 +805,9 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_diopt_alignment(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/diopt/alignment/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(
+            f"/diopt/alignment/gene/entrezId/{entrez_id}", is_graphql=False
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT alignment data: {str(e)}"
@@ -813,7 +825,7 @@ async def get_diopt_alignment(entrez_id: str) -> str:
 )
 async def get_gtex_expression(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/gtex/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(f"/gtex/gene/entrezId/{entrez_id}", is_graphql=False)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching GTEx data: {str(e)}"
@@ -826,7 +838,9 @@ async def get_gtex_expression(entrez_id: str) -> str:
 )
 async def get_ortholog_expression(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/expression/orthologs/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(
+            f"/expression/orthologs/gene/entrezId/{entrez_id}", is_graphql=False
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching ortholog expression data: {str(e)}"
@@ -839,7 +853,9 @@ async def get_ortholog_expression(entrez_id: str) -> str:
 )
 async def get_pharos_targets(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/pharos/targets/gene/entrezId/{entrez_id}")
+        data = await fetch_marrvel_data(
+            f"/pharos/targets/gene/entrezId/{entrez_id}", is_graphql=False
+        )
         return data
     except httpx.HTTPError as e:
         return f"Error fetching Pharos data: {str(e)}"
@@ -858,7 +874,7 @@ async def get_pharos_targets(entrez_id: str) -> str:
 async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
     try:
         encoded_variant = quote(hgvs_variant)
-        data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{encoded_variant}")
+        data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{encoded_variant}", is_graphql=False)
         return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error converting HGVS variant: {str(e)}"}, indent=2)
@@ -874,7 +890,7 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
 async def convert_protein_variant(protein_variant: str) -> str:
     try:
         encoded_variant = quote(protein_variant)
-        data = await fetch_marrvel_data(f"/transvar/protein/{encoded_variant}")
+        data = await fetch_marrvel_data(f"/transvar/protein/{encoded_variant}", is_graphql=False)
         return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error converting protein variant: {str(e)}"}, indent=2)
@@ -1157,7 +1173,7 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
 async def liftover_hg38_to_hg19(chr: str, pos: int) -> str:
     try:
         endpoint = f"/liftover/hg38/chr/{chr}/pos/{pos}/hg19"
-        data = await fetch_marrvel_data(endpoint)
+        data = await fetch_marrvel_data(endpoint, is_graphql=False)
         return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error fetching liftover data: {str(e)}"})
@@ -1171,7 +1187,7 @@ async def liftover_hg38_to_hg19(chr: str, pos: int) -> str:
 async def liftover_hg19_to_hg38(chr: str, pos: int) -> str:
     try:
         endpoint = f"/liftover/hg19/chr/{chr}/pos/{pos}/hg38"
-        data = await fetch_marrvel_data(endpoint)
+        data = await fetch_marrvel_data(endpoint, is_graphql=False)
         return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error fetching liftover data: {str(e)}"})
@@ -1189,7 +1205,9 @@ async def liftover_hg19_to_hg38(chr: str, pos: int) -> str:
 )
 async def get_decipher_by_location(chr: str, start: int, stop: int) -> str:
     try:
-        data = await fetch_marrvel_data(f"/DECIPHER/genomloc/{chr}/{start}/{stop}")
+        data = await fetch_marrvel_data(
+            f"/DECIPHER/genomloc/{chr}/{start}/{stop}", is_graphql=False
+        )
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
