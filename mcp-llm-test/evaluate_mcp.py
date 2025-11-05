@@ -24,6 +24,7 @@ import json
 import os
 import sys
 import tempfile
+import uuid
 import webbrowser
 from typing import Any, Dict, List, Tuple
 
@@ -108,6 +109,13 @@ async def get_langchain_response(
     conversation.append({"role": "system", "content": messages[0].content})
     conversation.append({"role": "user", "content": user_input})
 
+    # Helper function to generate unique tool call ID
+    def get_tool_call_id(tool_call: Dict[str, Any]) -> str:
+        """Generate a unique tool call ID, using existing ID or creating a new one."""
+        if "id" in tool_call and tool_call["id"]:
+            return tool_call["id"]
+        return f"call_{uuid.uuid4().hex[:12]}"
+
     # Agentic loop for tool calling
     max_iterations = 10
     for iteration in range(max_iterations):
@@ -117,29 +125,32 @@ async def get_langchain_response(
 
         # Check if there are tool calls
         if response.tool_calls:
+            # Assign unique IDs to all tool calls for consistent reference
+            tool_calls_with_ids = [{**tc, "id": get_tool_call_id(tc)} for tc in response.tool_calls]
+
             # Store assistant message with tool calls
             assistant_msg = {
                 "role": "assistant",
                 "content": response.content or "",
                 "tool_calls": [
                     {
-                        "id": tc.get("id", f"call_{tc['name']}"),
+                        "id": tc["id"],
                         "type": "function",
                         "function": {
                             "name": tc["name"],
                             "arguments": json.dumps(tc["args"]),
                         },
                     }
-                    for tc in response.tool_calls
+                    for tc in tool_calls_with_ids
                 ],
             }
             conversation.append(assistant_msg)
 
             # Execute each tool call
-            for tool_call in response.tool_calls:
+            for tool_call in tool_calls_with_ids:
                 function_name = tool_call["name"]
                 function_args = tool_call["args"]
-                tool_call_id = tool_call.get("id", f"call_{function_name}")
+                tool_call_id = tool_call["id"]
 
                 tool_history.append({"name": function_name, "args": function_args})
 
@@ -195,7 +206,12 @@ async def get_langchain_response(
             return final_content, tool_history, conversation
 
     # If we hit max iterations, return what we have
-    final_content = messages[-1].content if hasattr(messages[-1], "content") else str(messages[-1])
+    if messages:
+        final_content = (
+            messages[-1].content if hasattr(messages[-1], "content") else str(messages[-1])
+        )
+    else:
+        final_content = "No response generated (empty messages list)"
     return final_content, tool_history, conversation
 
 
