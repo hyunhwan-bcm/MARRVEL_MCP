@@ -23,6 +23,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 import tempfile
 import uuid
@@ -134,8 +135,6 @@ def clear_cache() -> None:
 
 def is_test_successful(classification: str) -> bool:
     """Check if a test result is successful based on classification."""
-    import re
-
     return bool(re.search(r"\byes\b", classification.lower()))
 
 
@@ -439,8 +438,6 @@ async def run_test_case(
 def generate_html_report(results: List[Dict[str, Any]]) -> str:
     """Generate HTML report with modal popups, reordered columns, and success rate summary."""
     import html as html_module
-    import re
-    from pathlib import Path
 
     # Create a temporary HTML file
     temp_html = tempfile.NamedTemporaryFile(
