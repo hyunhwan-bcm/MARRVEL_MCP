@@ -529,10 +529,12 @@ def parse_subset(subset_str: str, total_count: int) -> List[int]:
 
                 if start_idx < 1 or end_idx < 1:
                     raise ValueError(f"Indices must be >= 1, got range {start_idx}-{end_idx}")
-                if start_idx > end_idx:
-                    raise ValueError(f"Invalid range {start_idx}-{end_idx}: start must be <= end")
+                if start_idx > total_count:
+                    raise ValueError(f"Index {start_idx} out of range (max: {total_count})")
                 if end_idx > total_count:
                     raise ValueError(f"Index {end_idx} out of range (max: {total_count})")
+                if start_idx > end_idx:
+                    raise ValueError(f"Invalid range {start_idx}-{end_idx}: start must be <= end")
 
                 # Convert to 0-based indices
                 for i in range(start_idx - 1, end_idx):
@@ -598,8 +600,10 @@ Subset Examples:
         temperature=0,
     )
 
-    # Load test cases
-    with open("../mcp-llm-test/test_cases.yaml", "r") as f:
+    # Load test cases - resolve path relative to script location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    test_cases_path = os.path.join(script_dir, "test_cases.yaml")
+    with open(test_cases_path, "r") as f:
         test_cases = yaml.safe_load(f)
 
     # Parse and filter test cases based on subset parameter

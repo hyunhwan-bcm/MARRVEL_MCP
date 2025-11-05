@@ -140,3 +140,9 @@ def test_parse_subset_complex_combination():
     """Test parsing a complex combination."""
     result = parse_subset("1,3-5,2,8-10,7", 10)
     assert result == [0, 1, 2, 3, 4, 6, 7, 8, 9]  # All sorted and deduplicated
+
+
+def test_parse_subset_start_index_out_of_range():
+    """Test that start index in range out of bounds raises ValueError."""
+    with pytest.raises(ValueError, match="Index 15 out of range"):
+        parse_subset("15-20", 10)
