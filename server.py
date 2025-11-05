@@ -509,7 +509,7 @@ async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
 )
 async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(f"/gnomad/gene/entrezId/{entrez_id}", is_graphql=False)
+        data = await fetch_marrvel_data(f"/gnomAD/gene/entrezId/{entrez_id}", is_graphql=False)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
