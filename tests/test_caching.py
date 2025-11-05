@@ -64,7 +64,7 @@ def test_get_cache_key():
 
 def test_save_and_load_cached_result(sample_result, tmp_path):
     """Test saving and loading a successful cached result"""
-    # Temporarily override CACHE_DIR for testing
+    # Import inside function to access and modify module-level CACHE_DIR for isolated testing
     import evaluate_mcp
 
     original_cache_dir = evaluate_mcp.CACHE_DIR
@@ -96,7 +96,7 @@ def test_save_and_load_cached_result(sample_result, tmp_path):
 
 def test_failed_result_not_cached(failed_result, tmp_path):
     """Test that failed results are not cached"""
-    # Temporarily override CACHE_DIR for testing
+    # Import inside function to access and modify module-level CACHE_DIR for isolated testing
     import evaluate_mcp
 
     original_cache_dir = evaluate_mcp.CACHE_DIR
@@ -128,7 +128,7 @@ def test_load_nonexistent_cache():
 
 def test_clear_cache(sample_result, tmp_path):
     """Test clearing the cache"""
-    # Temporarily override CACHE_DIR for testing
+    # Import inside function to access and modify module-level CACHE_DIR for isolated testing
     import evaluate_mcp
 
     original_cache_dir = evaluate_mcp.CACHE_DIR
@@ -155,6 +155,7 @@ def test_clear_cache(sample_result, tmp_path):
 
 def test_cache_validation_rejects_failed_results(tmp_path):
     """Test that loading rejects failed results even if they exist in cache"""
+    # Import inside function to access and modify module-level CACHE_DIR for isolated testing
     import evaluate_mcp
 
     original_cache_dir = evaluate_mcp.CACHE_DIR

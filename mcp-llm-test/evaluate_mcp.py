@@ -24,6 +24,7 @@ import asyncio
 import hashlib
 import json
 import os
+import shutil
 import sys
 import tempfile
 import uuid
@@ -166,8 +167,6 @@ def clear_cache() -> None:
     Clear all cached test results.
     """
     if CACHE_DIR.exists():
-        import shutil
-
         shutil.rmtree(CACHE_DIR)
         print(f"Cache cleared: {CACHE_DIR}")
     else:
