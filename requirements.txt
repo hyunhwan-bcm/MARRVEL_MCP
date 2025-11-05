@@ -26,7 +26,6 @@ langchain>=1.0.0
 langchain-openai>=1.0.0
 langchain-core>=1.0.0
 langchain-community>=0.4.0
-langsmith>=0.4.0
 
 # PubMed literature search
 pymed_paperscraper>=0.1.0

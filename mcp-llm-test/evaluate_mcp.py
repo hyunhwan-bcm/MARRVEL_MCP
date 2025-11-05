@@ -44,6 +44,11 @@ load_dotenv()
 
 # Configure API keys
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+if not OPENROUTER_API_KEY:
+    raise ValueError(
+        "OPENROUTER_API_KEY not found in environment variables. "
+        "Please set it in a .env file or export it as an environment variable."
+    )
 
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
 
@@ -107,12 +112,13 @@ async def get_langchain_response(
     conversation.append({"role": "system", "content": messages[0].content})
     conversation.append({"role": "user", "content": user_input})
 
-    # Helper function to generate unique tool call ID
-    def get_tool_call_id(tool_call: Dict[str, Any]) -> str:
-        """Generate a unique tool call ID, using existing ID or creating a new one."""
-        if "id" in tool_call and tool_call["id"]:
-            return tool_call["id"]
-        return f"call_{uuid.uuid4().hex[:12]}"
+    # Helper function to ensure tool call has unique ID
+    def ensure_tool_call_id(tool_call: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure tool call has a unique ID, adding one if needed."""
+        if "id" not in tool_call or not tool_call["id"]:
+            # Create a new dict with the ID added
+            return {**tool_call, "id": f"call_{uuid.uuid4().hex[:12]}"}
+        return tool_call
 
     # Agentic loop for tool calling
     max_iterations = 10
@@ -123,8 +129,8 @@ async def get_langchain_response(
 
         # Check if there are tool calls
         if response.tool_calls:
-            # Assign unique IDs to all tool calls for consistent reference
-            tool_calls_with_ids = [{**tc, "id": get_tool_call_id(tc)} for tc in response.tool_calls]
+            # Ensure all tool calls have unique IDs
+            tool_calls_with_ids = [ensure_tool_call_id(tc) for tc in response.tool_calls]
 
             # Store assistant message with tool calls
             assistant_msg = {
@@ -208,9 +214,11 @@ async def get_langchain_response(
     if len(messages) > 2:  # More than just system and user messages
         last_msg = messages[-1]
         final_content = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
-        conversation.append({"role": "assistant", "content": final_content})
     else:
         final_content = "No response generated after max iterations"
+
+    # Always append to conversation for consistency
+    conversation.append({"role": "assistant", "content": final_content})
     return final_content, tool_history, conversation
 
 
