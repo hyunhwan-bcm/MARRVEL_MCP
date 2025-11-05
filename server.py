@@ -420,6 +420,8 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
                     interpretation
                     significance {{
                     description
+                    lastEvaluated
+                    reviewStatus
                     }}
                 }}
             }}
@@ -489,6 +491,45 @@ async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
             }}
             """
         )
+        return data
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
+
+
+@mcp.tool(
+    name="get_clinvar_counts_by_entrez_id",
+    description="Count all Clinvar variants for a given entrez gene id, with subcounts for benign, likely benign, likely pathogenic, and pathogenic ClinVar designations.",
+    meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
+)
+async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
+    try:
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                clinvarCountsByEntrezId(entrezId: {entrez_id}) {{
+                    benign
+                    likelyBenign
+                    likelyPathogenic
+                    pathogenic
+                }}
+            }}
+            """
+        )
+        all_entries = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                clinvarByGeneEntrezId(entrezId: {entrez_id}) {{
+                    uid
+                }}
+            }}
+            """
+        )
+        data_obj = json.loads(data)
+        all_entries_obj = json.loads(all_entries)
+        data_obj["data"]["clinvarCountsByEntrezId"]["all"] = len(
+            all_entries_obj["data"]["clinvarByGeneEntrezId"]
+        )
+        data = json.dumps(data_obj, indent=2)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
