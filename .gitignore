@@ -44,6 +44,9 @@ htmlcov/
 # Test output (but keep the README)
 test-output/
 
+# MCP LLM test cache
+.cache/
+
 # Logs
 *.log
 
