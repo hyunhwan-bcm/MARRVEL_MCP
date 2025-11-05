@@ -505,6 +505,28 @@ async def get_clinvar_by_entrez_id(entrez_id: str, build: str = "hg19") -> str:
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
 
+@mcp.tool(
+    name="get_clinvar_counts_by_entrez_id",
+    description="Count benign, likely benign, likely pathogenic, and pathogenic ClinVar variants for a gene by Entrez ID",
+    meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
+)
+async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
+    try:
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                clinvarCountsByEntrezId(entrezId: {entrez_id}) {{
+                    benign
+                    likelyBenign
+                    likelyPathogenic
+                    pathogenic
+                }}
+            }}
+            """
+        )
+        return data
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
 
 # ============================================================================
 # VARIANT TOOLS - gnomAD
