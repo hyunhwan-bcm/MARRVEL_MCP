@@ -283,6 +283,7 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
                     alias
                     chr
                     entrezId
+                    hg38Start
                     hg38Stop
                     hgncId
                     uniprotKBId
@@ -291,7 +292,6 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
                     status
                     name
                     locusType
-                    hg38Start
                     xref {{
                         ensemblId
                         hgncId
