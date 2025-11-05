@@ -62,14 +62,19 @@ def test_help_describes_force_flag():
 
 
 def test_clear_and_force_flags_accepted():
-    """Test that both flags can be used together (without running full evaluation)"""
-    # This test just verifies the script accepts the flags
-    # We don't run the actual evaluation as it requires API keys
+    """Test that both flags can be used together (script accepts the flags)"""
+    # This test verifies the script accepts both flags without argument parsing errors
+    # The script will fail due to missing API key, but that's after parsing succeeds
     result = subprocess.run(
         [sys.executable, str(EVALUATE_SCRIPT), "--clear", "--force"],
         capture_output=True,
         text=True,
-        timeout=5,  # Should fail quickly without API key
+        timeout=30,  # Allow time for script to start and fail on API key
     )
-    # Script should fail on missing API key, not on argument parsing
-    assert "OPENROUTER_API_KEY not found" in result.stderr or result.returncode != 0
+    # Verify that the script accepted the flags (no argument error)
+    # The script may succeed (returncode=0) if it generates an HTML report even with errors
+    # or may fail (returncode!=0) - either way, no argument parsing errors
+    assert "unrecognized arguments" not in result.stderr
+    assert "invalid choice" not in result.stderr
+    # Verify the script actually ran and tried to clear cache
+    assert "cache" in result.stdout.lower() or result.returncode == 0

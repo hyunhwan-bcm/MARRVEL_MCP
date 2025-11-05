@@ -581,8 +581,10 @@ async def main(clear: bool = False, force: bool = False):
     # Load cache
     cache = load_cache()
 
-    # Load test cases
-    with open("../mcp-llm-test/test_cases.yaml", "r") as f:
+    # Load test cases - use path relative to script location
+    script_dir = Path(__file__).parent
+    test_cases_path = script_dir / "test_cases.yaml"
+    with open(test_cases_path, "r") as f:
         test_cases = yaml.safe_load(f)
 
     # Create MCP server and client
@@ -624,13 +626,13 @@ if __name__ == "__main__":
 Examples:
   # Run tests normally (use cache for successful results)
   python evaluate_mcp.py
-  
+
   # Clear cache and run all tests fresh
   python evaluate_mcp.py --clear
-  
+
   # Ignore cache and rerun all tests (but still save results)
   python evaluate_mcp.py --force
-  
+
   # Clear cache and force rerun of all tests
   python evaluate_mcp.py --clear --force
         """,
