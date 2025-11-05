@@ -536,7 +536,9 @@ async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
         )
         data_obj = json.loads(data)
         all_entries_obj = json.loads(all_entries)
-        data_obj["data"]["clinvarCountsByEntrezId"]["all"] = len(all_entries_obj["data"]["clinvarByGeneEntrezId"])
+        data_obj["data"]["clinvarCountsByEntrezId"]["all"] = len(
+            all_entries_obj["data"]["clinvarByGeneEntrezId"]
+        )
         data = json.dumps(data_obj, indent=2)
         return data
     except Exception as e:
