@@ -12,6 +12,7 @@ Architecture:
 - MCP tools exposed via FastMCP client
 - Concurrent test execution with asyncio semaphores
 - HTML report generation with conversation history
+- Result caching for faster re-runs
 
 References:
 - LangChain with OpenRouter: https://openrouter.ai/docs/community/lang-chain
@@ -19,13 +20,16 @@ References:
 - Evaluation: https://docs.langchain.com/oss/python/langchain/overview
 """
 
+import argparse
 import asyncio
 import json
 import os
+import pickle
 import sys
 import tempfile
 import uuid
 import webbrowser
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 # Add project root to the Python path
@@ -50,24 +54,58 @@ class TokenLimitExceeded(Exception):
 # Load environment variables from .env file
 load_dotenv()
 
-# Configure API keys
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-if not OPENROUTER_API_KEY:
-    raise ValueError(
-        "OPENROUTER_API_KEY not found in environment variables. "
-        "Please set it in a .env file or export it as an environment variable."
-    )
-
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
-# Configure LangChain ChatOpenAI with OpenRouter
-llm = ChatOpenAI(
-    model=MODEL,
-    openai_api_base="https://openrouter.ai/api/v1",
-    openai_api_key=OPENROUTER_API_KEY,
-    temperature=0,
-)
+# Cache settings
+CACHE_DIR = Path.home() / ".cache" / "marrvel-mcp" / "evaluations"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Global variables for LLM (initialized in main after arg parsing)
+llm = None
+OPENROUTER_API_KEY = None
+
+
+def get_cache_path(test_case_name: str) -> Path:
+    """Get the cache file path for a test case."""
+    # Use sanitized test case name for filename
+    safe_name = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in test_case_name)
+    safe_name = safe_name.strip().replace(' ', '_')
+    return CACHE_DIR / f"{safe_name}.pkl"
+
+
+def load_cached_result(test_case_name: str) -> Dict[str, Any] | None:
+    """Load cached result for a test case if it exists."""
+    cache_path = get_cache_path(test_case_name)
+    if cache_path.exists():
+        try:
+            with open(cache_path, 'rb') as f:
+                return pickle.load(f)
+        except Exception as e:
+            print(f"Warning: Failed to load cache for {test_case_name}: {e}")
+            return None
+    return None
+
+
+def save_cached_result(test_case_name: str, result: Dict[str, Any]):
+    """Save result to cache."""
+    cache_path = get_cache_path(test_case_name)
+    try:
+        with open(cache_path, 'wb') as f:
+            pickle.dump(result, f)
+    except Exception as e:
+        print(f"Warning: Failed to save cache for {test_case_name}: {e}")
+
+
+def clear_cache():
+    """Clear all cached results."""
+    if CACHE_DIR.exists():
+        for cache_file in CACHE_DIR.glob("*.pkl"):
+            try:
+                cache_file.unlink()
+            except Exception as e:
+                print(f"Warning: Failed to delete {cache_file}: {e}")
+        print(f"✅ Cache cleared: {CACHE_DIR}")
 
 
 def count_tokens(text: str, model: str = "gpt-4") -> int:
@@ -309,14 +347,28 @@ async def run_test_case(
     semaphore: asyncio.Semaphore,
     mcp_client: Client,
     test_case: Dict[str, Any],
+    use_cache: bool = True,
 ) -> Dict[str, Any]:
     """
     Runs a single test case and returns the results for the table.
+    
+    Args:
+        semaphore: Asyncio semaphore for limiting concurrency
+        mcp_client: MCP client for tool calls
+        test_case: Test case dictionary
+        use_cache: Whether to use cached results (default: True)
     """
     async with semaphore:
         name = test_case["case"]["name"]
         user_input = test_case["case"]["input"]
         expected = test_case["case"]["expected"]
+
+        # Check cache first if enabled
+        if use_cache:
+            cached = load_cached_result(name)
+            if cached is not None:
+                print(f"--- Using cached result: {name} ---")
+                return cached
 
         print(f"--- Running: {name} ---")
 
@@ -326,7 +378,7 @@ async def run_test_case(
             )
             classification = await evaluate_response(langchain_response, expected)
             print(f"--- Finished: {name} ---")
-            return {
+            result = {
                 "question": user_input,
                 "expected": expected,
                 "response": langchain_response,
@@ -335,12 +387,15 @@ async def run_test_case(
                 "conversation": full_conversation,
                 "tokens_used": tokens_used,
             }
+            # Save to cache
+            save_cached_result(name, result)
+            return result
         except TokenLimitExceeded as e:
             # Stop evaluation completely and mark as NO due to token exceed
             print(
                 f"--- Token limit exceeded for {name}: {e.token_count:,} > {MAX_TOKENS:,}. Skipping LLM evaluation. ---"
             )
-            return {
+            result = {
                 "question": user_input,
                 "expected": expected,
                 "response": "",  # No response since we skipped evaluation
@@ -349,9 +404,11 @@ async def run_test_case(
                 "conversation": [],
                 "tokens_used": e.token_count,
             }
+            # Don't cache failures
+            return result
         except Exception as e:
             print(f"--- Error in {name}: {e} ---")
-            return {
+            result = {
                 "question": user_input,
                 "expected": expected,
                 "response": "**No response generated due to error.**",
@@ -359,6 +416,8 @@ async def run_test_case(
                 "tool_calls": [],
                 "conversation": [],
             }
+            # Don't cache errors
+            return result
 
 
 def generate_html_report(results: List[Dict[str, Any]]) -> str:
@@ -494,13 +553,104 @@ def open_in_browser(html_path: str):
     print(f"--- Opened {html_path} in browser ---")
 
 
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="MCP LLM Evaluation Script - Evaluate MCP tools with LangChain",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run all test cases (uses cache by default)
+  python evaluate_mcp.py
+
+  # Clear cache before running
+  python evaluate_mcp.py --clear
+
+  # Force re-evaluation (ignore cache)
+  python evaluate_mcp.py --force
+
+  # Run specific test cases
+  python evaluate_mcp.py --subset "Gene for NM_001045477.4:c.187C>T" "CADD phred score"
+
+  # Combine options
+  python evaluate_mcp.py --clear --subset "Gene for NM_001045477.4:c.187C>T"
+
+Cache Location:
+  Results are cached at: {cache_dir}
+  
+  The cache stores evaluation results to avoid redundant API calls and speed up 
+  re-runs. Each test case result is cached separately.
+        """.format(cache_dir=CACHE_DIR)
+    )
+    
+    parser.add_argument(
+        "--clear",
+        action="store_true",
+        help="Clear the cache before running evaluations. Useful for ensuring fresh results."
+    )
+    
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force re-evaluation of all test cases, ignoring cached results. Cache will be updated with new results."
+    )
+    
+    parser.add_argument(
+        "--subset",
+        nargs="+",
+        metavar="TEST_NAME",
+        help="Run only specific test cases by name. Provide one or more test case names from test_cases.yaml."
+    )
+    
+    return parser.parse_args()
+
+
 async def main():
     """
     Main function to run the evaluation concurrently.
     """
+    global llm, OPENROUTER_API_KEY
+    
+    # Parse command-line arguments
+    args = parse_arguments()
+    
+    # Configure API keys (after argument parsing so --help works)
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+    if not OPENROUTER_API_KEY:
+        raise ValueError(
+            "OPENROUTER_API_KEY not found in environment variables. "
+            "Please set it in a .env file or export it as an environment variable."
+        )
+    
+    # Configure LangChain ChatOpenAI with OpenRouter
+    llm = ChatOpenAI(
+        model=MODEL,
+        openai_api_base="https://openrouter.ai/api/v1",
+        openai_api_key=OPENROUTER_API_KEY,
+        temperature=0,
+    )
+    
+    # Clear cache if requested
+    if args.clear:
+        clear_cache()
+    
     # Load test cases
-    with open("../mcp-llm-test/test_cases.yaml", "r") as f:
+    test_cases_path = Path(__file__).parent / "test_cases.yaml"
+    with open(test_cases_path, "r") as f:
         test_cases = yaml.safe_load(f)
+
+    # Filter test cases if subset is specified
+    if args.subset:
+        subset_names = set(args.subset)
+        original_count = len(test_cases)
+        test_cases = [tc for tc in test_cases if tc["case"]["name"] in subset_names]
+        print(f"📋 Running subset: {len(test_cases)}/{original_count} test cases")
+        
+        # Warn about any non-existent test names
+        found_names = {tc["case"]["name"] for tc in test_cases}
+        missing = subset_names - found_names
+        if missing:
+            print(f"⚠️  Warning: The following test names were not found: {', '.join(missing)}")
 
     # Create MCP server and client
     mcp_server = create_server()
@@ -509,8 +659,14 @@ async def main():
     # Create a semaphore to limit concurrency to 4
     semaphore = asyncio.Semaphore(4)
 
+    # Determine whether to use cache
+    use_cache = not args.force
+
     async with mcp_client:
-        tasks = [run_test_case(semaphore, mcp_client, test_case) for test_case in test_cases]
+        tasks = [
+            run_test_case(semaphore, mcp_client, test_case, use_cache=use_cache) 
+            for test_case in test_cases
+        ]
         results = await asyncio.gather(*tasks)
 
     # Sort results to match the original order of test cases

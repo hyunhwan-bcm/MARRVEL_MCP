@@ -83,6 +83,7 @@ Ask your AI assistant natural language questions:
 ## Documentation
 
 - **[API Reference](./API_DOCUMENTATION.md)** - Complete tool documentation
+- **[MCP LLM Evaluation](mcp-llm-test/README.md)** - CLI tool for testing MCP with LangChain
 - **[Architecture](docs/ARCHITECTURE.md)** - Technical details
 - **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines
 - **[OpenAI Integration](examples/openai/README.md)** - Using with OpenAI
