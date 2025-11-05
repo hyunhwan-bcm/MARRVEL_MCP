@@ -428,8 +428,6 @@ async def get_clinvar_by_variant(
                     interpretation
                     significance {{
                     description
-                    lastEvaluated
-                    reviewStatus
                     }}
                 }}
             }}
