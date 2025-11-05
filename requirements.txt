@@ -21,6 +21,13 @@ pre-commit>=3.5.0
 # OpenAI SDK for function calling integration
 openai>=1.0.0
 
+# LangChain for LLM evaluation with MCP
+langchain>=1.0.0
+langchain-openai>=1.0.0
+langchain-core>=1.0.0
+langchain-community>=0.4.0
+langsmith>=0.4.0
+
 # PubMed literature search
 pymed_paperscraper>=0.1.0
 lxml
