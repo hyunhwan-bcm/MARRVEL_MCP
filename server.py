@@ -413,11 +413,28 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str, build: str)
     description="Get ClinVar clinical significance and interpretation for a specific variant including pathogenic/benign classification",
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
-async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
+async def get_clinvar_by_variant(
+    chr: str, pos: str, ref: str, alt: str, build: str = "hg19"
+) -> str:
     try:
         variant = f"{chr}:{pos} {ref}>{alt}"
-        variant_uri = quote(variant, safe="")
-        data = await fetch_marrvel_data(f"/clinvar/variant/{variant_uri}", is_graphql=False)
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                clinvarByVariant(variant: "{variant}", build: "{build}") {{
+                    uid
+                    band
+                    condition
+                    interpretation
+                    significance {{
+                    description
+                    lastEvaluated
+                    reviewStatus
+                    }}
+                }}
+            }}
+            """
+        )
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -428,9 +445,29 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     description="Get all ClinVar variants for a gene by symbol for comprehensive gene-level variant review",
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
-async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
+async def get_clinvar_by_gene_symbol(gene_symbol: str, build: str = "hg19") -> str:
     try:
-        data = await fetch_marrvel_data(f"/clinvar/gene/symbol/{gene_symbol}", is_graphql=False)
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                clinvarByGeneSymbol(symbol: "{gene_symbol}") {{
+                    uid
+                    ref
+                    alt
+                    band
+                    chr
+                    {"""start
+                    stop""" if build == "hg19" else """grch38Start
+                    grch38Stop"""}
+                    condition
+                    interpretation
+                    significance {{
+                    description
+                    }}
+                }}
+            }}
+            """
+        )
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -464,6 +501,45 @@ async def get_clinvar_by_entrez_id(entrez_id: str, build: str = "hg19") -> str:
             }}
             """
         )
+        return data
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
+
+
+@mcp.tool(
+    name="get_clinvar_counts_by_entrez_id",
+    description="Count all Clinvar variants for a given entrez gene id, with subcounts for benign, likely benign, likely pathogenic, and pathogenic ClinVar designations.",
+    meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
+)
+async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
+    try:
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                clinvarCountsByEntrezId(entrezId: {entrez_id}) {{
+                    benign
+                    likelyBenign
+                    likelyPathogenic
+                    pathogenic
+                }}
+            }}
+            """
+        )
+        all_entries = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                clinvarByGeneEntrezId(entrezId: {entrez_id}) {{
+                    uid
+                }}
+            }}
+            """
+        )
+        data_obj = json.loads(data)
+        all_entries_obj = json.loads(all_entries)
+        data_obj["data"]["clinvarCountsByEntrezId"]["all"] = len(
+            all_entries_obj["data"]["clinvarByGeneEntrezId"]
+        )
+        data = json.dumps(data_obj, indent=2)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
