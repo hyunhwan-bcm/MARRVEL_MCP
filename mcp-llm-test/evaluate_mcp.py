@@ -1,3 +1,24 @@
+"""
+MCP LLM Evaluation Script with LangChain Integration
+
+This script evaluates MCP (Model Context Protocol) tools using LangChain v1 for:
+- Agent-based tool calling with ChatOpenAI (via OpenRouter)
+- Structured message handling (SystemMessage, HumanMessage, ToolMessage)
+- Async LLM invocations with bind_tools() for tool integration
+- Test case evaluation against expected responses
+
+Architecture:
+- LangChain ChatOpenAI configured for OpenRouter API
+- MCP tools exposed via FastMCP client
+- Concurrent test execution with asyncio semaphores
+- HTML report generation with conversation history
+
+References:
+- LangChain with OpenRouter: https://openrouter.ai/docs/community/lang-chain
+- Tool calling: https://docs.langchain.com/oss/python/langchain/overview
+- Evaluation: https://docs.langchain.com/oss/python/langchain/overview
+"""
+
 import asyncio
 import json
 import os
