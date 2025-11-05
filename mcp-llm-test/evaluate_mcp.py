@@ -13,12 +13,19 @@ Architecture:
 - Concurrent test execution with asyncio semaphores
 - HTML report generation with conversation history
 
+CLI Usage:
+- Run with cache (default): python evaluate_mcp.py
+- Force rerun all jobs: python evaluate_mcp.py --force
+- Clear cache before running: python evaluate_mcp.py --clear
+- Run specific questions: python evaluate_mcp.py --subset 1,2,4 or --subset 1-5
+
 References:
 - LangChain with OpenRouter: https://openrouter.ai/docs/community/lang-chain
 - Tool calling: https://docs.langchain.com/oss/python/langchain/overview
 - Evaluation: https://docs.langchain.com/oss/python/langchain/overview
 """
 
+import argparse
 import asyncio
 import json
 import os
@@ -26,6 +33,7 @@ import sys
 import tempfile
 import uuid
 import webbrowser
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 # Add project root to the Python path
@@ -50,24 +58,69 @@ class TokenLimitExceeded(Exception):
 # Load environment variables from .env file
 load_dotenv()
 
-# Configure API keys
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-if not OPENROUTER_API_KEY:
-    raise ValueError(
-        "OPENROUTER_API_KEY not found in environment variables. "
-        "Please set it in a .env file or export it as an environment variable."
-    )
-
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
-# Configure LangChain ChatOpenAI with OpenRouter
-llm = ChatOpenAI(
-    model=MODEL,
-    openai_api_base="https://openrouter.ai/api/v1",
-    openai_api_key=OPENROUTER_API_KEY,
-    temperature=0,
-)
+
+def get_llm():
+    """Initialize and return the LLM with API key validation."""
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+    if not OPENROUTER_API_KEY:
+        raise ValueError(
+            "OPENROUTER_API_KEY not found in environment variables. "
+            "Please set it in a .env file or export it as an environment variable."
+        )
+
+    # Configure LangChain ChatOpenAI with OpenRouter
+    return ChatOpenAI(
+        model=MODEL,
+        openai_api_base="https://openrouter.ai/api/v1",
+        openai_api_key=OPENROUTER_API_KEY,
+        temperature=0,
+    )
+
+
+# Cache directory configuration
+CACHE_DIR = Path(".cache")
+CACHE_FILE = CACHE_DIR / "test_results.json"
+
+
+def load_cache() -> Dict[str, Any]:
+    """Load cached test results from disk."""
+    if not CACHE_FILE.exists():
+        return {}
+    try:
+        with open(CACHE_FILE, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Warning: Failed to load cache: {e}")
+        return {}
+
+
+def save_cache(cache: Dict[str, Any]) -> None:
+    """Save test results to cache."""
+    try:
+        CACHE_DIR.mkdir(exist_ok=True)
+        with open(CACHE_FILE, "w") as f:
+            json.dump(cache, f, indent=2)
+    except Exception as e:
+        print(f"Warning: Failed to save cache: {e}")
+
+
+def clear_cache() -> None:
+    """Clear the cache directory."""
+    if CACHE_FILE.exists():
+        CACHE_FILE.unlink()
+        print(f"Cache cleared: {CACHE_FILE}")
+    else:
+        print("No cache to clear.")
+
+
+def is_test_successful(classification: str) -> bool:
+    """Check if a test result is successful based on classification."""
+    import re
+
+    return bool(re.search(r"\byes\b", classification.lower()))
 
 
 def count_tokens(text: str, model: str = "gpt-4") -> int:
@@ -110,7 +163,7 @@ def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
 
 
 async def get_langchain_response(
-    mcp_client: Client, user_input: str
+    mcp_client: Client, user_input: str, llm: ChatOpenAI
 ) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int]:
     """
     Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
@@ -273,7 +326,7 @@ async def get_langchain_response(
     return final_content, tool_history, conversation, tokens_total
 
 
-async def evaluate_response(actual: str, expected: str) -> str:
+async def evaluate_response(actual: str, expected: str, llm: ChatOpenAI) -> str:
     """
     Evaluate the response using LangChain and return the classification text.
     Be flexible - if the actual response contains the expected information plus additional details, consider it acceptable.
@@ -309,6 +362,7 @@ async def run_test_case(
     semaphore: asyncio.Semaphore,
     mcp_client: Client,
     test_case: Dict[str, Any],
+    llm: ChatOpenAI,
 ) -> Dict[str, Any]:
     """
     Runs a single test case and returns the results for the table.
@@ -322,9 +376,9 @@ async def run_test_case(
 
         try:
             langchain_response, tool_history, full_conversation, tokens_used = (
-                await get_langchain_response(mcp_client, user_input)
+                await get_langchain_response(mcp_client, user_input, llm)
             )
-            classification = await evaluate_response(langchain_response, expected)
+            classification = await evaluate_response(langchain_response, expected, llm)
             print(f"--- Finished: {name} ---")
             return {
                 "question": user_input,
@@ -494,13 +548,86 @@ def open_in_browser(html_path: str):
     print(f"--- Opened {html_path} in browser ---")
 
 
+def parse_subset(subset_str: str) -> List[int]:
+    """
+    Parse subset parameter to list of test indices.
+    Examples:
+        "1" -> [1]
+        "1,2,4" -> [1, 2, 4]
+        "1-5" -> [1, 2, 3, 4, 5]
+    """
+    indices = []
+    parts = subset_str.split(",")
+    for part in parts:
+        part = part.strip()
+        if "-" in part:
+            # Range: "1-5"
+            start, end = part.split("-")
+            indices.extend(range(int(start), int(end) + 1))
+        else:
+            # Single number: "1"
+            indices.append(int(part))
+    return sorted(set(indices))  # Remove duplicates and sort
+
+
 async def main():
     """
     Main function to run the evaluation concurrently.
     """
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="MCP LLM Evaluation with caching and selective execution"
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force rerun all jobs, ignoring cache",
+    )
+    parser.add_argument(
+        "--clear",
+        action="store_true",
+        help="Clear cache before running tests",
+    )
+    parser.add_argument(
+        "--subset",
+        type=str,
+        help="Run only a subset of questions (e.g., '1', '1,2,4', or '1-5')",
+    )
+    args = parser.parse_args()
+
+    # Handle --clear flag
+    if args.clear:
+        clear_cache()
+
     # Load test cases
     with open("../mcp-llm-test/test_cases.yaml", "r") as f:
         test_cases = yaml.safe_load(f)
+
+    # Filter test cases based on --subset parameter
+    if args.subset:
+        try:
+            subset_indices = parse_subset(args.subset)
+            # Convert to 0-based indexing
+            subset_indices_0 = [i - 1 for i in subset_indices]
+            # Filter test cases
+            filtered_test_cases = [
+                test_cases[i] for i in subset_indices_0 if 0 <= i < len(test_cases)
+            ]
+            if not filtered_test_cases:
+                print(f"Error: No valid test cases found for subset {args.subset}")
+                return
+            print(f"Running subset of tests: {args.subset} ({len(filtered_test_cases)} tests)")
+            test_cases = filtered_test_cases
+        except (ValueError, IndexError) as e:
+            print(f"Error parsing --subset parameter: {e}")
+            return
+
+    # Load cache
+    cache = {} if args.force else load_cache()
+    if args.force:
+        print("Force mode: Ignoring cache and running all tests")
+    elif cache:
+        print(f"Loaded cache with {len(cache)} entries")
 
     # Create MCP server and client
     mcp_server = create_server()
@@ -509,19 +636,60 @@ async def main():
     # Create a semaphore to limit concurrency to 4
     semaphore = asyncio.Semaphore(4)
 
-    async with mcp_client:
-        tasks = [run_test_case(semaphore, mcp_client, test_case) for test_case in test_cases]
-        results = await asyncio.gather(*tasks)
+    # Separate test cases into cached and uncached
+    tests_to_run = []
+    cached_results = []
 
-    # Sort results to match the original order of test cases
-    results_map = {res["question"]: res for res in results}
-    ordered_results = [
-        results_map[tc["case"]["input"]] for tc in test_cases if tc["case"]["input"] in results_map
-    ]
+    for test_case in test_cases:
+        question = test_case["case"]["input"]
+        if question in cache and is_test_successful(cache[question].get("classification", "")):
+            # Use cached result for successful tests
+            cached_results.append(cache[question])
+            print(f"Using cached result for: {test_case['case']['name']}")
+        else:
+            # Need to run this test
+            tests_to_run.append(test_case)
+
+    # Run uncached tests
+    new_results = []
+    if tests_to_run:
+        # Initialize LLM
+        llm = get_llm()
+        async with mcp_client:
+            tasks = [
+                run_test_case(semaphore, mcp_client, test_case, llm) for test_case in tests_to_run
+            ]
+            new_results = await asyncio.gather(*tasks)
+
+    # Combine cached and new results, maintaining order
+    all_results = []
+    new_results_map = {res["question"]: res for res in new_results}
+
+    for test_case in test_cases:
+        question = test_case["case"]["input"]
+        if question in new_results_map:
+            all_results.append(new_results_map[question])
+        else:
+            # Must be from cache
+            for cached_result in cached_results:
+                if cached_result["question"] == question:
+                    all_results.append(cached_result)
+                    break
+
+    # Update cache with new results
+    updated_cache = cache.copy()
+    for result in new_results:
+        if is_test_successful(result.get("classification", "")):
+            updated_cache[result["question"]] = result
+
+    # Save updated cache
+    if new_results:
+        save_cache(updated_cache)
+        print(f"Cache updated with {len(new_results)} new results")
 
     # Generate HTML report and open in browser
     try:
-        html_path = generate_html_report(ordered_results)
+        html_path = generate_html_report(all_results)
         open_in_browser(html_path)
     except Exception as e:
         print(f"--- Error generating HTML or opening browser: {e} ---")
