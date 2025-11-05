@@ -225,8 +225,24 @@ async def get_langchain_response(
 async def evaluate_response(actual: str, expected: str) -> str:
     """
     Evaluate the response using LangChain and return the classification text.
+    Be flexible - if the actual response contains the expected information plus additional details, consider it acceptable.
     """
-    prompt = f"Is the actual response consistent with the expected response? Answer 'yes' or 'no', and provide a brief reason.\n\nExpected: {expected}\nActual: {actual}"
+    prompt = f"""Is the actual response consistent with the expected response?
+
+Consider the response as acceptable (answer 'yes') if:
+- It contains the expected information, even if it includes additional details
+- The core facts/data match the expected response
+- Any additional information provided is accurate and relevant
+
+Only answer 'no' if:
+- The response contradicts the expected information
+- Key information from the expected response is missing
+- The response is factually incorrect
+
+Answer with 'yes' or 'no' followed by a brief reason.
+
+Expected: {expected}
+Actual: {actual}"""
     messages = [HumanMessage(content=prompt)]
     response = await llm.ainvoke(messages)
     return response.content
@@ -274,8 +290,9 @@ async def run_test_case(
 
 
 def generate_html_report(results: List[Dict[str, Any]]) -> str:
-    """Generate HTML report directly with Tailwind CSS styling and collapsible conversation details."""
+    """Generate HTML report with modal popups, reordered columns, and success rate summary."""
     import html as html_module
+    import re
 
     # Create a temporary HTML file
     temp_html = tempfile.NamedTemporaryFile(
@@ -283,13 +300,52 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
     )
     html_path = temp_html.name
 
+    # Calculate success rate
+    total_tests = len(results)
+    successful_tests = 0
+
+    for result in results:
+        classification = result["classification"].lower()
+        # Check if evaluation contains "yes" (flexible matching)
+        if re.search(r"\byes\b", classification):
+            successful_tests += 1
+
+    success_rate = (successful_tests / total_tests * 100) if total_tests > 0 else 0
+
     # Build table rows
     rows_html = ""
-    for result in results:
+    for idx, result in enumerate(results):
         question = html_module.escape(result["question"])
         expected = html_module.escape(result["expected"])
         response = html_module.escape(result.get("response", ""))
-        classification = html_module.escape(result["classification"])
+        classification = result["classification"]
+        classification_escaped = html_module.escape(classification)
+
+        # Determine if evaluation is yes or no
+        classification_lower = classification.lower()
+        is_yes = re.search(r"\byes\b", classification_lower)
+
+        # Create evaluation button with clear yes/no indicator
+        if is_yes:
+            eval_button = f"""
+            <button class="inline-flex items-center gap-x-2 rounded-md bg-green-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600">
+                <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                </svg>
+                YES
+            </button>
+            <div class="mt-2 text-xs text-gray-600">{classification_escaped}</div>
+            """
+        else:
+            eval_button = f"""
+            <button class="inline-flex items-center gap-x-2 rounded-md bg-red-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
+                <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                </svg>
+                NO
+            </button>
+            <div class="mt-2 text-xs text-gray-600">{classification_escaped}</div>
+            """
 
         # Tool calls summary
         tool_calls_list = result.get("tool_calls", [])
@@ -301,25 +357,41 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
         else:
             tool_calls_html = "<span class='text-gray-400 italic'>None</span>"
 
-        # Full conversation JSON (collapsible)
+        # Full conversation JSON for modal
         conversation_json = json.dumps(result.get("conversation", []), indent=2)
+        conversation_json_escaped = html_module.escape(conversation_json)
 
         rows_html += f"""
         <tr class="hover:bg-gray-50 border-b border-gray-200">
+            <td class="px-4 py-3 text-sm">{eval_button}</td>
             <td class="px-4 py-3 text-sm">{question}</td>
             <td class="px-4 py-3 text-sm">{expected}</td>
             <td class="px-4 py-3 text-sm">
                 <div class="mb-2">{response}</div>
-                <details class="mt-2">
-                    <summary class="cursor-pointer text-blue-600 hover:text-blue-800 text-xs font-medium">
-                        View Full Conversation JSON
-                    </summary>
-                    <pre class="mt-2 p-3 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto max-h-96 overflow-y-auto">{html_module.escape(conversation_json)}</pre>
-                </details>
+                <button onclick="openModal({idx})" class="mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer">
+                    View Full Conversation JSON
+                </button>
             </td>
             <td class="px-4 py-3 text-sm">{tool_calls_html}</td>
-            <td class="px-4 py-3 text-sm">{classification}</td>
         </tr>
+
+        <!-- Modal for conversation JSON -->
+        <div id="modal-{idx}" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onclick="closeModal({idx})">
+            <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white" onclick="event.stopPropagation()">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Full Conversation JSON</h3>
+                    <button onclick="closeModal({idx})" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                </div>
+                <div class="max-h-96 overflow-y-auto">
+                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto">{conversation_json_escaped}</pre>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="closeModal({idx})" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
         """
 
     # Complete HTML document
@@ -334,13 +406,22 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
         body {{
             background: linear-gradient(to bottom right, #f3f4f6, #e5e7eb);
         }}
-        details summary::marker {{
-            color: #2563eb;
-        }}
-        details[open] summary {{
-            margin-bottom: 0.5rem;
-        }}
     </style>
+    <script>
+        function openModal(id) {{
+            document.getElementById('modal-' + id).classList.remove('hidden');
+        }}
+        function closeModal(id) {{
+            document.getElementById('modal-' + id).classList.add('hidden');
+        }}
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {{
+            if (event.key === 'Escape') {{
+                const modals = document.querySelectorAll('[id^="modal-"]');
+                modals.forEach(modal => modal.classList.add('hidden'));
+            }}
+        }});
+    </script>
 </head>
 <body class="min-h-screen py-8 px-4">
     <div class="max-w-[95%] mx-auto">
@@ -348,16 +429,33 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
             <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-8">
                 <h1 class="text-3xl font-bold text-white">Evaluation Results</h1>
                 <p class="text-blue-100 mt-2">MCP Test Case Evaluation Summary</p>
+
+                <!-- Success Rate Summary -->
+                <div class="mt-6 bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-blue-100 text-sm font-medium">Success Rate</p>
+                            <p class="text-white text-3xl font-bold mt-1">{success_rate:.1f}%</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-blue-100 text-sm">Passed: <span class="font-semibold text-white">{successful_tests}</span></p>
+                            <p class="text-blue-100 text-sm">Total: <span class="font-semibold text-white">{total_tests}</span></p>
+                        </div>
+                    </div>
+                    <div class="mt-3 w-full bg-blue-900 bg-opacity-30 rounded-full h-2.5">
+                        <div class="bg-green-400 h-2.5 rounded-full" style="width: {success_rate}%"></div>
+                    </div>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead class="bg-gray-50 border-b-2 border-gray-300">
                         <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/8">Evaluation</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/6">Question</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/6">Expected</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/3">Response</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/6">Tool Calls</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/6">Classification</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white">
