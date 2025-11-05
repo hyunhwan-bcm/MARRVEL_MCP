@@ -40,6 +40,13 @@ import tiktoken
 
 from server import create_server
 
+
+class TokenLimitExceeded(Exception):
+    def __init__(self, token_count: int):
+        super().__init__(f"TOKEN_LIMIT_EXCEEDED: {token_count}")
+        self.token_count = token_count
+
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -192,20 +199,11 @@ async def get_langchain_response(
                     else:
                         content = json.dumps(tool_result.data, default=str)
 
-                        # Validate token count for tool result
-                        is_valid, token_count = validate_token_count(content)
-                        if not is_valid:
-                            # Truncate the content if it's too long
-                            warning_msg = f"[WARNING: Tool result truncated - original size was {token_count:,} tokens, which exceeds the {MAX_TOKENS:,} token limit]\n\n"
-                            # Keep only first portion that fits within limit
-                            encoding = tiktoken.get_encoding("cl100k_base")
-                            tokens = encoding.encode(content)
-                            truncated_tokens = tokens[: MAX_TOKENS - 100]  # Leave room for warning
-                            content = (
-                                warning_msg
-                                + encoding.decode(truncated_tokens)
-                                + "\n\n[... content truncated ...]"
-                            )
+                    # Validate token count for tool result (regardless of original type)
+                    is_valid, token_count = validate_token_count(content)
+                    if not is_valid:
+                        # Stop evaluation immediately and signal token exceed
+                        raise TokenLimitExceeded(token_count)
 
                     # Create LangChain ToolMessage
                     tool_message = ToolMessage(
@@ -224,8 +222,11 @@ async def get_langchain_response(
                             "content": content,
                         }
                     )
+                except TokenLimitExceeded:
+                    # Re-raise TokenLimitExceeded to stop evaluation immediately
+                    raise
                 except Exception as e:
-                    # Handle tool execution error
+                    # Handle tool execution error (but not TokenLimitExceeded)
                     error_content = json.dumps({"error": str(e)})
                     tool_message = ToolMessage(
                         content=error_content,
@@ -334,6 +335,20 @@ async def run_test_case(
                 "conversation": full_conversation,
                 "tokens_used": tokens_used,
             }
+        except TokenLimitExceeded as e:
+            # Stop evaluation completely and mark as NO due to token exceed
+            print(
+                f"--- Token limit exceeded for {name}: {e.token_count:,} > {MAX_TOKENS:,}. Skipping LLM evaluation. ---"
+            )
+            return {
+                "question": user_input,
+                "expected": expected,
+                "response": "",  # No response since we skipped evaluation
+                "classification": f"no - token count exceeded: {e.token_count:,} > {MAX_TOKENS:,}. Please reduce the input/context.",
+                "tool_calls": [],
+                "conversation": [],
+                "tokens_used": e.token_count,
+            }
         except Exception as e:
             print(f"--- Error in {name}: {e} ---")
             return {
@@ -422,14 +437,12 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
         rows_html += f"""
         <tr class="hover:bg-gray-50 border-b border-gray-200">
             <td class="px-4 py-3 text-sm">{eval_button}</td>
-            <td class="px-4 py-3 text-sm">
-                <div>{question}</div>
-                <div class="mt-1 text-xs text-gray-500">Tokens: <span class="font-medium">{tokens_used:,}</span></div>
-            </td>
+            <td class="px-4 py-3 text-sm">{tokens_used:,}</td>
+            <td class="px-4 py-3 text-sm">{question}</td>
             <td class="px-4 py-3 text-sm">{expected}</td>
             <td class="px-4 py-3 text-sm">
                 <div class="mb-2">{response}</div>
-                <button onclick="openModal({idx})" class="mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer">
+                <button onclick=\"openModal({idx})\" class=\"mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer\">
                     View Full Conversation JSON
                 </button>
             </td>
@@ -513,6 +526,7 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
                     <thead class="bg-gray-50 border-b-2 border-gray-300">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/8">Evaluation</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/12">Tokens</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/6">Question</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/6">Expected</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/3">Response</th>
