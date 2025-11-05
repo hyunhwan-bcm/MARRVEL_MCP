@@ -530,7 +530,7 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
 
     # Load HTML template from assets directory
     template_path = Path(__file__).parent.parent / "assets" / "evaluation_report_template.html"
-    with open(template_path, "r") as f:
+    with open(template_path, "r", encoding="utf-8") as f:
         html_template = f.read()
 
     # Replace placeholders with actual values
@@ -638,7 +638,7 @@ async def main():
 
     # Load test cases
     test_cases_path = Path(__file__).parent / "test_cases.yaml"
-    with open(test_cases_path, "r") as f:
+    with open(test_cases_path, "r", encoding="utf-8") as f:
         test_cases = yaml.safe_load(f)
 
     # Filter test cases if subset is specified
