@@ -418,7 +418,6 @@ async def get_clinvar_by_variant(
 ) -> str:
     try:
         variant = f"{chr}:{pos} {ref}>{alt}"
-        variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(
             f"""
             query MyQuery {{
