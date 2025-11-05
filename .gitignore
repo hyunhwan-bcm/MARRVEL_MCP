@@ -58,3 +58,6 @@ test-output/
 *.tmp
 temp/
 llms.txt
+
+# Cache directories
+mcp-llm-test/.cache/

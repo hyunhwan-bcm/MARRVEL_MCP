@@ -19,6 +19,7 @@ References:
 - Evaluation: https://docs.langchain.com/oss/python/langchain/overview
 """
 
+import argparse
 import asyncio
 import json
 import os
@@ -26,6 +27,7 @@ import sys
 import tempfile
 import uuid
 import webbrowser
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 # Add project root to the Python path
@@ -50,24 +52,31 @@ class TokenLimitExceeded(Exception):
 # Load environment variables from .env file
 load_dotenv()
 
-# Configure API keys
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-if not OPENROUTER_API_KEY:
-    raise ValueError(
-        "OPENROUTER_API_KEY not found in environment variables. "
-        "Please set it in a .env file or export it as an environment variable."
-    )
-
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
-# Configure LangChain ChatOpenAI with OpenRouter
-llm = ChatOpenAI(
-    model=MODEL,
-    openai_api_base="https://openrouter.ai/api/v1",
-    openai_api_key=OPENROUTER_API_KEY,
-    temperature=0,
-)
+# Cache configuration
+CACHE_DIR = Path(__file__).parent / ".cache"
+CACHE_FILE = CACHE_DIR / "test_results_cache.json"
+
+
+def get_llm():
+    """Get configured LLM instance with API key validation."""
+    # Configure API keys
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+    if not OPENROUTER_API_KEY:
+        raise ValueError(
+            "OPENROUTER_API_KEY not found in environment variables. "
+            "Please set it in a .env file or export it as an environment variable."
+        )
+
+    # Configure LangChain ChatOpenAI with OpenRouter
+    return ChatOpenAI(
+        model=MODEL,
+        openai_api_base="https://openrouter.ai/api/v1",
+        openai_api_key=OPENROUTER_API_KEY,
+        temperature=0,
+    )
 
 
 def count_tokens(text: str, model: str = "gpt-4") -> int:
@@ -90,6 +99,44 @@ def validate_token_count(text: str, max_tokens: int = MAX_TOKENS) -> Tuple[bool,
     """
     token_count = count_tokens(text)
     return token_count <= max_tokens, token_count
+
+
+def load_cache() -> Dict[str, Any]:
+    """Load cached test results from disk."""
+    if CACHE_FILE.exists():
+        try:
+            with open(CACHE_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Failed to load cache: {e}")
+            return {}
+    return {}
+
+
+def save_cache(cache: Dict[str, Any]) -> None:
+    """Save test results to cache."""
+    CACHE_DIR.mkdir(exist_ok=True)
+    try:
+        with open(CACHE_FILE, "w") as f:
+            json.dump(cache, f, indent=2)
+    except IOError as e:
+        print(f"Warning: Failed to save cache: {e}")
+
+
+def clear_cache() -> None:
+    """Remove the cache file."""
+    if CACHE_FILE.exists():
+        CACHE_FILE.unlink()
+        print(f"Cache cleared: {CACHE_FILE}")
+    else:
+        print("No cache to clear.")
+
+
+def is_test_successful(classification: str) -> bool:
+    """Check if a test result is successful based on classification."""
+    import re
+
+    return bool(re.search(r"\byes\b", classification.lower()))
 
 
 def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
@@ -137,6 +184,7 @@ async def get_langchain_response(
         print(f"  First tool structure: {json.dumps(available_tools[0], indent=2)[:500]}...")
 
     # Bind tools to LLM
+    llm = get_llm()
     llm_with_tools = llm.bind_tools(available_tools)
 
     # Store initial messages in conversation history
@@ -301,6 +349,7 @@ Actual: {actual}"""
         return f"no - Evaluation skipped: Input token count ({token_count:,}) exceeds maximum allowed ({MAX_TOKENS:,}). The response or context is excessively long. Please reduce the input size."
 
     messages = [HumanMessage(content=prompt)]
+    llm = get_llm()
     response = await llm.ainvoke(messages)
     return response.content
 
@@ -309,14 +358,32 @@ async def run_test_case(
     semaphore: asyncio.Semaphore,
     mcp_client: Client,
     test_case: Dict[str, Any],
+    cache: Dict[str, Any],
+    force: bool = False,
 ) -> Dict[str, Any]:
     """
     Runs a single test case and returns the results for the table.
+
+    Args:
+        semaphore: Concurrency control semaphore
+        mcp_client: MCP client for tool calls
+        test_case: Test case dictionary with input and expected output
+        cache: Cache dictionary for storing/retrieving results
+        force: If True, ignore cached successful results and rerun
     """
     async with semaphore:
         name = test_case["case"]["name"]
         user_input = test_case["case"]["input"]
         expected = test_case["case"]["expected"]
+
+        # Check cache for existing result
+        cache_key = f"{user_input}||{expected}"
+        if cache_key in cache and not force:
+            cached_result = cache[cache_key]
+            # Only use cached result if it was successful (unless force is True)
+            if is_test_successful(cached_result.get("classification", "")):
+                print(f"--- Using cached result for: {name} ---")
+                return cached_result
 
         print(f"--- Running: {name} ---")
 
@@ -326,7 +393,7 @@ async def run_test_case(
             )
             classification = await evaluate_response(langchain_response, expected)
             print(f"--- Finished: {name} ---")
-            return {
+            result = {
                 "question": user_input,
                 "expected": expected,
                 "response": langchain_response,
@@ -335,12 +402,15 @@ async def run_test_case(
                 "conversation": full_conversation,
                 "tokens_used": tokens_used,
             }
+            # Cache the result
+            cache[cache_key] = result
+            return result
         except TokenLimitExceeded as e:
             # Stop evaluation completely and mark as NO due to token exceed
             print(
                 f"--- Token limit exceeded for {name}: {e.token_count:,} > {MAX_TOKENS:,}. Skipping LLM evaluation. ---"
             )
-            return {
+            result = {
                 "question": user_input,
                 "expected": expected,
                 "response": "",  # No response since we skipped evaluation
@@ -349,9 +419,12 @@ async def run_test_case(
                 "conversation": [],
                 "tokens_used": e.token_count,
             }
+            # Cache the error result (don't rerun token-exceeded tests)
+            cache[cache_key] = result
+            return result
         except Exception as e:
             print(f"--- Error in {name}: {e} ---")
-            return {
+            result = {
                 "question": user_input,
                 "expected": expected,
                 "response": "**No response generated due to error.**",
@@ -359,6 +432,8 @@ async def run_test_case(
                 "tool_calls": [],
                 "conversation": [],
             }
+            # Don't cache error results, allow retry on next run
+            return result
 
 
 def generate_html_report(results: List[Dict[str, Any]]) -> str:
@@ -494,10 +569,21 @@ def open_in_browser(html_path: str):
     print(f"--- Opened {html_path} in browser ---")
 
 
-async def main():
+async def main(clear: bool = False, force: bool = False):
     """
     Main function to run the evaluation concurrently.
+
+    Args:
+        clear: If True, clear the cache before running tests
+        force: If True, ignore cached successful results and rerun all tests
     """
+    # Handle cache clearing
+    if clear:
+        clear_cache()
+
+    # Load cache
+    cache = load_cache()
+
     # Load test cases
     with open("../mcp-llm-test/test_cases.yaml", "r") as f:
         test_cases = yaml.safe_load(f)
@@ -510,8 +596,14 @@ async def main():
     semaphore = asyncio.Semaphore(4)
 
     async with mcp_client:
-        tasks = [run_test_case(semaphore, mcp_client, test_case) for test_case in test_cases]
+        tasks = [
+            run_test_case(semaphore, mcp_client, test_case, cache, force)
+            for test_case in test_cases
+        ]
         results = await asyncio.gather(*tasks)
+
+    # Save updated cache
+    save_cache(cache)
 
     # Sort results to match the original order of test cases
     results_map = {res["question"]: res for res in results}
@@ -528,4 +620,34 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(
+        description="MCP LLM Evaluation Script with caching support",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run tests normally (use cache for successful results)
+  python evaluate_mcp.py
+  
+  # Clear cache and run all tests fresh
+  python evaluate_mcp.py --clear
+  
+  # Ignore cache and rerun all tests (but still save results)
+  python evaluate_mcp.py --force
+  
+  # Clear cache and force rerun of all tests
+  python evaluate_mcp.py --clear --force
+        """,
+    )
+    parser.add_argument(
+        "--clear",
+        action="store_true",
+        help="Remove existing cache before starting tests, guaranteeing a fresh run and cache population",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignore success entries in cache and rerun all jobs regardless of earlier results",
+    )
+
+    args = parser.parse_args()
+    asyncio.run(main(clear=args.clear, force=args.force))
