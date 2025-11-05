@@ -52,7 +52,7 @@ if not OPENROUTER_API_KEY:
     )
 
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
-MAX_TOKENS = 50000  # Maximum tokens allowed for evaluation to prevent API errors
+MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
 # Configure LangChain ChatOpenAI with OpenRouter
 llm = ChatOpenAI(
@@ -104,7 +104,7 @@ def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
 
 async def get_langchain_response(
     mcp_client: Client, user_input: str
-) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int]:
     """
     Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
     Returns: (final_response, tool_history, full_conversation)
@@ -246,7 +246,13 @@ async def get_langchain_response(
             # No more tool calls - we have the final response
             final_content = response.content if hasattr(response, "content") else str(response)
             conversation.append({"role": "assistant", "content": final_content})
-            return final_content, tool_history, conversation
+            # Compute total tokens used based on conversation contents
+            try:
+                conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+                tokens_total = count_tokens(conv_text)
+            except Exception:
+                tokens_total = 0
+            return final_content, tool_history, conversation, tokens_total
 
     # If we hit max iterations without getting a final response, return the last message
     # Note: messages should never be empty here as we start with 2 messages and append responses
@@ -258,7 +264,12 @@ async def get_langchain_response(
 
     # Always append to conversation for consistency
     conversation.append({"role": "assistant", "content": final_content})
-    return final_content, tool_history, conversation
+    try:
+        conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+        tokens_total = count_tokens(conv_text)
+    except Exception:
+        tokens_total = 0
+    return final_content, tool_history, conversation, tokens_total
 
 
 async def evaluate_response(actual: str, expected: str) -> str:
@@ -309,8 +320,8 @@ async def run_test_case(
         print(f"--- Running: {name} ---")
 
         try:
-            langchain_response, tool_history, full_conversation = await get_langchain_response(
-                mcp_client, user_input
+            langchain_response, tool_history, full_conversation, tokens_used = (
+                await get_langchain_response(mcp_client, user_input)
             )
             classification = await evaluate_response(langchain_response, expected)
             print(f"--- Finished: {name} ---")
@@ -321,6 +332,7 @@ async def run_test_case(
                 "classification": classification,
                 "tool_calls": tool_history,
                 "conversation": full_conversation,
+                "tokens_used": tokens_used,
             }
         except Exception as e:
             print(f"--- Error in {name}: {e} ---")
@@ -365,6 +377,7 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
         response = html_module.escape(result.get("response", ""))
         classification = result["classification"]
         classification_escaped = html_module.escape(classification)
+        tokens_used = result.get("tokens_used", 0)
 
         # Determine if evaluation is yes or no
         classification_lower = classification.lower()
@@ -409,7 +422,10 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
         rows_html += f"""
         <tr class="hover:bg-gray-50 border-b border-gray-200">
             <td class="px-4 py-3 text-sm">{eval_button}</td>
-            <td class="px-4 py-3 text-sm">{question}</td>
+            <td class="px-4 py-3 text-sm">
+                <div>{question}</div>
+                <div class="mt-1 text-xs text-gray-500">Tokens: <span class="font-medium">{tokens_used:,}</span></div>
+            </td>
             <td class="px-4 py-3 text-sm">{expected}</td>
             <td class="px-4 py-3 text-sm">
                 <div class="mb-2">{response}</div>
