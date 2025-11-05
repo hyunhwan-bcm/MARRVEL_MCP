@@ -86,6 +86,7 @@ Ask your AI assistant natural language questions:
 - **[Architecture](docs/ARCHITECTURE.md)** - Technical details
 - **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines
 - **[OpenAI Integration](examples/openai/README.md)** - Using with OpenAI
+- **[MCP LLM Evaluation](mcp-llm-test/README.md)** - LLM-based testing framework
 
 ## Development
 
@@ -98,6 +99,10 @@ pytest tests/
 
 # Format code
 black .
+
+# Run LLM evaluation (requires OPENROUTER_API_KEY)
+cd mcp-llm-test
+python evaluate_mcp.py
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development instructions.
