@@ -35,9 +35,7 @@ import yaml
 from dotenv import load_dotenv
 from fastmcp.client import Client
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
-from langchain_core.tools import tool as langchain_tool
-from langchain_core.utils.function_calling import convert_to_openai_tool
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 from server import create_server
 
@@ -205,13 +203,14 @@ async def get_langchain_response(
             conversation.append({"role": "assistant", "content": final_content})
             return final_content, tool_history, conversation
 
-    # If we hit max iterations, return what we have
-    if messages:
-        final_content = (
-            messages[-1].content if hasattr(messages[-1], "content") else str(messages[-1])
-        )
+    # If we hit max iterations without getting a final response, return the last message
+    # Note: messages should never be empty here as we start with 2 messages and append responses
+    if len(messages) > 2:  # More than just system and user messages
+        last_msg = messages[-1]
+        final_content = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+        conversation.append({"role": "assistant", "content": final_content})
     else:
-        final_content = "No response generated (empty messages list)"
+        final_content = "No response generated after max iterations"
     return final_content, tool_history, conversation
 
 
