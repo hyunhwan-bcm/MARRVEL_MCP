@@ -134,7 +134,21 @@ def clear_cache() -> None:
 
 
 def is_test_successful(classification: str) -> bool:
-    """Check if a test result is successful based on classification."""
+    """
+    Check if a test result is successful based on classification.
+
+    A test is considered successful if the classification contains the word 'yes'
+    (case-insensitive). The LLM evaluation typically returns responses like:
+    - "yes - matches expected"
+    - "YES - correct"
+    - "The answer is yes"
+
+    Args:
+        classification: The classification string from evaluate_response()
+
+    Returns:
+        True if the classification indicates success, False otherwise
+    """
     return bool(re.search(r"\byes\b", classification.lower()))
 
 
@@ -376,6 +390,8 @@ async def run_test_case(
         expected = test_case["case"]["expected"]
 
         # Check cache for existing result
+        # Cache key format: "question||expected"
+        # Using || as separator since it's unlikely to appear in test case text
         cache_key = f"{user_input}||{expected}"
         if cache_key in cache and not force:
             cached_result = cache[cache_key]
