@@ -36,7 +36,7 @@
 
 - case:
     name: "ClinVar records for NUTM2G"
-    input: "Are there any ClinVar records associated with NUTM2G?"
+    input: "Are there any ClinVar variants associated with NUTM2G? If so, how many?"
     expected: "Yes, NUTM2G has 99 reported variants in ClinVar."
 
 - case:
