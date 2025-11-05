@@ -29,6 +29,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 import tempfile
 import uuid
@@ -118,8 +119,6 @@ def clear_cache() -> None:
 
 def is_test_successful(classification: str) -> bool:
     """Check if a test result is successful based on classification."""
-    import re
-
     return bool(re.search(r"\byes\b", classification.lower()))
 
 
@@ -555,6 +554,9 @@ def parse_subset(subset_str: str) -> List[int]:
         "1" -> [1]
         "1,2,4" -> [1, 2, 4]
         "1-5" -> [1, 2, 3, 4, 5]
+
+    Raises:
+        ValueError: If the subset string format is invalid
     """
     indices = []
     parts = subset_str.split(",")
@@ -562,11 +564,28 @@ def parse_subset(subset_str: str) -> List[int]:
         part = part.strip()
         if "-" in part:
             # Range: "1-5"
-            start, end = part.split("-")
-            indices.extend(range(int(start), int(end) + 1))
+            range_parts = part.split("-", 1)  # Limit to one split
+            if len(range_parts) != 2:
+                raise ValueError(f"Invalid range format: '{part}'")
+            try:
+                start = int(range_parts[0].strip())
+                end = int(range_parts[1].strip())
+            except ValueError as e:
+                raise ValueError(f"Invalid range format: '{part}' - values must be integers") from e
+            if start > end:
+                raise ValueError(f"Invalid range: start ({start}) must be <= end ({end})")
+            if start < 1:
+                raise ValueError(f"Invalid range: indices must be >= 1, got {start}")
+            indices.extend(range(start, end + 1))
         else:
             # Single number: "1"
-            indices.append(int(part))
+            try:
+                num = int(part)
+            except ValueError as e:
+                raise ValueError(f"Invalid number format: '{part}' - must be an integer") from e
+            if num < 1:
+                raise ValueError(f"Invalid index: must be >= 1, got {num}")
+            indices.append(num)
     return sorted(set(indices))  # Remove duplicates and sort
 
 

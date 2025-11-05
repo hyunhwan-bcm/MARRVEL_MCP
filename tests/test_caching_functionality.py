@@ -77,6 +77,38 @@ def test_parse_subset_duplicates():
     assert result == [1, 2, 3]
 
 
+def test_parse_subset_invalid_range():
+    """Test that invalid range formats raise ValueError."""
+    with pytest.raises(ValueError, match="Invalid range"):
+        parse_subset("5-1")  # start > end
+
+    with pytest.raises(ValueError, match="Invalid range format"):
+        parse_subset("a-5")  # non-numeric start
+
+    with pytest.raises(ValueError, match="Invalid range format"):
+        parse_subset("1-b")  # non-numeric end
+
+
+def test_parse_subset_invalid_number():
+    """Test that invalid number formats raise ValueError."""
+    with pytest.raises(ValueError, match="Invalid number format"):
+        parse_subset("abc")
+
+    with pytest.raises(ValueError, match="Invalid number format"):
+        parse_subset("1,2,xyz,4")
+
+
+def test_parse_subset_negative_numbers():
+    """Test that negative numbers are rejected."""
+    # Single negative number is interpreted as a range with empty start
+    with pytest.raises(ValueError, match="Invalid range format"):
+        parse_subset("-1")
+
+    # Range with negative numbers
+    with pytest.raises(ValueError, match="Invalid range format|Invalid range"):
+        parse_subset("-1--5")
+
+
 def test_is_test_successful_with_yes():
     """Test that classifications with 'yes' are recognized as successful."""
     assert is_test_successful("yes, the response is correct")
