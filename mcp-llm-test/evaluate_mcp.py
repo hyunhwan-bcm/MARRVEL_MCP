@@ -36,8 +36,16 @@ from dotenv import load_dotenv
 from fastmcp.client import Client
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+import tiktoken
 
 from server import create_server
+
+
+class TokenLimitExceeded(Exception):
+    def __init__(self, token_count: int):
+        super().__init__(f"TOKEN_LIMIT_EXCEEDED: {token_count}")
+        self.token_count = token_count
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -51,6 +59,7 @@ if not OPENROUTER_API_KEY:
     )
 
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
+MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
 # Configure LangChain ChatOpenAI with OpenRouter
 llm = ChatOpenAI(
@@ -59,6 +68,28 @@ llm = ChatOpenAI(
     openai_api_key=OPENROUTER_API_KEY,
     temperature=0,
 )
+
+
+def count_tokens(text: str, model: str = "gpt-4") -> int:
+    """
+    Count the number of tokens in a text string using tiktoken.
+    Uses gpt-4 encoding as a reasonable approximation for most models.
+    """
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        # Fallback to cl100k_base encoding if model not found
+        encoding = tiktoken.get_encoding("cl100k_base")
+    return len(encoding.encode(text))
+
+
+def validate_token_count(text: str, max_tokens: int = MAX_TOKENS) -> Tuple[bool, int]:
+    """
+    Validate that text doesn't exceed maximum token count.
+    Returns (is_valid, token_count)
+    """
+    token_count = count_tokens(text)
+    return token_count <= max_tokens, token_count
 
 
 def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
@@ -80,7 +111,7 @@ def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
 
 async def get_langchain_response(
     mcp_client: Client, user_input: str
-) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int]:
     """
     Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
     Returns: (final_response, tool_history, full_conversation)
@@ -168,6 +199,12 @@ async def get_langchain_response(
                     else:
                         content = json.dumps(tool_result.data, default=str)
 
+                    # Validate token count for tool result (regardless of original type)
+                    is_valid, token_count = validate_token_count(content)
+                    if not is_valid:
+                        # Stop evaluation immediately and signal token exceed
+                        raise TokenLimitExceeded(token_count)
+
                     # Create LangChain ToolMessage
                     tool_message = ToolMessage(
                         content=content,
@@ -185,8 +222,11 @@ async def get_langchain_response(
                             "content": content,
                         }
                     )
+                except TokenLimitExceeded:
+                    # Re-raise TokenLimitExceeded to stop evaluation immediately
+                    raise
                 except Exception as e:
-                    # Handle tool execution error
+                    # Handle tool execution error (but not TokenLimitExceeded)
                     error_content = json.dumps({"error": str(e)})
                     tool_message = ToolMessage(
                         content=error_content,
@@ -207,7 +247,13 @@ async def get_langchain_response(
             # No more tool calls - we have the final response
             final_content = response.content if hasattr(response, "content") else str(response)
             conversation.append({"role": "assistant", "content": final_content})
-            return final_content, tool_history, conversation
+            # Compute total tokens used based on conversation contents
+            try:
+                conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+                tokens_total = count_tokens(conv_text)
+            except Exception:
+                tokens_total = 0
+            return final_content, tool_history, conversation, tokens_total
 
     # If we hit max iterations without getting a final response, return the last message
     # Note: messages should never be empty here as we start with 2 messages and append responses
@@ -219,7 +265,12 @@ async def get_langchain_response(
 
     # Always append to conversation for consistency
     conversation.append({"role": "assistant", "content": final_content})
-    return final_content, tool_history, conversation
+    try:
+        conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+        tokens_total = count_tokens(conv_text)
+    except Exception:
+        tokens_total = 0
+    return final_content, tool_history, conversation, tokens_total
 
 
 async def evaluate_response(actual: str, expected: str) -> str:
@@ -243,6 +294,12 @@ Answer with 'yes' or 'no' followed by a brief reason.
 
 Expected: {expected}
 Actual: {actual}"""
+
+    # Validate token count before making API call
+    is_valid, token_count = validate_token_count(prompt)
+    if not is_valid:
+        return f"no - Evaluation skipped: Input token count ({token_count:,}) exceeds maximum allowed ({MAX_TOKENS:,}). The response or context is excessively long. Please reduce the input size."
+
     messages = [HumanMessage(content=prompt)]
     response = await llm.ainvoke(messages)
     return response.content
@@ -264,8 +321,8 @@ async def run_test_case(
         print(f"--- Running: {name} ---")
 
         try:
-            langchain_response, tool_history, full_conversation = await get_langchain_response(
-                mcp_client, user_input
+            langchain_response, tool_history, full_conversation, tokens_used = (
+                await get_langchain_response(mcp_client, user_input)
             )
             classification = await evaluate_response(langchain_response, expected)
             print(f"--- Finished: {name} ---")
@@ -276,6 +333,21 @@ async def run_test_case(
                 "classification": classification,
                 "tool_calls": tool_history,
                 "conversation": full_conversation,
+                "tokens_used": tokens_used,
+            }
+        except TokenLimitExceeded as e:
+            # Stop evaluation completely and mark as NO due to token exceed
+            print(
+                f"--- Token limit exceeded for {name}: {e.token_count:,} > {MAX_TOKENS:,}. Skipping LLM evaluation. ---"
+            )
+            return {
+                "question": user_input,
+                "expected": expected,
+                "response": "",  # No response since we skipped evaluation
+                "classification": f"no - token count exceeded: {e.token_count:,} > {MAX_TOKENS:,}. Please reduce the input/context.",
+                "tool_calls": [],
+                "conversation": [],
+                "tokens_used": e.token_count,
             }
         except Exception as e:
             print(f"--- Error in {name}: {e} ---")
@@ -321,6 +393,7 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
         response = html_module.escape(result.get("response", ""))
         classification = result["classification"]
         classification_escaped = html_module.escape(classification)
+        tokens_used = result.get("tokens_used", 0)
 
         # Determine if evaluation is yes or no
         classification_lower = classification.lower()
@@ -365,11 +438,12 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
         rows_html += f"""
         <tr class="hover:bg-gray-50 border-b border-gray-200">
             <td class="px-4 py-3 text-sm">{eval_button}</td>
+            <td class="px-4 py-3 text-sm">{tokens_used:,}</td>
             <td class="px-4 py-3 text-sm">{question}</td>
             <td class="px-4 py-3 text-sm">{expected}</td>
             <td class="px-4 py-3 text-sm">
                 <div class="mb-2">{response}</div>
-                <button onclick="openModal({idx})" class="mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer">
+                <button onclick=\"openModal({idx})\" class=\"mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer\">
                     View Full Conversation JSON
                 </button>
             </td>
