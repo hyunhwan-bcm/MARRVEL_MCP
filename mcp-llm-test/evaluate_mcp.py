@@ -36,6 +36,7 @@ from dotenv import load_dotenv
 from fastmcp.client import Client
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+import tiktoken
 
 from server import create_server
 
@@ -51,6 +52,7 @@ if not OPENROUTER_API_KEY:
     )
 
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
+MAX_TOKENS = 50000  # Maximum tokens allowed for evaluation to prevent API errors
 
 # Configure LangChain ChatOpenAI with OpenRouter
 llm = ChatOpenAI(
@@ -59,6 +61,28 @@ llm = ChatOpenAI(
     openai_api_key=OPENROUTER_API_KEY,
     temperature=0,
 )
+
+
+def count_tokens(text: str, model: str = "gpt-4") -> int:
+    """
+    Count the number of tokens in a text string using tiktoken.
+    Uses gpt-4 encoding as a reasonable approximation for most models.
+    """
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        # Fallback to cl100k_base encoding if model not found
+        encoding = tiktoken.get_encoding("cl100k_base")
+    return len(encoding.encode(text))
+
+
+def validate_token_count(text: str, max_tokens: int = MAX_TOKENS) -> Tuple[bool, int]:
+    """
+    Validate that text doesn't exceed maximum token count.
+    Returns (is_valid, token_count)
+    """
+    token_count = count_tokens(text)
+    return token_count <= max_tokens, token_count
 
 
 def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
@@ -168,6 +192,21 @@ async def get_langchain_response(
                     else:
                         content = json.dumps(tool_result.data, default=str)
 
+                        # Validate token count for tool result
+                        is_valid, token_count = validate_token_count(content)
+                        if not is_valid:
+                            # Truncate the content if it's too long
+                            warning_msg = f"[WARNING: Tool result truncated - original size was {token_count:,} tokens, which exceeds the {MAX_TOKENS:,} token limit]\n\n"
+                            # Keep only first portion that fits within limit
+                            encoding = tiktoken.get_encoding("cl100k_base")
+                            tokens = encoding.encode(content)
+                            truncated_tokens = tokens[: MAX_TOKENS - 100]  # Leave room for warning
+                            content = (
+                                warning_msg
+                                + encoding.decode(truncated_tokens)
+                                + "\n\n[... content truncated ...]"
+                            )
+
                     # Create LangChain ToolMessage
                     tool_message = ToolMessage(
                         content=content,
@@ -243,6 +282,12 @@ Answer with 'yes' or 'no' followed by a brief reason.
 
 Expected: {expected}
 Actual: {actual}"""
+
+    # Validate token count before making API call
+    is_valid, token_count = validate_token_count(prompt)
+    if not is_valid:
+        return f"no - Evaluation skipped: Input token count ({token_count:,}) exceeds maximum allowed ({MAX_TOKENS:,}). The response or context is excessively long. Please reduce the input size."
+
     messages = [HumanMessage(content=prompt)]
     response = await llm.ainvoke(messages)
     return response.content
