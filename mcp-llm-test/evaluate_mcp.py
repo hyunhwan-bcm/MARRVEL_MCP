@@ -69,8 +69,8 @@ OPENROUTER_API_KEY = None
 def get_cache_path(test_case_name: str) -> Path:
     """Get the cache file path for a test case."""
     # Use sanitized test case name for filename
-    safe_name = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in test_case_name)
-    safe_name = safe_name.strip().replace(' ', '_')
+    safe_name = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_" for c in test_case_name)
+    safe_name = safe_name.strip().replace(" ", "_")
     return CACHE_DIR / f"{safe_name}.pkl"
 
 
@@ -79,7 +79,7 @@ def load_cached_result(test_case_name: str) -> Dict[str, Any] | None:
     cache_path = get_cache_path(test_case_name)
     if cache_path.exists():
         try:
-            with open(cache_path, 'rb') as f:
+            with open(cache_path, "rb") as f:
                 return pickle.load(f)
         except Exception as e:
             print(f"Warning: Failed to load cache for {test_case_name}: {e}")
@@ -91,7 +91,7 @@ def save_cached_result(test_case_name: str, result: Dict[str, Any]):
     """Save result to cache."""
     cache_path = get_cache_path(test_case_name)
     try:
-        with open(cache_path, 'wb') as f:
+        with open(cache_path, "wb") as f:
             pickle.dump(result, f)
     except Exception as e:
         print(f"Warning: Failed to save cache for {test_case_name}: {e}")
@@ -351,7 +351,7 @@ async def run_test_case(
 ) -> Dict[str, Any]:
     """
     Runs a single test case and returns the results for the table.
-    
+
     Args:
         semaphore: Asyncio semaphore for limiting concurrency
         mcp_client: MCP client for tool calls
@@ -580,28 +580,30 @@ Cache Location:
   
   The cache stores evaluation results to avoid redundant API calls and speed up 
   re-runs. Each test case result is cached separately.
-        """.format(cache_dir=CACHE_DIR)
+        """.format(
+            cache_dir=CACHE_DIR
+        ),
     )
-    
+
     parser.add_argument(
         "--clear",
         action="store_true",
-        help="Clear the cache before running evaluations. Useful for ensuring fresh results."
+        help="Clear the cache before running evaluations. Useful for ensuring fresh results.",
     )
-    
+
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Force re-evaluation of all test cases, ignoring cached results. Cache will be updated with new results."
+        help="Force re-evaluation of all test cases, ignoring cached results. Cache will be updated with new results.",
     )
-    
+
     parser.add_argument(
         "--subset",
         nargs="+",
         metavar="TEST_NAME",
-        help="Run only specific test cases by name. Provide one or more test case names from test_cases.yaml."
+        help="Run only specific test cases by name. Provide one or more test case names from test_cases.yaml.",
     )
-    
+
     return parser.parse_args()
 
 
@@ -610,10 +612,10 @@ async def main():
     Main function to run the evaluation concurrently.
     """
     global llm, OPENROUTER_API_KEY
-    
+
     # Parse command-line arguments
     args = parse_arguments()
-    
+
     # Configure API keys (after argument parsing so --help works)
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
     if not OPENROUTER_API_KEY:
@@ -621,7 +623,7 @@ async def main():
             "OPENROUTER_API_KEY not found in environment variables. "
             "Please set it in a .env file or export it as an environment variable."
         )
-    
+
     # Configure LangChain ChatOpenAI with OpenRouter
     llm = ChatOpenAI(
         model=MODEL,
@@ -629,11 +631,11 @@ async def main():
         openai_api_key=OPENROUTER_API_KEY,
         temperature=0,
     )
-    
+
     # Clear cache if requested
     if args.clear:
         clear_cache()
-    
+
     # Load test cases
     test_cases_path = Path(__file__).parent / "test_cases.yaml"
     with open(test_cases_path, "r") as f:
@@ -645,7 +647,7 @@ async def main():
         original_count = len(test_cases)
         test_cases = [tc for tc in test_cases if tc["case"]["name"] in subset_names]
         print(f"📋 Running subset: {len(test_cases)}/{original_count} test cases")
-        
+
         # Warn about any non-existent test names
         found_names = {tc["case"]["name"] for tc in test_cases}
         missing = subset_names - found_names
@@ -664,7 +666,7 @@ async def main():
 
     async with mcp_client:
         tasks = [
-            run_test_case(semaphore, mcp_client, test_case, use_cache=use_cache) 
+            run_test_case(semaphore, mcp_client, test_case, use_cache=use_cache)
             for test_case in test_cases
         ]
         results = await asyncio.gather(*tasks)
