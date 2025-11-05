@@ -68,12 +68,12 @@
 - case:
     name: "DGV entries"
     input: "Are there any DGV entries for NUTM2G?"
-    expected: "No DGV matches were found."
+    expected: "Yes, there are 16 DGV entries for NUTM2G."
 
 - case:
     name: "DECIPHER control variants"
     input: "Are there any DECIPHER control variants involving NUTM2G?"
-    expected: "Yes, there are 2 control individuals with deletions containing NUTM2G."
+    expected: "Yes, there is 1 control individual with a duplication containing NUTM2G."
 
 - case:
     name: "DIOPT ortholog mouse"
