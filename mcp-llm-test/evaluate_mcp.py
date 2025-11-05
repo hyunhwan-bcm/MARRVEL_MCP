@@ -1,8 +1,30 @@
+"""
+MCP LLM Evaluation Script with LangChain Integration
+
+This script evaluates MCP (Model Context Protocol) tools using LangChain v1 for:
+- Agent-based tool calling with ChatOpenAI (via OpenRouter)
+- Structured message handling (SystemMessage, HumanMessage, ToolMessage)
+- Async LLM invocations with bind_tools() for tool integration
+- Test case evaluation against expected responses
+
+Architecture:
+- LangChain ChatOpenAI configured for OpenRouter API
+- MCP tools exposed via FastMCP client
+- Concurrent test execution with asyncio semaphores
+- HTML report generation with conversation history
+
+References:
+- LangChain with OpenRouter: https://openrouter.ai/docs/community/lang-chain
+- Tool calling: https://docs.langchain.com/oss/python/langchain/overview
+- Evaluation: https://docs.langchain.com/oss/python/langchain/overview
+"""
+
 import asyncio
 import json
 import os
 import sys
 import tempfile
+import uuid
 import webbrowser
 from typing import Any, Dict, List, Tuple
 
@@ -12,7 +34,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import yaml
 from dotenv import load_dotenv
 from fastmcp.client import Client
-from openai import AsyncOpenAI
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 from server import create_server
 
@@ -21,18 +44,25 @@ load_dotenv()
 
 # Configure API keys
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-
-# Configure OpenRouter client
-openrouter_client = AsyncOpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=OPENROUTER_API_KEY,
-)
+if not OPENROUTER_API_KEY:
+    raise ValueError(
+        "OPENROUTER_API_KEY not found in environment variables. "
+        "Please set it in a .env file or export it as an environment variable."
+    )
 
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
 
+# Configure LangChain ChatOpenAI with OpenRouter
+llm = ChatOpenAI(
+    model=MODEL,
+    openai_api_base="https://openrouter.ai/api/v1",
+    openai_api_key=OPENROUTER_API_KEY,
+    temperature=0,
+)
 
-def convert_tool_format(tool: Any) -> Dict[str, Any]:
-    """Converts a FastMCP tool to the OpenAI tool format."""
+
+def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
+    """Converts a FastMCP tool to the LangChain/OpenAI tool format."""
     tool_dict = tool.model_dump(exclude_none=True)
 
     # Get the input schema which contains the parameters
@@ -48,24 +78,26 @@ def convert_tool_format(tool: Any) -> Dict[str, Any]:
     }
 
 
-async def get_openrouter_response(
+async def get_langchain_response(
     mcp_client: Client, user_input: str
 ) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Get response from OpenRouter, handling tool calls via the MCP client.
+    Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
     Returns: (final_response, tool_history, full_conversation)
     """
+    # Initialize LangChain messages
     messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful genetics research assistant. You have access to tools that can query genetic databases and provide accurate information. Always use the available tools to answer questions about genes, variants, and genetic data. Do not make up or guess information - use the tools to get accurate data.",
-        },
-        {"role": "user", "content": user_input},
+        SystemMessage(
+            content="You are a helpful genetics research assistant. You have access to tools that can query genetic databases and provide accurate information. Always use the available tools to answer questions about genes, variants, and genetic data. Do not make up or guess information - use the tools to get accurate data."
+        ),
+        HumanMessage(content=user_input),
     ]
     tool_history = []
+    conversation = []
 
+    # Get MCP tools and convert to LangChain format
     mcp_tools_list = await mcp_client.list_tools()
-    available_tools = [convert_tool_format(tool) for tool in mcp_tools_list]
+    available_tools = [convert_tool_to_langchain_format(tool) for tool in mcp_tools_list]
 
     # Debug: Print available tools count and first tool structure
     print(f"  Available tools: {len(available_tools)}")
@@ -73,78 +105,131 @@ async def get_openrouter_response(
         print(f"  Sample tools: {[t['function']['name'] for t in available_tools[:3]]}")
         print(f"  First tool structure: {json.dumps(available_tools[0], indent=2)[:500]}...")
 
-    while True:
-        response = await openrouter_client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            tools=available_tools,
-            tool_choice="auto",
-        )
-        message = response.choices[0].message
+    # Bind tools to LLM
+    llm_with_tools = llm.bind_tools(available_tools)
 
-        if message.tool_calls:
-            # Convert message to dict for storage
-            message_dict = {
+    # Store initial messages in conversation history
+    conversation.append({"role": "system", "content": messages[0].content})
+    conversation.append({"role": "user", "content": user_input})
+
+    # Helper function to ensure tool call has unique ID
+    def ensure_tool_call_id(tool_call: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure tool call has a unique ID, adding one if needed."""
+        if "id" not in tool_call or not tool_call["id"]:
+            # Create a new dict with the ID added
+            return {**tool_call, "id": f"call_{uuid.uuid4().hex[:12]}"}
+        return tool_call
+
+    # Agentic loop for tool calling
+    max_iterations = 10
+    for iteration in range(max_iterations):
+        # Invoke LLM with current messages
+        response = await llm_with_tools.ainvoke(messages)
+        messages.append(response)
+
+        # Check if there are tool calls
+        if response.tool_calls:
+            # Ensure all tool calls have unique IDs
+            tool_calls_with_ids = [ensure_tool_call_id(tc) for tc in response.tool_calls]
+
+            # Store assistant message with tool calls
+            assistant_msg = {
                 "role": "assistant",
-                "content": message.content,
+                "content": response.content or "",
                 "tool_calls": [
                     {
-                        "id": tc.id,
+                        "id": tc["id"],
                         "type": "function",
-                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                        "function": {
+                            "name": tc["name"],
+                            "arguments": json.dumps(tc["args"]),
+                        },
                     }
-                    for tc in message.tool_calls
+                    for tc in tool_calls_with_ids
                 ],
             }
-            messages.append(message_dict)
+            conversation.append(assistant_msg)
 
-            for tool_call in message.tool_calls:
-                function_name = tool_call.function.name
-                function_args = json.loads(tool_call.function.arguments)
+            # Execute each tool call
+            for tool_call in tool_calls_with_ids:
+                function_name = tool_call["name"]
+                function_args = tool_call["args"]
+                tool_call_id = tool_call["id"]
+
                 tool_history.append({"name": function_name, "args": function_args})
 
                 try:
-                    tool_result = await mcp_client.call_tool(
-                        function_name,
-                        function_args,
-                    )
+                    # Call the MCP tool
+                    tool_result = await mcp_client.call_tool(function_name, function_args)
+
                     # Serialize tool result to JSON string
                     if isinstance(tool_result.data, str):
                         content = tool_result.data
                     else:
-                        # If it's an object, serialize it
                         content = json.dumps(tool_result.data, default=str)
 
-                    tool_response = {
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": function_name,
-                        "content": content,
-                    }
-                    messages.append(tool_response)
+                    # Create LangChain ToolMessage
+                    tool_message = ToolMessage(
+                        content=content,
+                        tool_call_id=tool_call_id,
+                        name=function_name,
+                    )
+                    messages.append(tool_message)
+
+                    # Store in conversation history
+                    conversation.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call_id,
+                            "name": function_name,
+                            "content": content,
+                        }
+                    )
                 except Exception as e:
-                    tool_response = {
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": function_name,
-                        "content": f'{{"error": "{str(e)}"}}',
-                    }
-                    messages.append(tool_response)
+                    # Handle tool execution error
+                    error_content = json.dumps({"error": str(e)})
+                    tool_message = ToolMessage(
+                        content=error_content,
+                        tool_call_id=tool_call_id,
+                        name=function_name,
+                    )
+                    messages.append(tool_message)
+
+                    conversation.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call_id,
+                            "name": function_name,
+                            "content": error_content,
+                        }
+                    )
         else:
-            return message.content, tool_history, messages
+            # No more tool calls - we have the final response
+            final_content = response.content if hasattr(response, "content") else str(response)
+            conversation.append({"role": "assistant", "content": final_content})
+            return final_content, tool_history, conversation
+
+    # If we hit max iterations without getting a final response, return the last message
+    # Note: messages should never be empty here as we start with 2 messages and append responses
+    if len(messages) > 2:  # More than just system and user messages
+        last_msg = messages[-1]
+        final_content = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+    else:
+        final_content = "No response generated after max iterations"
+
+    # Always append to conversation for consistency
+    conversation.append({"role": "assistant", "content": final_content})
+    return final_content, tool_history, conversation
 
 
 async def evaluate_response(actual: str, expected: str) -> str:
     """
-    Evaluate the response with the same model and return the classification text.
+    Evaluate the response using LangChain and return the classification text.
     """
     prompt = f"Is the actual response consistent with the expected response? Answer 'yes' or 'no', and provide a brief reason.\n\nExpected: {expected}\nActual: {actual}"
-    messages = [{"role": "user", "content": prompt}]
-    response = await openrouter_client.chat.completions.create(
-        model=MODEL,
-        messages=messages,
-    )
-    return response.choices[0].message.content
+    messages = [HumanMessage(content=prompt)]
+    response = await llm.ainvoke(messages)
+    return response.content
 
 
 async def run_test_case(
@@ -163,15 +248,15 @@ async def run_test_case(
         print(f"--- Running: {name} ---")
 
         try:
-            openrouter_response, tool_history, full_conversation = await get_openrouter_response(
+            langchain_response, tool_history, full_conversation = await get_langchain_response(
                 mcp_client, user_input
             )
-            classification = await evaluate_response(openrouter_response, expected)
+            classification = await evaluate_response(langchain_response, expected)
             print(f"--- Finished: {name} ---")
             return {
                 "question": user_input,
                 "expected": expected,
-                "response": openrouter_response,
+                "response": langchain_response,
                 "classification": classification,
                 "tool_calls": tool_history,
                 "conversation": full_conversation,
