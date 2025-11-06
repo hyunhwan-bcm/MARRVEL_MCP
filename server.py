@@ -14,7 +14,7 @@ Features:
 - Coordinate conversion (hg19/hg38 liftover)
 - Variant nomenclature tools (HGVS, rsID conversion)
 
-Default genome build: hg19/GRCh37
+Default genome build: hg38/GRCh38
 """
 
 import logging
@@ -251,8 +251,6 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
                     alias
                     chr
                     entrezId
-                    hg19Start
-                    hg19Stop
                     hg38Start
                     hg38Stop
                     hgncId
@@ -285,8 +283,7 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
                     alias
                     chr
                     entrezId
-                    hg19Start
-                    hg19Stop
+                    hg38Start
                     hg38Stop
                     hgncId
                     uniprotKBId
@@ -295,7 +292,6 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
                     status
                     name
                     locusType
-                    hg38Start
                     xref {{
                         ensemblId
                         hgncId
@@ -314,21 +310,19 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
 
 @mcp.tool(
     name="get_gene_by_position",
-    description="Identify genes at a specific chromosomal position in hg19/GRCh37 coordinates",
-    meta={"category": "gene", "version": "1.0", "genome_build": "hg19"},
+    description="Identify genes at a specific chromosomal position in hg38/GRCh38 coordinates",
+    meta={"category": "gene", "version": "1.0", "genome_build": "hg38"},
 )
-async def get_gene_by_position(chromosome: str, position: int, build: str = "hg19") -> str:
+async def get_gene_by_position(chromosome: str, position: int) -> str:
     try:
         data = await fetch_marrvel_data(
             f"""
             query MyQuery {{
-                genesByGenomicLocation(chr: "{chromosome}", posStart: {position}, posStop: {position}, build: "{build}") {{
+                genesByGenomicLocation(chr: "{chromosome}", posStart: {position}, posStop: {position}, build: "hg38") {{
                     alias
                     chr
                     entrezId
-                    hg19Start
                     hg38Start
-                    hg19Stop
                     hg38Stop
                     hgncId
                     locusType
@@ -363,12 +357,12 @@ async def get_gene_by_position(chromosome: str, position: int, build: str = "hg1
     description="Get comprehensive pathogenicity predictions and functional annotations from dbNSFP including SIFT, PolyPhen2, CADD scores",
     meta={"category": "variant", "database": "dbNSFP", "version": "1.0"},
 )
-async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str, build: str) -> str:
+async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
         data = await fetch_marrvel_data(
             f"""
             query MyQuery {{
-                dbnsfpByVariant(build: "{build}", chr: "{chr}", pos: {pos}, alt: "{alt}", ref: "{ref}") {{
+                dbnsfpByVariant(chr: "{chr}", pos: {pos}, alt: "{alt}", ref: "{ref}", build: "hg38") {{
                     scores {{
                         CADD {{
                             phred
@@ -413,15 +407,13 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str, build: str)
     description="Get ClinVar clinical significance and interpretation for a specific variant including pathogenic/benign classification",
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
-async def get_clinvar_by_variant(
-    chr: str, pos: str, ref: str, alt: str, build: str = "hg19"
-) -> str:
+async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
         variant = f"{chr}:{pos} {ref}>{alt}"
         data = await fetch_marrvel_data(
             f"""
             query MyQuery {{
-                clinvarByVariant(variant: "{variant}", build: "{build}") {{
+                clinvarByVariant(variant: "{variant}", build: "hg38") {{
                     uid
                     band
                     condition
@@ -445,7 +437,7 @@ async def get_clinvar_by_variant(
     description="Get all ClinVar variants for a gene by symbol for comprehensive gene-level variant review",
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
-async def get_clinvar_by_gene_symbol(gene_symbol: str, build: str = "hg19") -> str:
+async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
     try:
         data = await fetch_marrvel_data(
             f"""
@@ -456,9 +448,8 @@ async def get_clinvar_by_gene_symbol(gene_symbol: str, build: str = "hg19") -> s
                     alt
                     band
                     chr
-                    {"""start
-                    stop""" if build == "hg19" else """grch38Start
-                    grch38Stop"""}
+                    grch38Start
+                    grch38Stop
                     condition
                     interpretation
                     significance {{
@@ -478,7 +469,7 @@ async def get_clinvar_by_gene_symbol(gene_symbol: str, build: str = "hg19") -> s
     description="Get all ClinVar variants for a gene by Entrez ID with clinical significance data",
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
 )
-async def get_clinvar_by_entrez_id(entrez_id: str, build: str = "hg19") -> str:
+async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
     try:
         data = await fetch_marrvel_data(
             f"""
@@ -489,9 +480,8 @@ async def get_clinvar_by_entrez_id(entrez_id: str, build: str = "hg19") -> str:
                     alt
                     band
                     chr
-                    {"""start
-                    stop""" if build == "hg19" else """grch38Start
-                    grch38Stop"""}
+                    grch38Start
+                    grch38Stop
                     condition
                     interpretation
                     significance {{
