@@ -43,6 +43,7 @@ from jinja2 import Environment, FileSystemLoader
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 import tiktoken
+from tqdm.asyncio import tqdm as atqdm
 
 from server import create_server
 
@@ -235,12 +236,6 @@ async def get_langchain_response(
     mcp_tools_list = await mcp_client.list_tools()
     available_tools = [convert_tool_to_langchain_format(tool) for tool in mcp_tools_list]
 
-    # Debug: Print available tools count and first tool structure
-    print(f"  Available tools: {len(available_tools)}")
-    if len(available_tools) > 0:
-        print(f"  Sample tools: {[t['function']['name'] for t in available_tools[:3]]}")
-        print(f"  First tool structure: {json.dumps(available_tools[0], indent=2)[:500]}...")
-
     # Bind tools to LLM
     llm_with_tools = llm.bind_tools(available_tools)
 
@@ -415,6 +410,7 @@ async def run_test_case(
     mcp_client: Client,
     test_case: Dict[str, Any],
     use_cache: bool = True,
+    pbar=None,
 ) -> Dict[str, Any]:
     """
     Runs a single test case and returns the results for the table.
@@ -424,6 +420,7 @@ async def run_test_case(
         mcp_client: MCP client for tool calls
         test_case: Test case dictionary
         use_cache: Whether to use cached results (default: True)
+        pbar: Optional tqdm progress bar to update
     """
     async with semaphore:
         name = test_case["case"]["name"]
@@ -434,17 +431,19 @@ async def run_test_case(
         if use_cache:
             cached = load_cached_result(name)
             if cached is not None:
-                print(f"--- Using cached result: {name} ---")
+                if pbar:
+                    pbar.set_postfix_str(f"Cached: {name[:40]}...")
+                    pbar.update(1)
                 return cached
 
-        print(f"--- Running: {name} ---")
+        if pbar:
+            pbar.set_postfix_str(f"Running: {name[:40]}...")
 
         try:
             langchain_response, tool_history, full_conversation, tokens_used = (
                 await get_langchain_response(mcp_client, user_input)
             )
             classification = await evaluate_response(langchain_response, expected)
-            print(f"--- Finished: {name} ---")
             result = {
                 "question": user_input,
                 "expected": expected,
@@ -456,12 +455,15 @@ async def run_test_case(
             }
             # Save to cache
             save_cached_result(name, result)
+            if pbar:
+                pbar.update(1)
             return result
         except TokenLimitExceeded as e:
             # Stop evaluation completely and mark as NO due to token exceed
-            print(
-                f"--- Token limit exceeded for {name}: {e.token_count:,} > {MAX_TOKENS:,}. Skipping LLM evaluation. ---"
-            )
+            if pbar:
+                pbar.write(
+                    f"⚠️  Token limit exceeded for {name}: {e.token_count:,} > {MAX_TOKENS:,}"
+                )
             result = {
                 "question": user_input,
                 "expected": expected,
@@ -471,10 +473,13 @@ async def run_test_case(
                 "conversation": [],
                 "tokens_used": e.token_count,
             }
+            if pbar:
+                pbar.update(1)
             # Don't cache failures
             return result
         except Exception as e:
-            print(f"--- Error in {name}: {e} ---")
+            if pbar:
+                pbar.write(f"❌ Error in {name}: {e}")
             result = {
                 "question": user_input,
                 "expected": expected,
@@ -483,6 +488,8 @@ async def run_test_case(
                 "tool_calls": [],
                 "conversation": [],
             }
+            if pbar:
+                pbar.update(1)
             # Don't cache errors
             return result
 
@@ -607,6 +614,14 @@ Cache Location:
         help="Run only specific test cases by name. Provide one or more test case names from test_cases.yaml.",
     )
 
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=4,
+        metavar="N",
+        help="Maximum number of concurrent test executions (default: 4). Increase for faster execution if API rate limits allow.",
+    )
+
     return parser.parse_args()
 
 
@@ -661,18 +676,26 @@ async def main():
     mcp_server = create_server()
     mcp_client = Client(mcp_server)
 
-    # Create a semaphore to limit concurrency to 4
-    semaphore = asyncio.Semaphore(4)
+    # Create a semaphore to limit concurrency
+    semaphore = asyncio.Semaphore(args.concurrency)
 
     # Determine whether to use cache
     use_cache = not args.force
 
+    print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
+    print(f"💾 Cache {'disabled (--force)' if not use_cache else 'enabled'}")
+
     async with mcp_client:
+        # Create progress bar
+        pbar = atqdm(total=len(test_cases), desc="Evaluating tests", unit="test")
+
         tasks = [
-            run_test_case(semaphore, mcp_client, test_case, use_cache=use_cache)
+            run_test_case(semaphore, mcp_client, test_case, use_cache=use_cache, pbar=pbar)
             for test_case in test_cases
         ]
         results = await asyncio.gather(*tasks)
+
+        pbar.close()
 
     # Sort results to match the original order of test cases
     results_map = {res["question"]: res for res in results}
