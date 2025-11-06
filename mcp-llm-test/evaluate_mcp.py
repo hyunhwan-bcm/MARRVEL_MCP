@@ -573,7 +573,7 @@ Examples:
   # Run all test cases (uses cache by default)
   python evaluate_mcp.py
 
-  # Clear cache before running
+  # Clear cache only (does not run tests)
   python evaluate_mcp.py --clear
 
   # Force re-evaluation (ignore cache)
@@ -581,9 +581,6 @@ Examples:
 
   # Run specific test cases
   python evaluate_mcp.py --subset "Gene for NM_001045477.4:c.187C>T" "CADD phred score"
-
-  # Combine options
-  python evaluate_mcp.py --clear --subset "Gene for NM_001045477.4:c.187C>T"
 
 Cache Location:
   Results are cached at: {cache_dir}
@@ -598,7 +595,7 @@ Cache Location:
     parser.add_argument(
         "--clear",
         action="store_true",
-        help="Clear the cache before running evaluations. Useful for ensuring fresh results.",
+        help="Clear the cache and exit without running evaluations. Use this to remove all cached test results.",
     )
 
     parser.add_argument(
@@ -653,6 +650,7 @@ async def main():
     # Clear cache if requested
     if args.clear:
         clear_cache()
+        return  # Exit without running any tests
 
     # Load test cases
     test_cases_path = Path(__file__).parent / "test_cases.yaml"
