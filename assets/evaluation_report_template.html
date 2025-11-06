@@ -101,7 +101,7 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                 {% if result.tool_calls %}
                                 <ul class='list-disc list-inside text-xs'>
                                     {% for tc in result.tool_calls %}
-                                    <li><code class='bg-gray-100 px-1 rounded'>{{ tc.get('name', 'N/A') }}</code></li>
+                                    <li><code class='bg-gray-100 px-1 rounded'>{{ tc['name'] | default('N/A') }}</code></li>
                                     {% endfor %}
                                 </ul>
                                 {% else %}
