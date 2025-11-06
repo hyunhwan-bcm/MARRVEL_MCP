@@ -25,6 +25,7 @@ import asyncio
 import json
 import os
 import pickle
+import re
 import sys
 import tempfile
 import uuid
@@ -38,6 +39,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import yaml
 from dotenv import load_dotenv
 from fastmcp.client import Client
+from jinja2 import Environment, FileSystemLoader
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 import tiktoken
@@ -487,10 +489,6 @@ async def run_test_case(
 
 def generate_html_report(results: List[Dict[str, Any]]) -> str:
     """Generate HTML report with modal popups, reordered columns, and success rate summary."""
-    import re
-    from pathlib import Path
-    from jinja2 import Environment, FileSystemLoader
-
     # Create a temporary HTML file
     temp_html = tempfile.NamedTemporaryFile(
         mode="w", suffix=".html", delete=False, prefix="evaluation_results_"
@@ -525,13 +523,18 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
             "tokens_used": result.get("tokens_used", 0),
             "tool_calls": result.get("tool_calls", []),
             "conversation": result.get("conversation", []),
-            "conversation_json": json.dumps(result.get("conversation", []), indent=2),
         }
         enriched_results.append(enriched_result)
 
     # Load and render Jinja2 template
     template_path = Path(__file__).parent.parent / "assets"
     env = Environment(loader=FileSystemLoader(template_path), autoescape=True)
+
+    # Add custom filter for JSON serialization
+    def tojson_pretty(value):
+        return json.dumps(value, indent=2)
+
+    env.filters["tojson_pretty"] = tojson_pretty
     template = env.get_template("evaluation_report_template.html")
 
     html_content = template.render(
