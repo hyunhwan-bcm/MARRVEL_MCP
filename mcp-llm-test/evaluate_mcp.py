@@ -485,7 +485,7 @@ def open_in_browser(html_path: str):
 
 def parse_subset(subset_str: str, total_count: int) -> List[int]:
     """
-    Parse subset string and return list of 0-based indices.
+    Parse subset string and return list of 1-based indices.
 
     Accepts:
     - Ranges: "1-5" (inclusive, 1-based)
@@ -527,6 +527,12 @@ def parse_subset(subset_str: str, total_count: int) -> List[int]:
                 start_idx = int(start)
                 end_idx = int(end)
 
+                # Guard against 0-based usage explicitly with a clear message
+                if start_idx == 0 or end_idx == 0:
+                    raise ValueError(
+                        f"0-based indexing is not supported: '{part}'. Use 1-based indices (e.g., '1-2' instead of '0-1')."
+                    )
+
                 if start_idx < 1 or end_idx < 1:
                     raise ValueError(f"Indices must be >= 1, got range {start_idx}-{end_idx}")
                 if start_idx > total_count:
@@ -547,6 +553,10 @@ def parse_subset(subset_str: str, total_count: int) -> List[int]:
             # Handle individual index
             try:
                 idx = int(part)
+                if idx == 0:
+                    raise ValueError(
+                        "0-based indexing is not supported: '0'. Use 1-based indices (e.g., '1')."
+                    )
                 if idx < 1:
                     raise ValueError(f"Index must be >= 1, got {idx}")
                 if idx > total_count:
@@ -611,7 +621,9 @@ Subset Examples:
         try:
             subset_indices = parse_subset(args.subset, len(test_cases))
             test_cases = [test_cases[i] for i in subset_indices]
-            print(f"\n--- Running subset of test cases: {args.subset} ---")
+            # Print selected indices as 1-based for user clarity
+            selected_1_based = ",".join(str(i + 1) for i in subset_indices)
+            print(f"\n--- Running subset of test cases (1-based): {selected_1_based} ---")
             print(f"--- Selected {len(test_cases)} test case(s) ---\n")
         except ValueError as e:
             print(f"Error: {e}")
