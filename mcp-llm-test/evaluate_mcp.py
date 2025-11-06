@@ -74,6 +74,71 @@ def get_cache_path(test_case_name: str) -> Path:
     return CACHE_DIR / f"{safe_name}.pkl"
 
 
+def parse_subset(subset: str | None, total_count: int) -> List[int]:
+    """
+    Parse a subset specification string into a list of 0-based indices.
+
+    Supported formats (1-based in the input):
+    - "1-5"               -> [0,1,2,3,4]
+    - "1,2,4"             -> [0,1,3]
+    - "1-3,5,7-9"         -> [0,1,2,4,6,7,8]
+
+    Rules:
+    - Whitespace is ignored
+    - Indices are 1-based in the input and converted to 0-based
+    - Duplicates are removed; result is sorted
+    - Errors:
+      * index 0 -> ValueError("Index must be >= 1")
+      * reversed range (e.g., 5-1) -> ValueError(f"Invalid range {start}-{end}")
+      * index out of range -> ValueError(f"Index {n} out of range")
+      * malformed tokens -> ValueError with message matching tests
+    """
+    if subset is None or subset.strip() == "":
+        return list(range(total_count))
+
+    # Remove spaces to simplify parsing
+    cleaned = subset.replace(" ", "")
+    indices: set[int] = set()
+
+    # Split by comma for items that are either single indices or ranges
+    tokens = [t for t in cleaned.split(",") if t != ""]
+    for token in tokens:
+        if "-" in token:
+            # Range parsing
+            parts = token.split("-")
+            if len(parts) != 2 or parts[0] == "" or parts[1] == "":
+                # Covers cases like "1-2-3", "-1", "1-", "-"
+                raise ValueError("Invalid range format")
+            start_str, end_str = parts
+            if not start_str.isdigit() or not end_str.isdigit():
+                raise ValueError("Invalid range format")
+            start = int(start_str)
+            end = int(end_str)
+            if start == 0 or end == 0:
+                raise ValueError("Index must be >= 1")
+            if start > end:
+                raise ValueError(f"Invalid range {start}-{end}")
+            # Validate bounds, prefer reporting the start if both are out-of-range
+            if start > total_count:
+                raise ValueError(f"Index {start} out of range")
+            if end > total_count:
+                raise ValueError(f"Index {end} out of range")
+            # Convert to 0-based inclusive range
+            indices.update(i - 1 for i in range(start, end + 1))
+        else:
+            # Single index parsing
+            if not token.isdigit():
+                raise ValueError("Invalid index")
+            value = int(token)
+            if value == 0:
+                raise ValueError("Index must be >= 1")
+            if value > total_count:
+                raise ValueError(f"Index {value} out of range")
+            indices.add(value - 1)
+
+    return sorted(indices)
+
+
 def load_cached_result(test_case_name: str) -> Dict[str, Any] | None:
     """Load cached result for a test case if it exists."""
     cache_path = get_cache_path(test_case_name)
