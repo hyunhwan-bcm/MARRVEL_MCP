@@ -555,6 +555,27 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
             # Parse content if it's a string that looks like escaped JSON
             if isinstance(cleaned_msg.get("content"), str):
                 cleaned_msg["content"] = parse_tool_result_content(cleaned_msg["content"])
+
+            # Parse arguments in tool_calls if present
+            if "tool_calls" in cleaned_msg and isinstance(cleaned_msg["tool_calls"], list):
+                cleaned_tool_calls = []
+                for tool_call in cleaned_msg["tool_calls"]:
+                    cleaned_tool_call = dict(tool_call)
+                    # Parse the arguments field if it's a JSON string
+                    if "function" in cleaned_tool_call and isinstance(
+                        cleaned_tool_call["function"], dict
+                    ):
+                        function = dict(cleaned_tool_call["function"])
+                        if isinstance(function.get("arguments"), str):
+                            try:
+                                function["arguments"] = json.loads(function["arguments"])
+                            except (json.JSONDecodeError, TypeError):
+                                # Keep as-is if parsing fails
+                                pass
+                        cleaned_tool_call["function"] = function
+                    cleaned_tool_calls.append(cleaned_tool_call)
+                cleaned_msg["tool_calls"] = cleaned_tool_calls
+
             cleaned.append(cleaned_msg)
         return cleaned
 
