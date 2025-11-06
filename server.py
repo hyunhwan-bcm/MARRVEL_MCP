@@ -1079,9 +1079,8 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
     Returns:
         JSON with chr, pos, ref, alt fields for use with other tools
 
-    Example workflow for protein change from cDNA:
-        1. convert_hgvs_to_genomic("NM_001045477.4:c.187C>T") → {chr: "9", pos: 99694174, ref: "C", alt: "T"}
-        2. get_variant_annotation_by_genomic_position(chr="9", pos=99694174, ref="C", alt="T") → protein change p.P63S
+    IMPORTANT: The output coordinates are in hg19/GRCh37, NOT hg38/GRCh38.
+    If you need hg38 coordinates, you must use liftover_hg19_to_hg38 to convert them.
     """
     try:
         encoded_variant = quote(hgvs_variant)
