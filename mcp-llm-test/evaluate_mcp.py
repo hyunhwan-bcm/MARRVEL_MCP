@@ -198,6 +198,36 @@ def validate_token_count(text: str, max_tokens: int = MAX_TOKENS) -> Tuple[bool,
     return token_count <= max_tokens, token_count
 
 
+def parse_tool_result_content(content: str) -> Any:
+    """
+    Parse tool result content to extract actual data.
+
+    Tool results often come in the format:
+    "toolNameOutput(result='<JSON_STRING>')"
+
+    This function attempts to extract and parse the nested JSON for better display.
+    """
+    # Try to match the pattern: SomeOutput(result='<JSON>')
+    match = re.search(r"Output\(result='(.+)'\)\s*$", content, re.DOTALL)
+    if match:
+        json_str = match.group(1)
+        # Unescape the string
+        json_str = json_str.replace("\\n", "\n").replace('\\"', '"').replace("\\'", "'")
+        try:
+            # Try to parse as JSON
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            # If parsing fails, return the extracted string
+            return json_str
+
+    # If no match, try to parse the whole content as JSON
+    try:
+        return json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        # Return as-is if we can't parse it
+        return content
+
+
 def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
     """Converts a FastMCP tool to the LangChain/OpenAI tool format."""
     tool_dict = tool.model_dump(exclude_none=True)
@@ -313,13 +343,14 @@ async def get_langchain_response(
                     )
                     messages.append(tool_message)
 
-                    # Store in conversation history
+                    # Store in conversation history with parsed content for better JSON display
+                    parsed_content = parse_tool_result_content(content)
                     conversation.append(
                         {
                             "role": "tool",
                             "tool_call_id": tool_call_id,
                             "name": function_name,
-                            "content": content,
+                            "content": parsed_content,
                         }
                     )
                 except TokenLimitExceeded:
@@ -335,12 +366,13 @@ async def get_langchain_response(
                     )
                     messages.append(tool_message)
 
+                    # Store parsed error content in conversation
                     conversation.append(
                         {
                             "role": "tool",
                             "tool_call_id": tool_call_id,
                             "name": function_name,
-                            "content": error_content,
+                            "content": {"error": str(e)},
                         }
                     )
         else:
