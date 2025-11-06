@@ -198,6 +198,36 @@ def validate_token_count(text: str, max_tokens: int = MAX_TOKENS) -> Tuple[bool,
     return token_count <= max_tokens, token_count
 
 
+def parse_tool_result_content(content: str) -> Any:
+    """
+    Parse tool result content to extract actual data.
+
+    Tool results often come in the format:
+    "toolNameOutput(result='<JSON_STRING>')"
+
+    This function attempts to extract and parse the nested JSON for better display.
+    """
+    # Try to match the pattern: SomeOutput(result='<JSON>')
+    match = re.search(r"Output\(result='(.+)'\)\s*$", content, re.DOTALL)
+    if match:
+        json_str = match.group(1)
+        # Unescape the string
+        json_str = json_str.replace("\\n", "\n").replace('\\"', '"').replace("\\'", "'")
+        try:
+            # Try to parse as JSON
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            # If parsing fails, return the extracted string
+            return json_str
+
+    # If no match, try to parse the whole content as JSON
+    try:
+        return json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        # Return as-is if we can't parse it
+        return content
+
+
 def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
     """Converts a FastMCP tool to the LangChain/OpenAI tool format."""
     tool_dict = tool.model_dump(exclude_none=True)
@@ -313,13 +343,14 @@ async def get_langchain_response(
                     )
                     messages.append(tool_message)
 
-                    # Store in conversation history
+                    # Store in conversation history with parsed content for better JSON display
+                    parsed_content = parse_tool_result_content(content)
                     conversation.append(
                         {
                             "role": "tool",
                             "tool_call_id": tool_call_id,
                             "name": function_name,
-                            "content": content,
+                            "content": parsed_content,
                         }
                     )
                 except TokenLimitExceeded:
@@ -335,12 +366,13 @@ async def get_langchain_response(
                     )
                     messages.append(tool_message)
 
+                    # Store parsed error content in conversation
                     conversation.append(
                         {
                             "role": "tool",
                             "tool_call_id": tool_call_id,
                             "name": function_name,
-                            "content": error_content,
+                            "content": {"error": str(e)},
                         }
                     )
         else:
@@ -514,11 +546,48 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
 
     success_rate = (successful_tests / total_tests * 100) if total_tests > 0 else 0
 
+    # Helper function to clean conversation data
+    def clean_conversation(conversation: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Parse any escaped JSON strings in conversation for better display."""
+        cleaned = []
+        for msg in conversation:
+            cleaned_msg = dict(msg)
+            # Parse content if it's a string that looks like escaped JSON
+            if isinstance(cleaned_msg.get("content"), str):
+                cleaned_msg["content"] = parse_tool_result_content(cleaned_msg["content"])
+
+            # Parse arguments in tool_calls if present
+            if "tool_calls" in cleaned_msg and isinstance(cleaned_msg["tool_calls"], list):
+                cleaned_tool_calls = []
+                for tool_call in cleaned_msg["tool_calls"]:
+                    cleaned_tool_call = dict(tool_call)
+                    # Parse the arguments field if it's a JSON string
+                    if "function" in cleaned_tool_call and isinstance(
+                        cleaned_tool_call["function"], dict
+                    ):
+                        function = dict(cleaned_tool_call["function"])
+                        if isinstance(function.get("arguments"), str):
+                            try:
+                                function["arguments"] = json.loads(function["arguments"])
+                            except (json.JSONDecodeError, TypeError):
+                                # Keep as-is if parsing fails
+                                pass
+                        cleaned_tool_call["function"] = function
+                    cleaned_tool_calls.append(cleaned_tool_call)
+                cleaned_msg["tool_calls"] = cleaned_tool_calls
+
+            cleaned.append(cleaned_msg)
+        return cleaned
+
     # Prepare data for template - add metadata to each result
     enriched_results = []
     for idx, result in enumerate(results):
         classification_lower = result["classification"].lower()
         is_yes = re.search(r"\byes\b", classification_lower)
+
+        # Clean up conversation data for better JSON display
+        conversation = result.get("conversation", [])
+        cleaned_conversation = clean_conversation(conversation)
 
         enriched_result = {
             "idx": idx,
@@ -529,7 +598,7 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
             "is_yes": is_yes is not None,
             "tokens_used": result.get("tokens_used", 0),
             "tool_calls": result.get("tool_calls", []),
-            "conversation": result.get("conversation", []),
+            "conversation": cleaned_conversation,
         }
         enriched_results.append(enriched_result)
 
@@ -537,9 +606,10 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
     template_path = Path(__file__).parent.parent / "assets"
     env = Environment(loader=FileSystemLoader(template_path), autoescape=True)
 
-    # Add custom filter for JSON serialization
+    # Add custom filter for JSON serialization with proper formatting
     def tojson_pretty(value):
-        return json.dumps(value, indent=2)
+        """Format JSON with proper indentation for better readability."""
+        return json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False)
 
     env.filters["tojson_pretty"] = tojson_pretty
     template = env.get_template("evaluation_report_template.html")

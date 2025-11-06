@@ -118,7 +118,7 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button onclick="closeModal({{ result.idx }})" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
                                 </div>
                                 <div class="max-h-96 overflow-y-auto">
-                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto">{{ result.conversation | tojson_pretty }}</pre>
+                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre-wrap break-words">{{ result.conversation | tojson_pretty }}</pre>
                                 </div>
                                 <div class="mt-4 flex justify-end">
                                     <button onclick="closeModal({{ result.idx }})" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
