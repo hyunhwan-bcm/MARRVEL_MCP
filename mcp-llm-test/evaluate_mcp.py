@@ -537,9 +537,10 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
     template_path = Path(__file__).parent.parent / "assets"
     env = Environment(loader=FileSystemLoader(template_path), autoescape=True)
 
-    # Add custom filter for JSON serialization
+    # Add custom filter for JSON serialization with proper formatting
     def tojson_pretty(value):
-        return json.dumps(value, indent=2)
+        """Format JSON with proper indentation for better readability."""
+        return json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False)
 
     env.filters["tojson_pretty"] = tojson_pretty
     template = env.get_template("evaluation_report_template.html")
