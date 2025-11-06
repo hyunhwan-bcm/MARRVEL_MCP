@@ -577,8 +577,8 @@ Examples:
 
 Cache Location:
   Results are cached at: {cache_dir}
-  
-  The cache stores evaluation results to avoid redundant API calls and speed up 
+
+  The cache stores evaluation results to avoid redundant API calls and speed up
   re-runs. Each test case result is cached separately.
         """.format(
             cache_dir=CACHE_DIR
