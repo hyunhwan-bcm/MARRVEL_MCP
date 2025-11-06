@@ -547,46 +547,92 @@ def open_in_browser(html_path: str):
     print(f"--- Opened {html_path} in browser ---")
 
 
-def parse_subset(subset_str: str) -> List[int]:
+def parse_subset(subset_str: str, total_count: int) -> List[int]:
     """
-    Parse subset parameter to list of test indices.
-    Examples:
-        "1" -> [1]
-        "1,2,4" -> [1, 2, 4]
-        "1-5" -> [1, 2, 3, 4, 5]
+    Parse subset string and return list of 1-based indices.
+
+    Accepts:
+    - Ranges: "1-5" (inclusive, 1-based)
+    - Individual indices: "1,2,4" (1-based)
+    - Combinations: "1-3,5,7-9" (1-based)
+
+    Args:
+        subset_str: String specifying the subset (e.g., "1-5", "1,2,4", "1-3,5,7-9")
+        total_count: Total number of available test cases
+
+    Returns:
+        List of 0-based indices
 
     Raises:
-        ValueError: If the subset string format is invalid
+        ValueError: If subset string is invalid or indices are out of range
     """
-    indices = []
+    if not subset_str:
+        return list(range(total_count))
+
+    indices = set()
     parts = subset_str.split(",")
+
     for part in parts:
         part = part.strip()
         if "-" in part:
-            # Range: "1-5"
-            range_parts = part.split("-", 1)  # Limit to one split
-            if len(range_parts) != 2:
-                raise ValueError(f"Invalid range format: '{part}'")
+            # Handle range
             try:
-                start = int(range_parts[0].strip())
-                end = int(range_parts[1].strip())
+                range_parts = part.split("-")
+                if len(range_parts) != 2:
+                    raise ValueError(f"Invalid range format: '{part}'. Expected format like '1-5'")
+
+                start, end = range_parts
+                start = start.strip()
+                end = end.strip()
+
+                if not start or not end:
+                    raise ValueError(f"Invalid range format: '{part}'. Expected format like '1-5'")
+
+                start_idx = int(start)
+                end_idx = int(end)
+
+                # Guard against 0-based usage explicitly with a clear message
+                if start_idx == 0 or end_idx == 0:
+                    raise ValueError(
+                        f"0-based indexing is not supported: '{part}'. Use 1-based indices (e.g., '1-2' instead of '0-1')."
+                    )
+
+                if start_idx < 1 or end_idx < 1:
+                    raise ValueError(f"Indices must be >= 1, got range {start_idx}-{end_idx}")
+                if start_idx > total_count:
+                    raise ValueError(f"Index {start_idx} out of range (max: {total_count})")
+                if end_idx > total_count:
+                    raise ValueError(f"Index {end_idx} out of range (max: {total_count})")
+                if start_idx > end_idx:
+                    raise ValueError(f"Invalid range {start_idx}-{end_idx}: start must be <= end")
+
+                # Convert to 0-based indices
+                for i in range(start_idx - 1, end_idx):
+                    indices.add(i)
             except ValueError as e:
-                raise ValueError(f"Invalid range format: '{part}' - values must be integers") from e
-            if start > end:
-                raise ValueError(f"Invalid range: start ({start}) must be <= end ({end})")
-            if start < 1:
-                raise ValueError(f"Invalid range: indices must be >= 1, got {start}")
-            indices.extend(range(start, end + 1))
+                if "invalid literal" in str(e):
+                    raise ValueError(f"Invalid range format: '{part}'. Expected format like '1-5'")
+                raise
         else:
-            # Single number: "1"
+            # Handle individual index
             try:
-                num = int(part)
+                idx = int(part)
+                if idx == 0:
+                    raise ValueError(
+                        "0-based indexing is not supported: '0'. Use 1-based indices (e.g., '1')."
+                    )
+                if idx < 1:
+                    raise ValueError(f"Index must be >= 1, got {idx}")
+                if idx > total_count:
+                    raise ValueError(f"Index {idx} out of range (max: {total_count})")
+                # Convert to 0-based index
+                indices.add(idx - 1)
             except ValueError as e:
-                raise ValueError(f"Invalid number format: '{part}' - must be an integer") from e
-            if num < 1:
-                raise ValueError(f"Invalid index: must be >= 1, got {num}")
-            indices.append(num)
-    return sorted(set(indices))  # Remove duplicates and sort
+                if "invalid literal" in str(e):
+                    raise ValueError(f"Invalid index: '{part}'. Expected an integer")
+                raise
+
+    return sorted(list(indices))
 
 
 async def main():
