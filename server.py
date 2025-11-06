@@ -935,10 +935,25 @@ async def get_pharos_targets(entrez_id: str) -> str:
 
 @mcp.tool(
     name="convert_hgvs_to_genomic",
-    description="Convert and validate HGVS variant nomenclature to genomic coordinates using Mutalyzer",
+    description="Convert HGVS variant nomenclature (including cDNA notation like NM_001045477.4:c.187C>T or genomic notation) to genomic coordinates (chr, pos, ref, alt) using Mutalyzer. Essential first step for getting protein changes from cDNA variants.",
     meta={"category": "utility", "service": "Mutalyzer", "version": "1.0"},
 )
 async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
+    """
+    Convert any HGVS variant notation to genomic coordinates.
+
+    Supports:
+    - cDNA notation: NM_001045477.4:c.187C>T
+    - Genomic notation: NC_000009.11:g.99694174C>T
+    - Protein notation: NP_001040942.1:p.Pro63Ser
+
+    Returns:
+        JSON with chr, pos, ref, alt fields for use with other tools
+
+    Example workflow for protein change from cDNA:
+        1. convert_hgvs_to_genomic("NM_001045477.4:c.187C>T") → {chr: "9", pos: 99694174, ref: "C", alt: "T"}
+        2. get_variant_annotation_by_genomic_position(chr="9", pos=99694174, ref="C", alt="T") → protein change p.P63S
+    """
     try:
         encoded_variant = quote(hgvs_variant)
         data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{encoded_variant}", is_graphql=False)
@@ -966,123 +981,49 @@ async def convert_protein_variant(protein_variant: str) -> str:
 
 
 @mcp.tool(
-    name="convert_hgvs_cdna_to_genomic",
-    description="Convert HGVS cDNA notation (e.g., NM_001045477.4:c.187C>T) to genomic coordinates using MARRVEL's transvar API",
-    meta={
-        "category": "utility/variant nomenclature",
-        "service": "MARRVEL Transvar",
-        "version": "1.0",
-    },
+    name="get_variant_annotation_by_genomic_position",
+    description="Get protein change and transcript annotation for a variant at genomic coordinates. Takes chr, pos, ref, alt (from convert_hgvs_to_genomic output) and returns mostAgreed transcript with protein change in coord.annot field (e.g., p.P63S). Use this AFTER convert_hgvs_to_genomic to get protein changes from cDNA variants.",
+    meta={"category": "utility", "service": "Transvar", "version": "1.0"},
 )
-async def convert_hgvs_cdna_to_genomic(hgvs_cdna: str) -> str:
+async def get_variant_annotation_by_genomic_position(chr: str, pos: int, ref: str, alt: str) -> str:
     """
-    Convert HGVS cDNA notation to genomic coordinates.
+    Get variant annotation from genomic coordinates using Transvar.
+
+    This tool provides protein change and transcript information for a genomic variant.
+    IMPORTANT: Use convert_hgvs_to_genomic first if you have HGVS cDNA notation (e.g., NM_001045477.4:c.187C>T).
+
+    Workflow example:
+        Question: "What is the protein change for NM_001045477.4:c.187C>T?"
+        1. Call convert_hgvs_to_genomic("NM_001045477.4:c.187C>T")
+           → Returns: {chr: "9", pos: 99694174, ref: "C", alt: "T"}
+        2. Call get_variant_annotation_by_genomic_position(chr="9", pos=99694174, ref="C", alt="T")
+           → Returns: {mostAgreed: {transcriptId: "NM_001045477.2", coord: {annot: "p.P63S"}}}
+        3. Extract protein change from mostAgreed.coord.annot: "p.P63S"
 
     Args:
-        hgvs_cdna: HGVS cDNA notation (e.g., "NM_001045477.4:c.187C>T")
+        chr: Chromosome (e.g., "9" or "chr9")
+        pos: Genomic position (e.g., 99694174)
+        ref: Reference allele (e.g., "C")
+        alt: Alternate allele (e.g., "T")
 
     Returns:
-        JSON response with full transvar response including candidates and mostAgreed transcript information
+        JSON response with mostAgreed transcript, protein change (coord.annot), cDNA change, and candidates
     """
     try:
-        encoded_variant = quote(hgvs_cdna, safe="")
+        # Format as genomic HGVS notation for transvar
+        # Remove 'chr' prefix if present
+        chr_clean = chr.replace("chr", "")
+        genomic_variant = f"chr{chr_clean}:g.{pos}{ref}>{alt}"
+        encoded_variant = quote(genomic_variant, safe="")
+
         data = await fetch_marrvel_data(
             f"/transvar/forward/gdna/{encoded_variant}", is_graphql=False
         )
         return data
     except httpx.HTTPError as e:
-        return json.dumps({"error": f"Error converting HGVS cDNA variant: {str(e)}"}, indent=2)
+        return json.dumps({"error": f"Error fetching variant annotation: {str(e)}"}, indent=2)
     except Exception as e:
         return json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, indent=2)
-
-
-@mcp.tool(
-    name="get_protein_change_from_hgvs",
-    description="Extract protein change annotation from HGVS cDNA notation (e.g., NM_001045477.4:c.187C>T returns p.P63S)",
-    meta={
-        "category": "utility/variant nomenclature",
-        "service": "MARRVEL Transvar",
-        "version": "1.0",
-    },
-)
-async def get_protein_change_from_hgvs(hgvs_cdna: str) -> str:
-    """
-    Extract protein change annotation from HGVS cDNA notation.
-
-    Args:
-        hgvs_cdna: HGVS cDNA notation (e.g., "NM_001045477.4:c.187C>T")
-
-    Returns:
-        JSON response with protein change and supporting data from mostAgreed field
-    """
-    try:
-        encoded_variant = quote(hgvs_cdna, safe="")
-        data = await fetch_marrvel_data(
-            f"/transvar/forward/gdna/{encoded_variant}", is_graphql=False
-        )
-
-        # Parse the response to extract protein change
-        response_dict = json.loads(data)
-
-        # Check for errors in the response
-        if "error" in response_dict:
-            return data
-
-        # Extract mostAgreed field for highest confidence annotation
-        most_agreed = response_dict.get("mostAgreed")
-        if not most_agreed:
-            return json.dumps(
-                {
-                    "error": "No mostAgreed annotation found in response",
-                    "hgvs_cdna": hgvs_cdna,
-                    "full_response": response_dict,
-                },
-                indent=2,
-            )
-
-        # Extract protein change from coord.annot
-        coord = most_agreed.get("coord", {})
-        protein_change = coord.get("annot")
-
-        if not protein_change:
-            return json.dumps(
-                {
-                    "error": "No protein change annotation found in mostAgreed.coord.annot",
-                    "hgvs_cdna": hgvs_cdna,
-                    "mostAgreed": most_agreed,
-                },
-                indent=2,
-            )
-
-        # Return structured response with protein change
-        result = {
-            "hgvs_cdna": hgvs_cdna,
-            "protein_change": protein_change,
-            "transcript": most_agreed.get("transcript"),
-            "gene": most_agreed.get("gene"),
-            "genomic_coordinates": {
-                "chr": most_agreed.get("chr"),
-                "pos": most_agreed.get("pos"),
-                "ref": most_agreed.get("ref"),
-                "alt": most_agreed.get("alt"),
-            },
-            "mostAgreed": most_agreed,
-        }
-
-        return json.dumps(result, indent=2)
-
-    except httpx.HTTPError as e:
-        return json.dumps(
-            {"error": f"Error fetching protein change: {str(e)}", "hgvs_cdna": hgvs_cdna}, indent=2
-        )
-    except json.JSONDecodeError as e:
-        return json.dumps(
-            {"error": f"Invalid JSON response: {str(e)}", "hgvs_cdna": hgvs_cdna}, indent=2
-        )
-    except Exception as e:
-        return json.dumps(
-            {"error": f"An unexpected error occurred: {str(e)}", "hgvs_cdna": hgvs_cdna}, indent=2
-        )
 
 
 @mcp.tool(
