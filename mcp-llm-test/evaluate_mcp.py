@@ -546,11 +546,27 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
 
     success_rate = (successful_tests / total_tests * 100) if total_tests > 0 else 0
 
+    # Helper function to clean conversation data
+    def clean_conversation(conversation: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Parse any escaped JSON strings in conversation for better display."""
+        cleaned = []
+        for msg in conversation:
+            cleaned_msg = dict(msg)
+            # Parse content if it's a string that looks like escaped JSON
+            if isinstance(cleaned_msg.get("content"), str):
+                cleaned_msg["content"] = parse_tool_result_content(cleaned_msg["content"])
+            cleaned.append(cleaned_msg)
+        return cleaned
+
     # Prepare data for template - add metadata to each result
     enriched_results = []
     for idx, result in enumerate(results):
         classification_lower = result["classification"].lower()
         is_yes = re.search(r"\byes\b", classification_lower)
+
+        # Clean up conversation data for better JSON display
+        conversation = result.get("conversation", [])
+        cleaned_conversation = clean_conversation(conversation)
 
         enriched_result = {
             "idx": idx,
@@ -561,7 +577,7 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
             "is_yes": is_yes is not None,
             "tokens_used": result.get("tokens_used", 0),
             "tool_calls": result.get("tool_calls", []),
-            "conversation": result.get("conversation", []),
+            "conversation": cleaned_conversation,
         }
         enriched_results.append(enriched_result)
 
