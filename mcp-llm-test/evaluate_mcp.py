@@ -579,8 +579,14 @@ Examples:
   # Force re-evaluation (ignore cache)
   python evaluate_mcp.py --force
 
-  # Run specific test cases
-  python evaluate_mcp.py --subset "Gene for NM_001045477.4:c.187C>T" "CADD phred score"
+  # Run specific test cases by index (1-based)
+  python evaluate_mcp.py --subset "1-5"        # Run tests 1 through 5
+  python evaluate_mcp.py --subset "1,3,5"      # Run tests 1, 3, and 5
+  python evaluate_mcp.py --subset "1-3,5,7-9"  # Run tests 1-3, 5, and 7-9
+
+  # Ask a custom question and get JSON response (no HTML)
+  python evaluate_mcp.py --prompt "tell me about MECP2"
+  python evaluate_mcp.py --prompt "What is the CADD score for chr1:12345 A>G?"
 
 Cache Location:
   Results are cached at: {cache_dir}
@@ -606,9 +612,16 @@ Cache Location:
 
     parser.add_argument(
         "--subset",
-        nargs="+",
-        metavar="TEST_NAME",
-        help="Run only specific test cases by name. Provide one or more test case names from test_cases.yaml.",
+        type=str,
+        metavar="INDICES",
+        help="Run specific test cases by index. Supports ranges (1-5), individual indices (1,3,5), or combinations (1-3,5,7-9). Indices are 1-based.",
+    )
+
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        metavar="QUESTION",
+        help="Ask a custom question directly and get JSON response without HTML report. Example: --prompt 'tell me about MECP2'",
     )
 
     parser.add_argument(
@@ -652,23 +665,62 @@ async def main():
         clear_cache()
         return  # Exit without running any tests
 
+    # Handle --prompt mode (ad-hoc question)
+    if args.prompt:
+        print(f"🔍 Processing prompt: {args.prompt}")
+        print("=" * 80)
+
+        # Create MCP server and client
+        mcp_server = create_server()
+        mcp_client = Client(mcp_server)
+
+        async with mcp_client:
+            try:
+                response, tool_history, conversation, tokens_used = await get_langchain_response(
+                    mcp_client, args.prompt
+                )
+
+                # Output as JSON
+                result = {
+                    "question": args.prompt,
+                    "response": response,
+                    "tool_calls": tool_history,
+                    "conversation": conversation,
+                    "tokens_used": tokens_used,
+                }
+
+                print("\n📊 RESULT (JSON):")
+                print(json.dumps(result, indent=2))
+                print("\n" + "=" * 80)
+
+            except TokenLimitExceeded as e:
+                print(f"❌ Token limit exceeded: {e.token_count:,} > {MAX_TOKENS:,}")
+                print("   Please reduce the complexity of your question or context.")
+            except Exception as e:
+                print(f"❌ Error processing prompt: {e}")
+                import traceback
+
+                traceback.print_exc()
+
+        return  # Exit after handling prompt
+
     # Load test cases
     test_cases_path = Path(__file__).parent / "test_cases.yaml"
     with open(test_cases_path, "r", encoding="utf-8") as f:
-        test_cases = yaml.safe_load(f)
+        all_test_cases = yaml.safe_load(f)
 
     # Filter test cases if subset is specified
     if args.subset:
-        subset_names = set(args.subset)
-        original_count = len(test_cases)
-        test_cases = [tc for tc in test_cases if tc["case"]["name"] in subset_names]
-        print(f"📋 Running subset: {len(test_cases)}/{original_count} test cases")
-
-        # Warn about any non-existent test names
-        found_names = {tc["case"]["name"] for tc in test_cases}
-        missing = subset_names - found_names
-        if missing:
-            print(f"⚠️  Warning: The following test names were not found: {', '.join(missing)}")
+        try:
+            subset_indices = parse_subset(args.subset, len(all_test_cases))
+            test_cases = [all_test_cases[i] for i in subset_indices]
+            print(f"📋 Running subset: {len(test_cases)}/{len(all_test_cases)} test cases")
+            print(f"   Indices (1-based): {', '.join(str(i+1) for i in subset_indices)}")
+        except ValueError as e:
+            print(f"❌ Error parsing subset: {e}")
+            return
+    else:
+        test_cases = all_test_cases
 
     # Create MCP server and client
     mcp_server = create_server()
