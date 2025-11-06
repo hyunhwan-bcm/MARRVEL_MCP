@@ -91,6 +91,8 @@ tool_calls = [
     ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
     ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}),
     ("get_decipher_by_location", {"chr": "6", "start": 99316420, "stop": 99395849}),
+    ("convert_hgvs_cdna_to_genomic", {"hgvs_cdna": "NM_001045477.4:c.187C>T"}),
+    ("get_protein_change_from_hgvs", {"hgvs_cdna": "NM_001045477.4:c.187C>T"}),
 ]
 
 

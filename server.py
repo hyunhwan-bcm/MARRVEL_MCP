@@ -1,7 +1,7 @@
 """
 MARRVEL MCP Server - Unified Implementation
 
-A FastMCP server providing 33+ tools for rare disease genetics research through the MARRVEL platform.
+A FastMCP server providing 35+ tools for rare disease genetics research through the MARRVEL platform.
 This unified server follows FastMCP 2.0 best practices with minimal boilerplate and clear organization.
 
 Features:
@@ -12,7 +12,7 @@ Features:
 - Expression data (GTEx tissue expression, drug targets)
 - Literature search (PubMed, PMC full-text)
 - Coordinate conversion (hg19/hg38 liftover)
-- Variant nomenclature tools (HGVS, rsID conversion)
+- Variant nomenclature tools (HGVS cDNA/protein conversion, rsID conversion)
 
 Default genome build: hg38/GRCh38
 """
@@ -157,11 +157,12 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
 mcp = FastMCP(
     name="MARRVEL-MCP",
     instructions=(
-        "MARRVEL-MCP enables rare disease research through 32+ genetics tools. "
+        "MARRVEL-MCP enables rare disease research through 35+ genetics tools. "
         "Query genes (symbol/ID/position), analyze variants (dbNSFP, ClinVar, gnomAD), "
         "find disease associations (OMIM, DECIPHER), discover orthologs (DIOPT), "
         "search tissue expression (GTEx), identify drug targets (Pharos), and search "
-        "literature (PubMed). Supports liftover between genome builds. "
+        "literature (PubMed). Convert HGVS cDNA notation to genomic coordinates and extract "
+        "protein changes. Supports liftover between genome builds. "
         "Default coordinates: hg19/GRCh37. State clearly when data is unavailable."
     ),
 )
@@ -962,6 +963,126 @@ async def convert_protein_variant(protein_variant: str) -> str:
         return json.dumps({"error": f"Error converting protein variant: {str(e)}"}, indent=2)
     except Exception as e:
         return json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, indent=2)
+
+
+@mcp.tool(
+    name="convert_hgvs_cdna_to_genomic",
+    description="Convert HGVS cDNA notation (e.g., NM_001045477.4:c.187C>T) to genomic coordinates using MARRVEL's transvar API",
+    meta={
+        "category": "utility/variant nomenclature",
+        "service": "MARRVEL Transvar",
+        "version": "1.0",
+    },
+)
+async def convert_hgvs_cdna_to_genomic(hgvs_cdna: str) -> str:
+    """
+    Convert HGVS cDNA notation to genomic coordinates.
+
+    Args:
+        hgvs_cdna: HGVS cDNA notation (e.g., "NM_001045477.4:c.187C>T")
+
+    Returns:
+        JSON response with full transvar response including candidates and mostAgreed transcript information
+    """
+    try:
+        encoded_variant = quote(hgvs_cdna, safe="")
+        data = await fetch_marrvel_data(
+            f"/transvar/forward/gdna/{encoded_variant}", is_graphql=False
+        )
+        return data
+    except httpx.HTTPError as e:
+        return json.dumps({"error": f"Error converting HGVS cDNA variant: {str(e)}"}, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, indent=2)
+
+
+@mcp.tool(
+    name="get_protein_change_from_hgvs",
+    description="Extract protein change annotation from HGVS cDNA notation (e.g., NM_001045477.4:c.187C>T returns p.P63S)",
+    meta={
+        "category": "utility/variant nomenclature",
+        "service": "MARRVEL Transvar",
+        "version": "1.0",
+    },
+)
+async def get_protein_change_from_hgvs(hgvs_cdna: str) -> str:
+    """
+    Extract protein change annotation from HGVS cDNA notation.
+
+    Args:
+        hgvs_cdna: HGVS cDNA notation (e.g., "NM_001045477.4:c.187C>T")
+
+    Returns:
+        JSON response with protein change and supporting data from mostAgreed field
+    """
+    try:
+        encoded_variant = quote(hgvs_cdna, safe="")
+        data = await fetch_marrvel_data(
+            f"/transvar/forward/gdna/{encoded_variant}", is_graphql=False
+        )
+
+        # Parse the response to extract protein change
+        response_dict = json.loads(data)
+
+        # Check for errors in the response
+        if "error" in response_dict:
+            return data
+
+        # Extract mostAgreed field for highest confidence annotation
+        most_agreed = response_dict.get("mostAgreed")
+        if not most_agreed:
+            return json.dumps(
+                {
+                    "error": "No mostAgreed annotation found in response",
+                    "hgvs_cdna": hgvs_cdna,
+                    "full_response": response_dict,
+                },
+                indent=2,
+            )
+
+        # Extract protein change from coord.annot
+        coord = most_agreed.get("coord", {})
+        protein_change = coord.get("annot")
+
+        if not protein_change:
+            return json.dumps(
+                {
+                    "error": "No protein change annotation found in mostAgreed.coord.annot",
+                    "hgvs_cdna": hgvs_cdna,
+                    "mostAgreed": most_agreed,
+                },
+                indent=2,
+            )
+
+        # Return structured response with protein change
+        result = {
+            "hgvs_cdna": hgvs_cdna,
+            "protein_change": protein_change,
+            "transcript": most_agreed.get("transcript"),
+            "gene": most_agreed.get("gene"),
+            "genomic_coordinates": {
+                "chr": most_agreed.get("chr"),
+                "pos": most_agreed.get("pos"),
+                "ref": most_agreed.get("ref"),
+                "alt": most_agreed.get("alt"),
+            },
+            "mostAgreed": most_agreed,
+        }
+
+        return json.dumps(result, indent=2)
+
+    except httpx.HTTPError as e:
+        return json.dumps(
+            {"error": f"Error fetching protein change: {str(e)}", "hgvs_cdna": hgvs_cdna}, indent=2
+        )
+    except json.JSONDecodeError as e:
+        return json.dumps(
+            {"error": f"Invalid JSON response: {str(e)}", "hgvs_cdna": hgvs_cdna}, indent=2
+        )
+    except Exception as e:
+        return json.dumps(
+            {"error": f"An unexpected error occurred: {str(e)}", "hgvs_cdna": hgvs_cdna}, indent=2
+        )
 
 
 @mcp.tool(
