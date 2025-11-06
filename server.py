@@ -935,10 +935,25 @@ async def get_pharos_targets(entrez_id: str) -> str:
 
 @mcp.tool(
     name="convert_hgvs_to_genomic",
-    description="Convert and validate HGVS variant nomenclature to genomic coordinates using Mutalyzer",
+    description="Convert HGVS variant nomenclature (including cDNA notation like NM_001045477.4:c.187C>T or genomic notation) to genomic coordinates (chr, pos, ref, alt) using Mutalyzer. Essential first step for getting protein changes from cDNA variants.",
     meta={"category": "utility", "service": "Mutalyzer", "version": "1.0"},
 )
 async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
+    """
+    Convert any HGVS variant notation to genomic coordinates.
+
+    Supports:
+    - cDNA notation: NM_001045477.4:c.187C>T
+    - Genomic notation: NC_000009.11:g.99694174C>T
+    - Protein notation: NP_001040942.1:p.Pro63Ser
+
+    Returns:
+        JSON with chr, pos, ref, alt fields for use with other tools
+
+    Example workflow for protein change from cDNA:
+        1. convert_hgvs_to_genomic("NM_001045477.4:c.187C>T") → {chr: "9", pos: 99694174, ref: "C", alt: "T"}
+        2. get_variant_annotation_by_genomic_position(chr="9", pos=99694174, ref="C", alt="T") → protein change p.P63S
+    """
     try:
         encoded_variant = quote(hgvs_variant)
         data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{encoded_variant}", is_graphql=False)
@@ -967,7 +982,7 @@ async def convert_protein_variant(protein_variant: str) -> str:
 
 @mcp.tool(
     name="get_variant_annotation_by_genomic_position",
-    description="Get comprehensive variant annotation including protein change, cDNA change, and transcript information for a genomic position (e.g., chr9:g.99694174C>T). Returns mostAgreed transcript with protein change annotation.",
+    description="Get protein change and transcript annotation for a variant at genomic coordinates. Takes chr, pos, ref, alt (from convert_hgvs_to_genomic output) and returns mostAgreed transcript with protein change in coord.annot field (e.g., p.P63S). Use this AFTER convert_hgvs_to_genomic to get protein changes from cDNA variants.",
     meta={"category": "utility", "service": "Transvar", "version": "1.0"},
 )
 async def get_variant_annotation_by_genomic_position(chr: str, pos: int, ref: str, alt: str) -> str:
@@ -975,7 +990,15 @@ async def get_variant_annotation_by_genomic_position(chr: str, pos: int, ref: st
     Get variant annotation from genomic coordinates using Transvar.
 
     This tool provides protein change and transcript information for a genomic variant.
-    Use convert_hgvs_to_genomic first if you have HGVS cDNA notation (e.g., NM_001045477.4:c.187C>T).
+    IMPORTANT: Use convert_hgvs_to_genomic first if you have HGVS cDNA notation (e.g., NM_001045477.4:c.187C>T).
+
+    Workflow example:
+        Question: "What is the protein change for NM_001045477.4:c.187C>T?"
+        1. Call convert_hgvs_to_genomic("NM_001045477.4:c.187C>T")
+           → Returns: {chr: "9", pos: 99694174, ref: "C", alt: "T"}
+        2. Call get_variant_annotation_by_genomic_position(chr="9", pos=99694174, ref="C", alt="T")
+           → Returns: {mostAgreed: {transcriptId: "NM_001045477.2", coord: {annot: "p.P63S"}}}
+        3. Extract protein change from mostAgreed.coord.annot: "p.P63S"
 
     Args:
         chr: Chromosome (e.g., "9" or "chr9")
