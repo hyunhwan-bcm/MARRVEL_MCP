@@ -19,6 +19,7 @@ References:
 - Evaluation: https://docs.langchain.com/oss/python/langchain/overview
 """
 
+import argparse
 import asyncio
 import json
 import os
@@ -50,24 +51,12 @@ class TokenLimitExceeded(Exception):
 # Load environment variables from .env file
 load_dotenv()
 
-# Configure API keys
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-if not OPENROUTER_API_KEY:
-    raise ValueError(
-        "OPENROUTER_API_KEY not found in environment variables. "
-        "Please set it in a .env file or export it as an environment variable."
-    )
-
+# Model configuration
 MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
-# Configure LangChain ChatOpenAI with OpenRouter
-llm = ChatOpenAI(
-    model=MODEL,
-    openai_api_base="https://openrouter.ai/api/v1",
-    openai_api_key=OPENROUTER_API_KEY,
-    temperature=0,
-)
+# LLM instance will be initialized in main() after arg parsing
+llm = None
 
 
 def count_tokens(text: str, model: str = "gpt-4") -> int:
@@ -494,13 +483,153 @@ def open_in_browser(html_path: str):
     print(f"--- Opened {html_path} in browser ---")
 
 
+def parse_subset(subset_str: str, total_count: int) -> List[int]:
+    """
+    Parse subset string and return list of 1-based indices.
+
+    Accepts:
+    - Ranges: "1-5" (inclusive, 1-based)
+    - Individual indices: "1,2,4" (1-based)
+    - Combinations: "1-3,5,7-9" (1-based)
+
+    Args:
+        subset_str: String specifying the subset (e.g., "1-5", "1,2,4", "1-3,5,7-9")
+        total_count: Total number of available test cases
+
+    Returns:
+        List of 0-based indices
+
+    Raises:
+        ValueError: If subset string is invalid or indices are out of range
+    """
+    if not subset_str:
+        return list(range(total_count))
+
+    indices = set()
+    parts = subset_str.split(",")
+
+    for part in parts:
+        part = part.strip()
+        if "-" in part:
+            # Handle range
+            try:
+                range_parts = part.split("-")
+                if len(range_parts) != 2:
+                    raise ValueError(f"Invalid range format: '{part}'. Expected format like '1-5'")
+
+                start, end = range_parts
+                start = start.strip()
+                end = end.strip()
+
+                if not start or not end:
+                    raise ValueError(f"Invalid range format: '{part}'. Expected format like '1-5'")
+
+                start_idx = int(start)
+                end_idx = int(end)
+
+                # Guard against 0-based usage explicitly with a clear message
+                if start_idx == 0 or end_idx == 0:
+                    raise ValueError(
+                        f"0-based indexing is not supported: '{part}'. Use 1-based indices (e.g., '1-2' instead of '0-1')."
+                    )
+
+                if start_idx < 1 or end_idx < 1:
+                    raise ValueError(f"Indices must be >= 1, got range {start_idx}-{end_idx}")
+                if start_idx > total_count:
+                    raise ValueError(f"Index {start_idx} out of range (max: {total_count})")
+                if end_idx > total_count:
+                    raise ValueError(f"Index {end_idx} out of range (max: {total_count})")
+                if start_idx > end_idx:
+                    raise ValueError(f"Invalid range {start_idx}-{end_idx}: start must be <= end")
+
+                # Convert to 0-based indices
+                for i in range(start_idx - 1, end_idx):
+                    indices.add(i)
+            except ValueError as e:
+                if "invalid literal" in str(e):
+                    raise ValueError(f"Invalid range format: '{part}'. Expected format like '1-5'")
+                raise
+        else:
+            # Handle individual index
+            try:
+                idx = int(part)
+                if idx == 0:
+                    raise ValueError(
+                        "0-based indexing is not supported: '0'. Use 1-based indices (e.g., '1')."
+                    )
+                if idx < 1:
+                    raise ValueError(f"Index must be >= 1, got {idx}")
+                if idx > total_count:
+                    raise ValueError(f"Index {idx} out of range (max: {total_count})")
+                # Convert to 0-based index
+                indices.add(idx - 1)
+            except ValueError as e:
+                if "invalid literal" in str(e):
+                    raise ValueError(f"Invalid index: '{part}'. Expected an integer")
+                raise
+
+    return sorted(list(indices))
+
+
 async def main():
     """
     Main function to run the evaluation concurrently.
     """
-    # Load test cases
-    with open("../mcp-llm-test/test_cases.yaml", "r") as f:
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Evaluate MCP tools using LangChain and LLM",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Subset Examples:
+  --subset 1-5          Run test cases 1 through 5
+  --subset 1,2,4        Run test cases 1, 2, and 4
+  --subset 1-3,5,7-9    Run test cases 1-3, 5, and 7-9
+  (no --subset)         Run all test cases
+        """,
+    )
+    parser.add_argument(
+        "--subset",
+        type=str,
+        help="Specify subset of test cases to run (e.g., '1-5', '1,2,4', '1-3,5,7-9')",
+        default=None,
+    )
+    args = parser.parse_args()
+
+    # Initialize LLM after argument parsing (so --help works without API key)
+    global llm
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+    if not OPENROUTER_API_KEY:
+        raise ValueError(
+            "OPENROUTER_API_KEY not found in environment variables. "
+            "Please set it in a .env file or export it as an environment variable."
+        )
+    llm = ChatOpenAI(
+        model=MODEL,
+        openai_api_base="https://openrouter.ai/api/v1",
+        openai_api_key=OPENROUTER_API_KEY,
+        temperature=0,
+    )
+
+    # Load test cases - resolve path relative to script location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    test_cases_path = os.path.join(script_dir, "test_cases.yaml")
+    with open(test_cases_path, "r") as f:
         test_cases = yaml.safe_load(f)
+
+    # Parse and filter test cases based on subset parameter
+    if args.subset:
+        try:
+            subset_indices = parse_subset(args.subset, len(test_cases))
+            test_cases = [test_cases[i] for i in subset_indices]
+            # Print selected indices as 1-based for user clarity
+            selected_1_based = ",".join(str(i + 1) for i in subset_indices)
+            print(f"\n--- Running subset of test cases (1-based): {selected_1_based} ---")
+            print(f"--- Selected {len(test_cases)} test case(s) ---\n")
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+    else:
+        print(f"\n--- Running all {len(test_cases)} test cases ---\n")
 
     # Create MCP server and client
     mcp_server = create_server()
