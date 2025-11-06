@@ -37,9 +37,7 @@ def test_concurrency_argument_parsing():
         assert args.concurrency == 8, "Custom concurrency should be 8"
 
     # Test concurrency with other arguments
-    with patch(
-        "sys.argv", ["evaluate_mcp.py", "--concurrency", "10", "--force", "--clear"]
-    ):
+    with patch("sys.argv", ["evaluate_mcp.py", "--concurrency", "10", "--force", "--clear"]):
         args = parse_arguments()
         assert args.concurrency == 10
         assert args.force is True
@@ -67,9 +65,11 @@ async def test_run_test_case_updates_progress_bar():
     mock_pbar = MagicMock()
 
     # Mock the get_langchain_response to avoid actual API calls
-    with patch("evaluate_mcp.get_langchain_response") as mock_get_response, patch(
-        "evaluate_mcp.evaluate_response"
-    ) as mock_evaluate, patch("evaluate_mcp.save_cached_result"):
+    with (
+        patch("evaluate_mcp.get_langchain_response") as mock_get_response,
+        patch("evaluate_mcp.evaluate_response") as mock_evaluate,
+        patch("evaluate_mcp.save_cached_result"),
+    ):
 
         mock_get_response.return_value = (
             "Test response",
@@ -95,9 +95,7 @@ async def test_run_test_case_updates_progress_bar():
         # Verify progress bar was updated
         assert mock_pbar.update.called, "Progress bar should be updated"
         assert mock_pbar.update.call_count == 1, "Progress bar should be updated once"
-        assert (
-            mock_pbar.set_postfix_str.called
-        ), "Progress bar postfix should be set"
+        assert mock_pbar.set_postfix_str.called, "Progress bar postfix should be set"
 
 
 @pytest.mark.asyncio
@@ -134,8 +132,8 @@ async def test_run_test_case_with_cached_result():
 
         # Verify progress bar was updated for cached result
         assert mock_pbar.update.called, "Progress bar should be updated for cache hit"
-        assert (
-            "Cached" in str(mock_pbar.set_postfix_str.call_args)
+        assert "Cached" in str(
+            mock_pbar.set_postfix_str.call_args
         ), "Progress should indicate cached result"
         assert result == cached_result
 
@@ -168,8 +166,8 @@ async def test_run_test_case_handles_errors_with_progress():
 
         # Verify error was logged to progress bar
         assert mock_pbar.write.called, "Error should be written to progress bar"
-        assert (
-            "Error" in str(mock_pbar.write.call_args) or "❌" in str(mock_pbar.write.call_args)
+        assert "Error" in str(mock_pbar.write.call_args) or "❌" in str(
+            mock_pbar.write.call_args
         ), "Error message should be displayed"
         assert mock_pbar.update.called, "Progress bar should still be updated"
         assert "Error" in result["classification"]
@@ -193,6 +191,4 @@ def test_progress_bar_parameter_in_run_test_case():
     params = list(sig.parameters.keys())
 
     assert "pbar" in params, "run_test_case should have pbar parameter"
-    assert (
-        sig.parameters["pbar"].default is None
-    ), "pbar parameter should default to None"
+    assert sig.parameters["pbar"].default is None, "pbar parameter should default to None"
