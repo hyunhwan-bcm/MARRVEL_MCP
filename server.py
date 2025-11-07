@@ -1046,8 +1046,8 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
         encoded_variant = quote(hgvs_variant)
         data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{encoded_variant}", is_graphql=False)
         data_obj = json.loads(data)
-        
-        lo_data = await liftover_hg19_to_hg38(data_obj["chr"],data_obj["pos"])
+
+        lo_data = await liftover_hg19_to_hg38(data_obj["chr"], data_obj["pos"])
         lo_data_obj = json.loads(lo_data)
 
         data_obj["hg38Chr"] = lo_data_obj["hg38Chr"]
