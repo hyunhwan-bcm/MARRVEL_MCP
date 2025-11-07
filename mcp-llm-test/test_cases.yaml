@@ -82,7 +82,7 @@
 
 - case:
     name: "DIOPT ortholog rat"
-    input: "What is the DIOPT ortholog of NUTM2G in rat?"
+    input: "What is the gene symbol for the DIOPT ortholog of NUTM2G in rat?"
     expected: "The rat ortholog is Nutm2f."
 
 - case:

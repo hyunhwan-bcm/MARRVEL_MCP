@@ -122,7 +122,7 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
             data = response.json()
 
             # Check for GraphQL errors only if using GraphQL API
-            if is_graphql and data.get("errors"):
+            if is_graphql and data.get("errors") and data.get("data") is None:
                 # Raise an exception if GraphQL errors are present in the response body
                 error_details = json.dumps(data["errors"], indent=2)
                 raise Exception(f"GraphQL query failed with execution errors:\n{error_details}")
@@ -301,7 +301,7 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_gene_by_symbol",
-    description="Find gene information by gene symbol across multiple species (human, mouse, fly, worm, etc.)",
+    description="Find gene information (including entrezID) by gene symbol across multiple species (human, mouse, fly, worm, etc.)",
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
