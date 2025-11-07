@@ -1472,8 +1472,14 @@ async def get_pmc_tables_by_pmcid(pmcid: str) -> str:
             if table_elem is None:
                 continue
 
+            # Helper function to extract and clean cell text
+            def get_cell_text(elem):
+                cell_text = etree.tostring(elem, encoding="unicode", method="text")
+                return " ".join(cell_text.split())
+
             # Convert table to markdown
             markdown_rows = []
+            num_cols = 0
 
             # Process table header
             thead = table_elem.find(".//thead")
@@ -1482,28 +1488,28 @@ async def get_pmc_tables_by_pmcid(pmcid: str) -> str:
                 for tr in header_rows:
                     cells = []
                     for th in tr.findall(".//th"):
-                        cell_text = etree.tostring(th, encoding="unicode", method="text")
-                        cell_text = " ".join(cell_text.split())
-                        cells.append(cell_text)
+                        cells.append(get_cell_text(th))
                     if cells:
                         markdown_rows.append("| " + " | ".join(cells) + " |")
-                        # Add separator row
-                        markdown_rows.append("| " + " | ".join(["---"] * len(cells)) + " |")
+                        num_cols = len(cells)
+                # Add separator row after all headers
+                if num_cols > 0:
+                    markdown_rows.append("| " + " | ".join(["---"] * num_cols) + " |")
 
             # Process table body
             tbody = table_elem.find(".//tbody")
             if tbody is not None:
                 body_rows = tbody.findall(".//tr")
             else:
-                # Some tables don't have tbody
-                body_rows = table_elem.findall(".//tr")
+                # Some tables don't have tbody - get all rows except those in thead
+                all_rows = table_elem.findall(".//tr")
+                thead_rows = thead.findall(".//tr") if thead is not None else []
+                body_rows = [tr for tr in all_rows if tr not in thead_rows]
 
             for tr in body_rows:
                 cells = []
                 for td in tr.findall(".//td"):
-                    cell_text = etree.tostring(td, encoding="unicode", method="text")
-                    cell_text = " ".join(cell_text.split())
-                    cells.append(cell_text)
+                    cells.append(get_cell_text(td))
                 if cells:
                     markdown_rows.append("| " + " | ".join(cells) + " |")
 
