@@ -360,167 +360,56 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
 )
 async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
-            query MyQuery {{
-                dbnsfpByVariant(chr: "{chr}", pos: {pos}, alt: "{alt}", ref: "{ref}", build: "hg38") {{
-                    scores {{
-                        CADD {{
-                            phred
-                            rankscore
-                            rawScore
-                        }}
-                        Polyphen2HDIV {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        Polyphen2HVAR {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        SIFT {{
-                            predictions
-                            scores
-                            rankscore
-                        }}
-                        SIFT4G {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        REVEL {{
-                            rankscore
-                            scores
-                        }}
-                        MutationTaster {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        MutationAssessor {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        FATHMM {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        MetaSVM {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        MetaLR {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        PROVEAN {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        VEST4 {{
-                            rankscore
-                            scores
-                        }}
-                        MPC {{
-                            rankscore
-                            scores
-                        }}
-                        PrimateAI {{
-                            rankscore
-                            scores
-                        }}
-                        DEOGEN2 {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        BayesDel {{
-                            rankscore
-                            scores
-                        }}
-                        ClinPred {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        LIST_S2 {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        GERP {{
-                            rankscore
-                            scores
-                        }}
-                        PhyloP {{
-                            rankscore
-                            scores
-                        }}
-                        PhastCons {{
-                            rankscore
-                            scores
-                        }}
-                        SiPhy {{
-                            rankscore
-                            scores
-                        }}
-                    }}
-                }}
-            }}
-            """
-        )
+        # Use REST API instead of GraphQL to avoid schema compatibility issues
+        # Format variant like gnomAD does: "chr:pos ref>alt"
+        variant = f"{chr}:{pos} {ref}>{alt}"
+        variant_uri = quote(variant, safe="")
+        data = await fetch_marrvel_data(f"/dbNSFP/variant/{variant_uri}", is_graphql=False)
 
         # Parse the response and add enhanced summary
         data_obj = json.loads(data)
-        if "data" in data_obj and data_obj["data"] and "dbnsfpByVariant" in data_obj["data"]:
-            variant_data = data_obj["data"]["dbnsfpByVariant"]
-            if variant_data and "scores" in variant_data:
-                scores = variant_data["scores"]
 
-                # Calculate average rank score from all available rank scores
-                rank_scores = []
-                score_details = {}
+        # REST API returns data directly without GraphQL wrapper
+        if data_obj and isinstance(data_obj, dict) and "scores" in data_obj:
+            scores = data_obj["scores"]
 
-                for method_name, method_data in scores.items():
-                    if method_data:
-                        # Collect rank scores
-                        if "rankscore" in method_data and method_data["rankscore"] is not None:
-                            try:
-                                # Handle both single values and arrays
-                                rankscore_val = method_data["rankscore"]
-                                if isinstance(rankscore_val, list):
-                                    # Take the first value if it's an array
-                                    if rankscore_val and rankscore_val[0] is not None:
-                                        rank_scores.append(float(rankscore_val[0]))
-                                elif rankscore_val is not None:
-                                    rank_scores.append(float(rankscore_val))
-                            except (ValueError, TypeError):
-                                pass
+            # Calculate average rank score from all available rank scores
+            rank_scores = []
+            score_details = {}
 
-                        # Build score details for easy extraction
-                        score_details[method_name] = method_data
+            for method_name, method_data in scores.items():
+                if method_data:
+                    # Collect rank scores
+                    if "rankscore" in method_data and method_data["rankscore"] is not None:
+                        try:
+                            # Handle both single values and arrays
+                            rankscore_val = method_data["rankscore"]
+                            if isinstance(rankscore_val, list):
+                                # Take the first value if it's an array
+                                if rankscore_val and rankscore_val[0] is not None:
+                                    rank_scores.append(float(rankscore_val[0]))
+                            elif rankscore_val is not None:
+                                rank_scores.append(float(rankscore_val))
+                        except (ValueError, TypeError):
+                            pass
 
-                # Add summary with average rank score
-                if rank_scores:
-                    avg_rank_score = sum(rank_scores) / len(rank_scores)
-                    variant_data["summary"] = {
-                        "average_rankscore": round(avg_rank_score, 3),
-                        "num_methods_with_rankscore": len(rank_scores),
-                        "individual_rankscores": {
-                            method: scores[method].get("rankscore")
-                            for method in scores
-                            if scores[method] and scores[method].get("rankscore") is not None
-                        },
-                    }
+                    # Build score details for easy extraction
+                    score_details[method_name] = method_data
 
-                data = json.dumps(data_obj, indent=2)
+            # Add summary with average rank score
+            if rank_scores:
+                avg_rank_score = sum(rank_scores) / len(rank_scores)
+                data_obj["summary"] = {
+                    "average_rankscore": round(avg_rank_score, 3),
+                    "num_methods_with_rankscore": len(rank_scores),
+                    "individual_rankscores": {
+                        method: scores[method].get("rankscore")
+                        for method in scores
+                        if scores[method] and scores[method].get("rankscore") is not None
+                    },
+                }
+
+            data = json.dumps(data_obj, indent=2)
 
         return data
     except Exception as e:
