@@ -237,6 +237,7 @@ def get_example_genes() -> dict:
 # GENE TOOLS
 # ============================================================================
 
+
 async def fix_missing_hg38_vals(data: str) -> str:
     data_obj = json.loads(data)
     sub_dict_list = next(iter(data_obj["data"].values()))
@@ -246,21 +247,21 @@ async def fix_missing_hg38_vals(data: str) -> str:
         if sub_dict["taxonId"] == 9606:
             try:
                 if sub_dict.get("hg38Start") is None:
-                    lo_data = await liftover_hg19_to_hg38(sub_dict["chr"],sub_dict["hg19Start"])
+                    lo_data = await liftover_hg19_to_hg38(sub_dict["chr"], sub_dict["hg19Start"])
                     lo_data_obj = json.loads(lo_data)
                     sub_dict["hg38Start"] = lo_data_obj["hg38Pos"]
-                
+
                 if sub_dict.get("hg38Stop") is None:
-                    lo_data = await liftover_hg19_to_hg38(sub_dict["chr"],sub_dict["hg19Stop"])
+                    lo_data = await liftover_hg19_to_hg38(sub_dict["chr"], sub_dict["hg19Stop"])
                     lo_data_obj = json.loads(lo_data)
                     sub_dict["hg38Stop"] = lo_data_obj["hg38Pos"]
                 del sub_dict["hg19Start"], sub_dict["hg19Stop"]
                 data = json.dumps(data_obj, indent=2)
-                
+
             except httpx.HTTPError as e:
-                    return f"Error fetching gene data: {str(e)}"
+                return f"Error fetching gene data: {str(e)}"
     return data
-    
+
 
 @mcp.tool(
     name="get_gene_by_entrez_id",
@@ -293,7 +294,7 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
         )
         data = await fix_missing_hg38_vals(data)
         return data
-    
+
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
 
@@ -720,10 +721,7 @@ async def get_dgv_by_entrez_id(entrez_id: str) -> str:
     try:
         data = await fetch_marrvel_data(f"/DGV/gene/entrezId/{entrez_id}", is_graphql=False)
         data_obj = json.loads(data)
-        data_obj = {
-            "data":data_obj,
-            "n_entries": len(data_obj)
-        }
+        data_obj = {"data": data_obj, "n_entries": len(data_obj)}
         data = json.dumps(data_obj)
         return data
     except Exception as e:
@@ -1087,8 +1085,8 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
         encoded_variant = quote(hgvs_variant)
         data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{encoded_variant}", is_graphql=False)
         data_obj = json.loads(data)
-        
-        lo_data = await liftover_hg19_to_hg38(data_obj["chr"],data_obj["pos"])
+
+        lo_data = await liftover_hg19_to_hg38(data_obj["chr"], data_obj["pos"])
         lo_data_obj = json.loads(lo_data)
 
         data_obj["hg38Chr"] = lo_data_obj["hg38Chr"]
