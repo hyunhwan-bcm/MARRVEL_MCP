@@ -363,8 +363,8 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
         # Use REST API instead of GraphQL to avoid schema compatibility issues
         # Format variant like gnomAD does: "chr:pos ref>alt"
         variant = f"{chr}:{pos} {ref}>{alt}"
-        variant_uri = quote(variant, safe="")
-        data = await fetch_marrvel_data(f"/dbNSFP/variant/{variant_uri}", is_graphql=False)
+        encoded_variant = quote(variant, safe="")
+        data = await fetch_marrvel_data(f"/dbNSFP/variant/{encoded_variant}", is_graphql=False)
 
         # Parse the response and add enhanced summary
         data_obj = json.loads(data)
