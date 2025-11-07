@@ -1304,8 +1304,75 @@ async def search_pubmed(
 
 
 @mcp.tool(
+    name="get_pmc_abstract_by_pmcid",
+    description="Retrieve abstract only from a PubMed Central (PMC) article by PMC ID for quick summary",
+    meta={"category": "literature", "database": "PMC", "version": "1.0"},
+)
+async def get_pmc_abstract_by_pmcid(pmcid: str) -> str:
+    try:
+        if not pmcid or not pmcid.startswith("PMC"):
+            return json.dumps({"pmcid": pmcid, "abstract": "", "error": "Invalid PMCID"}, indent=2)
+
+        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            xml = resp.content
+        root = etree.fromstring(xml)
+
+        # Extract abstract
+        abstract_elem = root.find(".//abstract")
+        if abstract_elem is None:
+            return json.dumps(
+                {"pmcid": pmcid, "abstract": "", "error": "No abstract found."}, indent=2
+            )
+
+        abstract_text = etree.tostring(abstract_elem, encoding="unicode", method="text")
+        abstract_text = " ".join(abstract_text.split())  # Clean whitespace
+
+        return json.dumps({"pmcid": pmcid, "abstract": abstract_text}, indent=2)
+    except httpx.HTTPStatusError as e:
+        return json.dumps(
+            {"pmcid": pmcid, "abstract": "", "error": f"HTTP error: {e.response.status_code}"},
+            indent=2,
+        )
+    except Exception as e:
+        return json.dumps({"pmcid": pmcid, "abstract": "", "error": str(e)}, indent=2)
+
+
+@mcp.tool(
+    name="get_pmc_abstract_by_pmid",
+    description="Retrieve abstract only from a PubMed Central (PMC) article by PubMed ID (PMID) for quick summary",
+    meta={"category": "literature", "database": "PMC", "version": "1.0"},
+)
+async def get_pmc_abstract_by_pmid(pmid: str) -> str:
+    try:
+        # First convert PMID to PMCID
+        pmcid_result = await pmid_to_pmcid(pmid)
+        pmcid_data = json.loads(pmcid_result)
+
+        if not pmcid_data.get("pmcid"):
+            return json.dumps(
+                {
+                    "pmid": pmid,
+                    "abstract": "",
+                    "error": "Could not convert PMID to PMCID - article may not be open access",
+                },
+                indent=2,
+            )
+
+        # Get abstract using PMCID
+        result = await get_pmc_abstract_by_pmcid(pmcid_data["pmcid"])
+        result_data = json.loads(result)
+        result_data["pmid"] = pmid
+        return json.dumps(result_data, indent=2)
+    except Exception as e:
+        return json.dumps({"pmid": pmid, "abstract": "", "error": str(e)}, indent=2)
+
+
+@mcp.tool(
     name="get_pmc_fulltext_by_pmcid",
-    description="Retrieve full text of a PubMed Central (PMC) open-access article for detailed content analysis",
+    description="Retrieve full text of a PubMed Central (PMC) open-access article by PMC ID for detailed content analysis",
     meta={"category": "literature", "database": "PMC", "version": "1.0"},
 )
 async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
@@ -1319,20 +1386,19 @@ async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
             resp.raise_for_status()
             xml = resp.content
         root = etree.fromstring(xml)
+
+        # Extract full body text using proper XML text extraction
         body = root.find(".//body")
         if body is None:
             return json.dumps(
                 {"pmcid": pmcid, "fulltext": "", "error": "No full text body found."}, indent=2
             )
-        text_parts = []
-        for elem in body.iter():
-            if elem.tag in ("p", "sec", "title"):
-                if elem.text:
-                    cleaned = " ".join(elem.text.split())
-                    if cleaned:
-                        text_parts.append(cleaned)
-        output = "\n".join([line for line in text_parts if line.strip()])
-        return json.dumps({"pmcid": pmcid, "fulltext": output}, indent=2)
+
+        # Use etree.tostring with method='text' to get all text content
+        fulltext = etree.tostring(body, encoding="unicode", method="text")
+        fulltext = " ".join(fulltext.split())  # Clean up excessive whitespace
+
+        return json.dumps({"pmcid": pmcid, "fulltext": fulltext}, indent=2)
     except httpx.HTTPStatusError as e:
         return json.dumps(
             {"pmcid": pmcid, "fulltext": "", "error": f"HTTP error: {e.response.status_code}"},
@@ -1340,6 +1406,241 @@ async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
         )
     except Exception as e:
         return json.dumps({"pmcid": pmcid, "fulltext": "", "error": str(e)}, indent=2)
+
+
+@mcp.tool(
+    name="get_pmc_fulltext_by_pmid",
+    description="Retrieve full text of a PubMed Central (PMC) open-access article by PubMed ID (PMID) for detailed content analysis",
+    meta={"category": "literature", "database": "PMC", "version": "1.0"},
+)
+async def get_pmc_fulltext_by_pmid(pmid: str) -> str:
+    try:
+        # First convert PMID to PMCID
+        pmcid_result = await pmid_to_pmcid(pmid)
+        pmcid_data = json.loads(pmcid_result)
+
+        if not pmcid_data.get("pmcid"):
+            return json.dumps(
+                {
+                    "pmid": pmid,
+                    "fulltext": "",
+                    "error": "Could not convert PMID to PMCID - article may not be open access",
+                },
+                indent=2,
+            )
+
+        # Get fulltext using PMCID
+        result = await get_pmc_fulltext_by_pmcid(pmcid_data["pmcid"])
+        result_data = json.loads(result)
+        result_data["pmid"] = pmid
+        return json.dumps(result_data, indent=2)
+    except Exception as e:
+        return json.dumps({"pmid": pmid, "fulltext": "", "error": str(e)}, indent=2)
+
+
+@mcp.tool(
+    name="get_pmc_tables_by_pmcid",
+    description="Extract tables with captions from a PubMed Central (PMC) article by PMC ID. Returns list of tables in markdown format with captions.",
+    meta={"category": "literature", "database": "PMC", "version": "1.0"},
+)
+async def get_pmc_tables_by_pmcid(pmcid: str) -> str:
+    try:
+        if not pmcid or not pmcid.startswith("PMC"):
+            return json.dumps({"pmcid": pmcid, "tables": [], "error": "Invalid PMCID"}, indent=2)
+
+        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            xml = resp.content
+        root = etree.fromstring(xml)
+
+        # Find all table-wrap elements
+        table_wraps = root.findall(".//table-wrap")
+
+        tables = []
+        for idx, table_wrap in enumerate(table_wraps, 1):
+            # Extract caption
+            caption_elem = table_wrap.find(".//caption")
+            caption = ""
+            if caption_elem is not None:
+                caption_text = etree.tostring(caption_elem, encoding="unicode", method="text")
+                caption = " ".join(caption_text.split())
+
+            # Extract table data
+            table_elem = table_wrap.find(".//table")
+            if table_elem is None:
+                continue
+
+            # Helper function to extract and clean cell text
+            def get_cell_text(elem):
+                cell_text = etree.tostring(elem, encoding="unicode", method="text")
+                return " ".join(cell_text.split())
+
+            # Convert table to markdown
+            markdown_rows = []
+            num_cols = 0
+
+            # Process table header
+            thead = table_elem.find(".//thead")
+            if thead is not None:
+                header_rows = thead.findall(".//tr")
+                for tr in header_rows:
+                    cells = []
+                    for th in tr.findall(".//th"):
+                        cells.append(get_cell_text(th))
+                    if cells:
+                        markdown_rows.append("| " + " | ".join(cells) + " |")
+                        num_cols = len(cells)
+                # Add separator row after all headers
+                if num_cols > 0:
+                    markdown_rows.append("| " + " | ".join(["---"] * num_cols) + " |")
+
+            # Process table body
+            tbody = table_elem.find(".//tbody")
+            if tbody is not None:
+                body_rows = tbody.findall(".//tr")
+            else:
+                # Some tables don't have tbody - get all rows except those in thead
+                all_rows = table_elem.findall(".//tr")
+                thead_rows = thead.findall(".//tr") if thead is not None else []
+                body_rows = [tr for tr in all_rows if tr not in thead_rows]
+
+            for tr in body_rows:
+                cells = []
+                for td in tr.findall(".//td"):
+                    cells.append(get_cell_text(td))
+                if cells:
+                    markdown_rows.append("| " + " | ".join(cells) + " |")
+
+            markdown_table = "\n".join(markdown_rows)
+
+            tables.append(
+                {"table_number": idx, "caption": caption, "table_markdown": markdown_table}
+            )
+
+        return json.dumps({"pmcid": pmcid, "table_count": len(tables), "tables": tables}, indent=2)
+    except httpx.HTTPStatusError as e:
+        return json.dumps(
+            {"pmcid": pmcid, "tables": [], "error": f"HTTP error: {e.response.status_code}"},
+            indent=2,
+        )
+    except Exception as e:
+        return json.dumps({"pmcid": pmcid, "tables": [], "error": str(e)}, indent=2)
+
+
+@mcp.tool(
+    name="get_pmc_tables_by_pmid",
+    description="Extract tables with captions from a PubMed Central (PMC) article by PubMed ID (PMID). Returns list of tables in markdown format with captions.",
+    meta={"category": "literature", "database": "PMC", "version": "1.0"},
+)
+async def get_pmc_tables_by_pmid(pmid: str) -> str:
+    try:
+        # First convert PMID to PMCID
+        pmcid_result = await pmid_to_pmcid(pmid)
+        pmcid_data = json.loads(pmcid_result)
+
+        if not pmcid_data.get("pmcid"):
+            return json.dumps(
+                {
+                    "pmid": pmid,
+                    "tables": [],
+                    "error": "Could not convert PMID to PMCID - article may not be open access",
+                },
+                indent=2,
+            )
+
+        # Get tables using PMCID
+        result = await get_pmc_tables_by_pmcid(pmcid_data["pmcid"])
+        result_data = json.loads(result)
+        result_data["pmid"] = pmid
+        return json.dumps(result_data, indent=2)
+    except Exception as e:
+        return json.dumps({"pmid": pmid, "tables": [], "error": str(e)}, indent=2)
+
+
+@mcp.tool(
+    name="get_pmc_figure_captions_by_pmcid",
+    description="Extract figure captions from a PubMed Central (PMC) article by PMC ID for understanding visual content",
+    meta={"category": "literature", "database": "PMC", "version": "1.0"},
+)
+async def get_pmc_figure_captions_by_pmcid(pmcid: str) -> str:
+    try:
+        if not pmcid or not pmcid.startswith("PMC"):
+            return json.dumps({"pmcid": pmcid, "figures": [], "error": "Invalid PMCID"}, indent=2)
+
+        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            xml = resp.content
+        root = etree.fromstring(xml)
+
+        # Find all fig elements
+        fig_elements = root.findall(".//fig")
+
+        figures = []
+        for idx, fig in enumerate(fig_elements, 1):
+            # Extract figure ID if available
+            fig_id = fig.get("id", f"fig{idx}")
+
+            # Extract label (e.g., "Figure 1")
+            label_elem = fig.find(".//label")
+            label = ""
+            if label_elem is not None:
+                label = etree.tostring(label_elem, encoding="unicode", method="text").strip()
+
+            # Extract caption
+            caption_elem = fig.find(".//caption")
+            caption = ""
+            if caption_elem is not None:
+                caption_text = etree.tostring(caption_elem, encoding="unicode", method="text")
+                caption = " ".join(caption_text.split())
+
+            figures.append(
+                {"figure_number": idx, "figure_id": fig_id, "label": label, "caption": caption}
+            )
+
+        return json.dumps(
+            {"pmcid": pmcid, "figure_count": len(figures), "figures": figures}, indent=2
+        )
+    except httpx.HTTPStatusError as e:
+        return json.dumps(
+            {"pmcid": pmcid, "figures": [], "error": f"HTTP error: {e.response.status_code}"},
+            indent=2,
+        )
+    except Exception as e:
+        return json.dumps({"pmcid": pmcid, "figures": [], "error": str(e)}, indent=2)
+
+
+@mcp.tool(
+    name="get_pmc_figure_captions_by_pmid",
+    description="Extract figure captions from a PubMed Central (PMC) article by PubMed ID (PMID) for understanding visual content",
+    meta={"category": "literature", "database": "PMC", "version": "1.0"},
+)
+async def get_pmc_figure_captions_by_pmid(pmid: str) -> str:
+    try:
+        # First convert PMID to PMCID
+        pmcid_result = await pmid_to_pmcid(pmid)
+        pmcid_data = json.loads(pmcid_result)
+
+        if not pmcid_data.get("pmcid"):
+            return json.dumps(
+                {
+                    "pmid": pmid,
+                    "figures": [],
+                    "error": "Could not convert PMID to PMCID - article may not be open access",
+                },
+                indent=2,
+            )
+
+        # Get figure captions using PMCID
+        result = await get_pmc_figure_captions_by_pmcid(pmcid_data["pmcid"])
+        result_data = json.loads(result)
+        result_data["pmid"] = pmid
+        return json.dumps(result_data, indent=2)
+    except Exception as e:
+        return json.dumps({"pmid": pmid, "figures": [], "error": str(e)}, indent=2)
 
 
 @mcp.tool(

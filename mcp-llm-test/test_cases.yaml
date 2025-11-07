@@ -109,3 +109,33 @@
     name: "GO functions for TP53"
     input: "What GO molecular functions are associated with TP53 or its orthologs?"
     expected: "Development"
+
+- case:
+    name: "PubMed search by gene name"
+    input: "Search PubMed for recent articles about BRCA1 gene and breast cancer. Limit to 3 results."
+    expected: "Articles about BRCA1 and breast cancer are found."
+
+- case:
+    name: "PubMed search by disease name"
+    input: "Search PubMed for articles about Rett syndrome. Limit to 3 results."
+    expected: "Articles about Rett syndrome are found."
+
+- case:
+    name: "PMC abstract lookup by PMC ID"
+    input: "Get the abstract for PMC article PMC3518823."
+    expected: "Abstract text is retrieved."
+
+- case:
+    name: "PMC full text lookup by PMC ID"
+    input: "Get the full text for PMC article PMC3518823."
+    expected: "Full text is retrieved with more content than just the abstract."
+
+- case:
+    name: "PMC table count"
+    input: "How many tables are in the PMC article PMC3518823?"
+    expected: "The number of tables is reported."
+
+- case:
+    name: "PMC figure captions"
+    input: "What are the figure captions in PMC article PMC3518823?"
+    expected: "Figure captions are listed."

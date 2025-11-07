@@ -66,19 +66,27 @@ Ask your AI assistant natural language questions:
 "Find OMIM diseases associated with BRCA1"
 "Find orthologs for human TP53"
 "Search PubMed for TP53 cancer therapy literature"
-"Get PubMed article 32601318"
+"Get the abstract for PMC article PMC3518823"
+"Get tables from PMC article PMC3518823"
+"What figures are in PMC article PMC3518823?"
 ```
 
 ## Features
 
-- **32 MCP Tools** for genetics research
+- **42 MCP Tools** for genetics research
 - Gene queries (by symbol, ID, or position)
 - Variant analysis (dbNSFP, ClinVar, gnomAD)
-- Disease associations (OMIM)
+- Disease associations (OMIM, HPO)
 - Ortholog information (DIOPT)
 - Expression data (GTEx)
 - Drug targets (Pharos)
-- PubMed literature search
+- Literature search (PubMed, PMC):
+  - Search PubMed by keyword
+  - Get abstracts from PMC articles
+  - Extract full text from open-access PMC articles
+  - Extract tables with captions (markdown format)
+  - Extract figure captions
+  - Support for both PMID and PMCID
 
 ## Documentation
 
