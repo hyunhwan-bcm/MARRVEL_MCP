@@ -297,7 +297,7 @@ Common errors:
 
 1. **Open Access Only**: PMC tools only work with open-access articles. Not all PubMed articles are available in PMC.
 
-2. **PMID vs PMCID**: 
+2. **PMID vs PMCID**:
    - PMID (PubMed ID): All PubMed articles have a PMID
    - PMCID (PMC ID): Only open-access articles in PMC have a PMCID
    - Use `pmid_to_pmcid` to check if an article is available in PMC
