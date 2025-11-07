@@ -36,7 +36,7 @@
 
 - case:
     name: "ClinVar records for NUTM2G"
-    input: "Are there any ClinVar variants associated with NUTM2G? If so, how many?"
+    input: "How many ClinVar variants associated with NUTM2G?"
     expected: "Yes, NUTM2G has 99 reported variants in ClinVar."
 
 - case:
@@ -93,7 +93,7 @@
 - case:
     name: "Protein domain"
     input: "What type of protein domain does NUTM2G contain?"
-    expected: "It contains an MFS (Major Facilitator Superfamily) domain."
+    expected: "It contains an NUT protein domain."
 
 - case:
     name: "Drugs or ligands"
@@ -103,12 +103,12 @@
 - case:
     name: "UniProt ID and name"
     input: "What is the UniProt ID and protein name associated with NUTM2G?"
-    expected: "UniProt ID Q5VZR4, Hippocampus abundant transcript-like protein 2."
+    expected: "UniProt ID Q5VZR2, and the protein name is NUT family member 2G."
 
 - case:
     name: "GO functions for TP53"
-    input: "What GO molecular functions are associated with TP53 or its orthologs?"
-    expected: "Development"
+    input: "Regarding GO molecular functions, does the fly ortholog for TP53 have RNA Polymerase II TF binding function?"
+    expected: "Yes, the fly ortholog of TP53 has the molecular function \"RNA polymerase II transcription factor binding\" (GO:0001085)."
 
 - case:
     name: "PubMed search by gene name"

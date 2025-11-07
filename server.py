@@ -28,6 +28,7 @@ import ast
 from typing import Optional
 from urllib.parse import quote
 import urllib.parse
+import statistics
 
 import requests
 
@@ -992,10 +993,31 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT data: {str(e)}"
 
+@mcp.tool(
+    name="get_ontology_across_diopt_orthologs",
+    description="Get gene ontology terms conserved across a given gene and orthologs in a given species",
+    meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
+)
+async def get_ontology_across_diopt_ortholog(entrez_id: str, taxon_id2: int) -> str:
+    try:
+        data = await fetch_marrvel_data(
+            f"/diopt/ortholog/gene/entrezId/{entrez_id}", is_graphql=False
+        )
+        data_obj = json.loads(data)
+        go_terms = {}
+        for ortholog in data_obj:
+            if ortholog["taxonId2"] == taxon_id2:
+                for go in ortholog["gene2"].get("gos", []):
+                    if go["ontology"]["id"] not in go_terms:
+                        go_terms[go["ontology"]["id"]] = go["ontology"]
+        data = json.dumps(go_terms, indent=2)
+        return data
+    except httpx.HTTPError as e:
+        return f"Error fetching DIOPT alignment data: {str(e)}"
 
 @mcp.tool(
     name="get_diopt_alignment",
-    description="Get protein sequence alignment across orthologous species showing conservation patterns and functional domains",
+    description="Get protein sequence alignment across orthologous species showing protein/functional domains and conservation patterns",
     meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
 )
 async def get_diopt_alignment(entrez_id: str) -> str:
@@ -1021,6 +1043,11 @@ async def get_diopt_alignment(entrez_id: str) -> str:
 async def get_gtex_expression(entrez_id: str) -> str:
     try:
         data = await fetch_marrvel_data(f"/gtex/gene/entrezId/{entrez_id}", is_graphql=False)
+        data_obj = json.loads(data)
+        for category in data_obj["data"].keys():
+            for subcategory in data_obj["data"][category].keys():
+                data_obj["data"][category][subcategory] = statistics.median([float(i) for i in data_obj["data"][category][subcategory]])
+        data = json.dumps(data_obj, indent=2)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching GTEx data: {str(e)}"
