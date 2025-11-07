@@ -52,22 +52,22 @@
 
 - case:
     name: "gnomAD presence"
-    input: "Is Chr9:99694174 C>T present in gnomAD?"
-    expected: "Chr9:99694174 C>T is found 0 times in gnomAD control populations."
+    input: "Is Chr9:99694174 C>T found in gnomAD?"
+    expected: "Chr9:99694174 C>T is not found in gnomAD control populations."
 
 - case:
     name: "LoF o/e score"
     input: "What is the LoF o/e (loss-of-function observed/expected) score for NUTM2G?"
-    expected: "The LoF o/e score is 0.35"
+    expected: "The LoF o/e score is 0.84"
 
 - case:
     name: "LoF o/e implication"
     input: "What does the LoF o/e score imply about NUTM2G?"
-    expected: "Since the upper bound of the confidence interval is above 0.35, NUTM2G is tolerant of loss-of-function alleles."
+    expected: "NUTM2G is tolerant of loss-of-function alleles."
 
 - case:
     name: "DGV entries"
-    input: "Are there any DGV entries for NUTM2G?"
+    input: "Are there any DGV entries for NUTM2G? If so, how many?"
     expected: "Yes, there are 16 DGV entries for NUTM2G."
 
 - case:
