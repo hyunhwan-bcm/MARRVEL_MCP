@@ -68,12 +68,13 @@ JSON (or a Python literal convertible to JSON), the test will fail.
 
 # List of tools to exercise and representative arguments. Keep this small
 # but representative; add/remove entries as needed.
-TEST_VARIANT = {"chr": "6", "pos": "99365567", "ref": "T", "alt": "C", "build": "hg19"}
+TEST_VARIANT = {"chr": "6", "pos": "98917691", "ref": "T", "alt": "C", "build": "hg38"}
 tool_calls = [
     ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
     ("get_gene_by_position", {"chromosome": "17", "position": 7565099, "taxon_id": "9606"}),
     ("get_variant_dbnsfp", TEST_VARIANT),
+    ("get_variant_annotation_by_genomic_position", TEST_VARIANT),
     ("get_clinvar_by_variant", TEST_VARIANT),
     ("get_gnomad_variant", TEST_VARIANT),
     ("get_gnomad_by_entrez_id", {"entrez_id": "1080"}),

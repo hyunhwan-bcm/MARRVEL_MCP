@@ -365,10 +365,34 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
             query MyQuery {{
                 dbnsfpByVariant(chr: "{chr}", pos: {pos}, alt: "{alt}", ref: "{ref}", build: "hg38") {{
                     scores {{
+                        AlphaMissense {{
+                            predictions
+                            rankscore
+                            scores
+                        }}
                         CADD {{
                             phred
                             rankscore
                             rawScore
+                        }}
+                        GERPppRS {{
+                            rankscore
+                            score
+                        }}
+                        MCAP {{
+                            prediction
+                            rankscore
+                            score
+                        }}
+                        MutationAssessor {{
+                            predictions
+                            rankscore
+                            scores
+                        }}
+                        MutationTaster {{
+                            predictions
+                            rankscore
+                            scores
                         }}
                         Polyphen2HDIV {{
                             predictions
@@ -380,96 +404,32 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
                             rankscore
                             scores
                         }}
+                        PrimateAI {{
+                            prediction
+                            rankscore
+                            score
+                        }}
+                        REVEL {{
+                            rankscore
+                            scores
+                        }}
                         SIFT {{
                             predictions
-                            scores
                             rankscore
+                            scores
                         }}
                         SIFT4G {{
                             predictions
                             rankscore
                             scores
                         }}
-                        REVEL {{
+                        phyloP100way_vertebrate {{
                             rankscore
-                            scores
+                            score
                         }}
-                        MutationTaster {{
-                            predictions
+                        phyloP470way_mammalian {{
                             rankscore
-                            scores
-                        }}
-                        MutationAssessor {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        FATHMM {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        MetaSVM {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        MetaLR {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        PROVEAN {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        VEST4 {{
-                            rankscore
-                            scores
-                        }}
-                        MPC {{
-                            rankscore
-                            scores
-                        }}
-                        PrimateAI {{
-                            rankscore
-                            scores
-                        }}
-                        DEOGEN2 {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        BayesDel {{
-                            rankscore
-                            scores
-                        }}
-                        ClinPred {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        LIST_S2 {{
-                            predictions
-                            rankscore
-                            scores
-                        }}
-                        GERP {{
-                            rankscore
-                            scores
-                        }}
-                        PhyloP {{
-                            rankscore
-                            scores
-                        }}
-                        PhastCons {{
-                            rankscore
-                            scores
-                        }}
-                        SiPhy {{
-                            rankscore
-                            scores
+                            score
                         }}
                     }}
                 }}
@@ -1085,6 +1045,16 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
     try:
         encoded_variant = quote(hgvs_variant)
         data = await fetch_marrvel_data(f"/mutalyzer/hgvs/{encoded_variant}", is_graphql=False)
+        data_obj = json.loads(data)
+        
+        lo_data = await liftover_hg19_to_hg38(data_obj["chr"],data_obj["pos"])
+        lo_data_obj = json.loads(lo_data)
+
+        data_obj["hg38Chr"] = lo_data_obj["hg38Chr"]
+        data_obj["hg38Pos"] = lo_data_obj["hg38Pos"]
+        del data_obj["chr"], data_obj["pos"]
+
+        data = json.dumps(data_obj, indent=2)
         return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error converting HGVS variant: {str(e)}"}, indent=2)
@@ -1140,8 +1110,11 @@ async def get_variant_annotation_by_genomic_position(chr: str, pos: int, ref: st
     try:
         # Format as genomic HGVS notation for transvar
         # Remove 'chr' prefix if present
-        chr_clean = chr.replace("chr", "")
-        genomic_variant = f"chr{chr_clean}:g.{pos}{ref}>{alt}"
+        lo_data = await liftover_hg38_to_hg19(chr, pos)
+        lo_data_obj = json.loads(lo_data)
+
+        chr_clean = lo_data_obj["hg19Chr"].replace("chr", "")
+        genomic_variant = f"chr{chr_clean}:g.{lo_data_obj["hg19Pos"]}{ref}>{alt}"
         encoded_variant = quote(genomic_variant, safe="")
 
         data = await fetch_marrvel_data(

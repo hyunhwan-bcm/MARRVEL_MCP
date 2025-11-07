@@ -1,7 +1,7 @@
 - case:
     name: "Gene for NM_001045477.4:c.187C>T"
-    input: "What gene is associated with the variant NM_001045477.4:c.187C>T?"
-    expected: "The gene associated is NUTM2G."
+    input: "What gene(s) are associated with the variant NM_001045477.4:c.187C>T?"
+    expected: "The genes associated are MFSD14CP and NUTM2G."
 
 - case:
     name: "Protein change for NM_001045477.4:c.187C>T"
@@ -15,7 +15,7 @@
 
 - case:
     name: "Average dbNSFP rank score"
-    input: "What is the average dbNSFP rank score for Chr9:99694174 C>T?"
+    input: "What is the average dbNSFP rank score for Chr9:96931892 C>T?"
     expected: "The average dbNSFP rank score is 0.160."
 
 - case:
