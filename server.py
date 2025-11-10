@@ -28,6 +28,7 @@ import ast
 from typing import Optional
 from urllib.parse import quote
 import urllib.parse
+import statistics
 
 import requests
 
@@ -122,7 +123,7 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
             data = response.json()
 
             # Check for GraphQL errors only if using GraphQL API
-            if is_graphql and data.get("errors"):
+            if is_graphql and data.get("errors") and data.get("data") is None:
                 # Raise an exception if GraphQL errors are present in the response body
                 error_details = json.dumps(data["errors"], indent=2)
                 raise Exception(f"GraphQL query failed with execution errors:\n{error_details}")
@@ -238,6 +239,31 @@ def get_example_genes() -> dict:
 # ============================================================================
 
 
+async def fix_missing_hg38_vals(data: str) -> str:
+    data_obj = json.loads(data)
+    sub_dict_list = next(iter(data_obj["data"].values()))
+    if isinstance(sub_dict_list, dict):
+        sub_dict_list = [sub_dict_list]
+    for sub_dict in sub_dict_list:
+        if sub_dict["taxonId"] == 9606:
+            try:
+                if sub_dict.get("hg38Start") is None:
+                    lo_data = await liftover_hg19_to_hg38(sub_dict["chr"], sub_dict["hg19Start"])
+                    lo_data_obj = json.loads(lo_data)
+                    sub_dict["hg38Start"] = lo_data_obj["hg38Pos"]
+
+                if sub_dict.get("hg38Stop") is None:
+                    lo_data = await liftover_hg19_to_hg38(sub_dict["chr"], sub_dict["hg19Stop"])
+                    lo_data_obj = json.loads(lo_data)
+                    sub_dict["hg38Stop"] = lo_data_obj["hg38Pos"]
+                del sub_dict["hg19Start"], sub_dict["hg19Stop"]
+                data = json.dumps(data_obj, indent=2)
+
+            except httpx.HTTPError as e:
+                return f"Error fetching gene data: {str(e)}"
+    return data
+
+
 @mcp.tool(
     name="get_gene_by_entrez_id",
     description="Retrieve comprehensive gene information by NCBI Entrez Gene ID including symbol, location, summary, and transcripts",
@@ -252,6 +278,8 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
                     alias
                     chr
                     entrezId
+                    hg19Start
+                    hg19Stop
                     hg38Start
                     hg38Stop
                     hgncId
@@ -265,14 +293,16 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
             }}
             """
         )
+        data = await fix_missing_hg38_vals(data)
         return data
+
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
 
 
 @mcp.tool(
     name="get_gene_by_symbol",
-    description="Find gene information by gene symbol across multiple species (human, mouse, fly, worm, etc.)",
+    description="Find gene information (including entrezID) by gene symbol across multiple species (human, mouse, fly, worm, etc.)",
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
@@ -284,6 +314,8 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
                     alias
                     chr
                     entrezId
+                    hg19Start
+                    hg19Stop
                     hg38Start
                     hg38Stop
                     hgncId
@@ -304,6 +336,7 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
             }}
             """
         )
+        data = await fix_missing_hg38_vals(data)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
@@ -323,6 +356,8 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
                     alias
                     chr
                     entrezId
+                    hg19Start
+                    hg19Stop
                     hg38Start
                     hg38Stop
                     hgncId
@@ -343,6 +378,7 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
             }}
             """
         )
+        data = await fix_missing_hg38_vals(data)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
@@ -632,11 +668,12 @@ async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_gnomad_variant",
-    description="Get population allele frequencies from gnomAD for a specific variant across global and ancestry-specific populations",
+    description="Get population allele frequencies and scores from gnomAD for a specific variant across global and ancestry-specific populations",
     meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
 )
 async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
+
         variant = f"{chr}:{pos} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/gnomAD/variant/{variant_uri}", is_graphql=False)
@@ -647,7 +684,7 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
 @mcp.tool(
     name="get_gnomad_by_gene_symbol",
-    description="Get gnomAD population frequencies for all variants in a gene to identify common vs rare variants",
+    description="Get gnomAD population frequencies and scores for all variants in a gene to identify common vs rare variants",
     meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
 )
 async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
@@ -660,7 +697,7 @@ async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
 
 @mcp.tool(
     name="get_gnomad_by_entrez_id",
-    description="Get gnomAD population frequencies for a gene by Entrez ID with allele frequency data",
+    description="Get gnomAD population frequencies and scores for a gene by Entrez ID with allele frequency data",
     meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
 )
 async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
@@ -684,6 +721,9 @@ async def get_gnomad_by_entrez_id(entrez_id: str) -> str:
 async def get_dgv_by_entrez_id(entrez_id: str) -> str:
     try:
         data = await fetch_marrvel_data(f"/DGV/gene/entrezId/{entrez_id}", is_graphql=False)
+        data_obj = json.loads(data)
+        data_obj = {"data": data_obj, "n_entries": len(data_obj)}
+        data = json.dumps(data_obj)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -955,8 +995,31 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
 
 
 @mcp.tool(
+    name="get_ontology_across_diopt_orthologs",
+    description="Get gene ontology terms conserved across a given gene and orthologs in a given species",
+    meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
+)
+async def get_ontology_across_diopt_ortholog(entrez_id: str, taxon_id2: int) -> str:
+    try:
+        data = await fetch_marrvel_data(
+            f"/diopt/ortholog/gene/entrezId/{entrez_id}", is_graphql=False
+        )
+        data_obj = json.loads(data)
+        go_terms = {}
+        for ortholog in data_obj:
+            if ortholog["taxonId2"] == taxon_id2:
+                for go in ortholog["gene2"].get("gos", []):
+                    if go["ontology"]["id"] not in go_terms:
+                        go_terms[go["ontology"]["id"]] = go["ontology"]
+        data = json.dumps(go_terms, indent=2)
+        return data
+    except httpx.HTTPError as e:
+        return f"Error fetching DIOPT alignment data: {str(e)}"
+
+
+@mcp.tool(
     name="get_diopt_alignment",
-    description="Get protein sequence alignment across orthologous species showing conservation patterns and functional domains",
+    description="Get protein sequence alignment across orthologous species showing protein/functional domains and conservation patterns",
     meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
 )
 async def get_diopt_alignment(entrez_id: str) -> str:
@@ -982,6 +1045,13 @@ async def get_diopt_alignment(entrez_id: str) -> str:
 async def get_gtex_expression(entrez_id: str) -> str:
     try:
         data = await fetch_marrvel_data(f"/gtex/gene/entrezId/{entrez_id}", is_graphql=False)
+        data_obj = json.loads(data)
+        for category in data_obj["data"].keys():
+            for subcategory in data_obj["data"][category].keys():
+                data_obj["data"][category][subcategory] = statistics.median(
+                    [float(i) for i in data_obj["data"][category][subcategory]]
+                )
+        data = json.dumps(data_obj, indent=2)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching GTEx data: {str(e)}"
@@ -1735,8 +1805,15 @@ async def liftover_hg19_to_hg38(chr: str, pos: int) -> str:
 )
 async def get_decipher_by_location(chr: str, start: int, stop: int) -> str:
     try:
+        lo_data = await liftover_hg38_to_hg19(chr, start)
+        lo_data_obj = json.loads(lo_data)
+        hg19_start = lo_data_obj["hg19Pos"]
+        lo_data = await liftover_hg38_to_hg19(chr, stop)
+        lo_data_obj = json.loads(lo_data)
+        hg19_stop = lo_data_obj["hg19Pos"]
+
         data = await fetch_marrvel_data(
-            f"/DECIPHER/genomloc/{chr}/{start}/{stop}", is_graphql=False
+            f"/DECIPHER/genomloc/{chr}/{hg19_start}/{hg19_stop}", is_graphql=False
         )
         return data
     except Exception as e:

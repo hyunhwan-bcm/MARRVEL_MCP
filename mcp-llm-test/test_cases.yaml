@@ -36,7 +36,7 @@
 
 - case:
     name: "ClinVar records for NUTM2G"
-    input: "Are there any ClinVar variants associated with NUTM2G? If so, how many?"
+    input: "How many ClinVar variants associated with NUTM2G?"
     expected: "Yes, NUTM2G has 99 reported variants in ClinVar."
 
 - case:
@@ -52,22 +52,22 @@
 
 - case:
     name: "gnomAD presence"
-    input: "Is Chr9:99694174 C>T present in gnomAD?"
-    expected: "Chr9:99694174 C>T is found 0 times in gnomAD control populations."
+    input: "Is Chr9:99694174 C>T found in gnomAD?"
+    expected: "Chr9:99694174 C>T is not found in gnomAD control populations."
 
 - case:
     name: "LoF o/e score"
     input: "What is the LoF o/e (loss-of-function observed/expected) score for NUTM2G?"
-    expected: "The LoF o/e score is 0.35"
+    expected: "The LoF o/e score is 0.84"
 
 - case:
     name: "LoF o/e implication"
     input: "What does the LoF o/e score imply about NUTM2G?"
-    expected: "Since the upper bound of the confidence interval is above 0.35, NUTM2G is tolerant of loss-of-function alleles."
+    expected: "NUTM2G is tolerant of loss-of-function alleles."
 
 - case:
     name: "DGV entries"
-    input: "Are there any DGV entries for NUTM2G?"
+    input: "Are there any DGV entries for NUTM2G? If so, how many?"
     expected: "Yes, there are 16 DGV entries for NUTM2G."
 
 - case:
@@ -82,7 +82,7 @@
 
 - case:
     name: "DIOPT ortholog rat"
-    input: "What is the DIOPT ortholog of NUTM2G in rat?"
+    input: "What is the gene symbol for the DIOPT ortholog of NUTM2G in rat?"
     expected: "The rat ortholog is Nutm2f."
 
 - case:
@@ -93,7 +93,7 @@
 - case:
     name: "Protein domain"
     input: "What type of protein domain does NUTM2G contain?"
-    expected: "It contains an MFS (Major Facilitator Superfamily) domain."
+    expected: "It contains an NUT protein domain."
 
 - case:
     name: "Drugs or ligands"
@@ -103,12 +103,12 @@
 - case:
     name: "UniProt ID and name"
     input: "What is the UniProt ID and protein name associated with NUTM2G?"
-    expected: "UniProt ID Q5VZR4, Hippocampus abundant transcript-like protein 2."
+    expected: "UniProt ID Q5VZR2, and the protein name is NUT family member 2G."
 
 - case:
     name: "GO functions for TP53"
-    input: "What GO molecular functions are associated with TP53 or its orthologs?"
-    expected: "Development"
+    input: "Regarding GO molecular functions, does the fly ortholog for TP53 have RNA Polymerase II TF binding function?"
+    expected: "Yes, the fly ortholog of TP53 has the molecular function \"RNA polymerase II transcription factor binding\" (GO:0001085)."
 
 - case:
     name: "PubMed search by gene name"
