@@ -58,18 +58,9 @@ This configuration allows your MCP client to launch the MARRVEL server and acces
 
 ### Usage
 
-Ask your AI assistant natural language questions:
+Ask your AI assistant natural language questions about genes, variants, diseases, orthologs, and literature.
 
-```
-"Get information about the gene TP53"
-"Look up variant chr17:g.7577121C>T in ClinVar"
-"Find OMIM diseases associated with BRCA1"
-"Find orthologs for human TP53"
-"Search PubMed for TP53 cancer therapy literature"
-"Get the abstract for PMC article PMC3518823"
-"Get tables from PMC article PMC3518823"
-"What figures are in PMC article PMC3518823?"
-```
+For comprehensive examples and test cases, see: [test_cases.yaml](mcp-llm-test/test_cases.yaml)
 
 ## Features
 
