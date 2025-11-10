@@ -1037,7 +1037,12 @@ async def main():
 
             vanilla_tasks = [
                 run_test_case(
-                    semaphore, mcp_client, test_case, use_cache=use_cache, vanilla_mode=True, pbar=pbar_vanilla
+                    semaphore,
+                    mcp_client,
+                    test_case,
+                    use_cache=use_cache,
+                    vanilla_mode=True,
+                    pbar=pbar_vanilla,
                 )
                 for test_case in test_cases
             ]
@@ -1050,7 +1055,12 @@ async def main():
 
             tool_tasks = [
                 run_test_case(
-                    semaphore, mcp_client, test_case, use_cache=use_cache, vanilla_mode=False, pbar=pbar_tool
+                    semaphore,
+                    mcp_client,
+                    test_case,
+                    use_cache=use_cache,
+                    vanilla_mode=False,
+                    pbar=pbar_tool,
                 )
                 for test_case in test_cases
             ]
@@ -1060,12 +1070,14 @@ async def main():
         # Combine results - create paired results for comparison
         combined_results = []
         for i, test_case in enumerate(test_cases):
-            combined_results.append({
-                "question": test_case["case"]["input"],
-                "expected": test_case["case"]["expected"],
-                "vanilla": vanilla_results[i],
-                "tool": tool_results[i],
-            })
+            combined_results.append(
+                {
+                    "question": test_case["case"]["input"],
+                    "expected": test_case["case"]["expected"],
+                    "vanilla": vanilla_results[i],
+                    "tool": tool_results[i],
+                }
+            )
 
         # Generate HTML report with dual-mode results
         try:
@@ -1084,7 +1096,14 @@ async def main():
             pbar = atqdm(total=len(test_cases), desc="Evaluating tests", unit="test")
 
             tasks = [
-                run_test_case(semaphore, mcp_client, test_case, use_cache=use_cache, vanilla_mode=False, pbar=pbar)
+                run_test_case(
+                    semaphore,
+                    mcp_client,
+                    test_case,
+                    use_cache=use_cache,
+                    vanilla_mode=False,
+                    pbar=pbar,
+                )
                 for test_case in test_cases
             ]
             results = await asyncio.gather(*tasks)
@@ -1094,7 +1113,9 @@ async def main():
         # Sort results to match the original order of test cases
         results_map = {res["question"]: res for res in results}
         ordered_results = [
-            results_map[tc["case"]["input"]] for tc in test_cases if tc["case"]["input"] in results_map
+            results_map[tc["case"]["input"]]
+            for tc in test_cases
+            if tc["case"]["input"] in results_map
         ]
 
         # Generate HTML report and open in browser
