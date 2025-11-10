@@ -196,10 +196,17 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                             <td class="px-4 py-3 text-sm">
                                 {% set max_length = 500 %}
                                 {% if result.vanilla.response|length > max_length %}
-                                {{ result.vanilla.response[:max_length] }}...
+                                <span id="response-truncated-vanilla-{{ result.idx }}">{{ result.vanilla.response[:max_length] }}...</span>
                                 {% else %}
-                                {{ result.vanilla.response }}
+                                <span id="response-truncated-vanilla-{{ result.idx }}">{{ result.vanilla.response }}</span>
                                 {% endif %}
+                                <span id="response-full-vanilla-{{ result.idx }}" class="hidden">{{ result.vanilla.response }}</span>
+                                <button id="response-copy-btn-vanilla-{{ result.idx }}" onclick="copyResponseToClipboard('vanilla-{{ result.idx }}')" class="ml-2 inline-flex items-center px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded transition-colors" title="Copy response to clipboard">
+                                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                                        <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                                    </svg>
+                                </button>
                                 <button onclick="openModal('vanilla-{{ result.idx }}')" class="mt-1 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer">
                                     View Full
                                 </button>
@@ -233,10 +240,17 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                             <td class="px-4 py-3 text-sm">
                                 {% set max_length = 500 %}
                                 {% if result.web.response|length > max_length %}
-                                {{ result.web.response[:max_length] }}...
+                                <span id="response-truncated-web-{{ result.idx }}">{{ result.web.response[:max_length] }}...</span>
                                 {% else %}
-                                {{ result.web.response }}
+                                <span id="response-truncated-web-{{ result.idx }}">{{ result.web.response }}</span>
                                 {% endif %}
+                                <span id="response-full-web-{{ result.idx }}" class="hidden">{{ result.web.response }}</span>
+                                <button id="response-copy-btn-web-{{ result.idx }}" onclick="copyResponseToClipboard('web-{{ result.idx }}')" class="ml-2 inline-flex items-center px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded transition-colors" title="Copy response to clipboard">
+                                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                                        <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                                    </svg>
+                                </button>
                                 <button onclick="openModal('web-{{ result.idx }}')" class="mt-1 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer">
                                     View Full
                                 </button>
@@ -270,10 +284,17 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                             <td class="px-4 py-3 text-sm">
                                 {% set max_length = 500 %}
                                 {% if result.tool.response|length > max_length %}
-                                {{ result.tool.response[:max_length] }}...
+                                <span id="response-truncated-tool-{{ result.idx }}">{{ result.tool.response[:max_length] }}...</span>
                                 {% else %}
-                                {{ result.tool.response }}
+                                <span id="response-truncated-tool-{{ result.idx }}">{{ result.tool.response }}</span>
                                 {% endif %}
+                                <span id="response-full-tool-{{ result.idx }}" class="hidden">{{ result.tool.response }}</span>
+                                <button id="response-copy-btn-tool-{{ result.idx }}" onclick="copyResponseToClipboard('tool-{{ result.idx }}')" class="ml-2 inline-flex items-center px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded transition-colors" title="Copy response to clipboard">
+                                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                                        <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                                    </svg>
+                                </button>
                                 <button onclick="openModal('tool-{{ result.idx }}')" class="mt-1 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer">
                                     View Full
                                 </button>
@@ -299,9 +320,16 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button onclick="closeModal('vanilla-{{ result.idx }}')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
                                 </div>
                                 <div class="max-h-96 overflow-y-auto">
-                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.vanilla.conversation | tojson_pretty }}</pre>
+                                    <pre id="json-content-vanilla-{{ result.idx }}" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.vanilla.conversation | tojson_pretty }}</pre>
                                 </div>
-                                <div class="mt-4 flex justify-end">
+                                <div class="mt-4 flex justify-end gap-2">
+                                    <button id="copy-btn-vanilla-{{ result.idx }}" onclick="copyToClipboard('vanilla-{{ result.idx }}')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                                            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                                        </svg>
+                                        Copy JSON
+                                    </button>
                                     <button onclick="closeModal('vanilla-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
@@ -316,9 +344,16 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button onclick="closeModal('web-{{ result.idx }}')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
                                 </div>
                                 <div class="max-h-96 overflow-y-auto">
-                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.web.conversation | tojson_pretty }}</pre>
+                                    <pre id="json-content-web-{{ result.idx }}" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.web.conversation | tojson_pretty }}</pre>
                                 </div>
-                                <div class="mt-4 flex justify-end">
+                                <div class="mt-4 flex justify-end gap-2">
+                                    <button id="copy-btn-web-{{ result.idx }}" onclick="copyToClipboard('web-{{ result.idx }}')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                                            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                                        </svg>
+                                        Copy JSON
+                                    </button>
                                     <button onclick="closeModal('web-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
@@ -333,9 +368,16 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button onclick="closeModal('tool-{{ result.idx }}')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
                                 </div>
                                 <div class="max-h-96 overflow-y-auto">
-                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.tool.conversation | tojson_pretty }}</pre>
+                                    <pre id="json-content-tool-{{ result.idx }}" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.tool.conversation | tojson_pretty }}</pre>
                                 </div>
-                                <div class="mt-4 flex justify-end">
+                                <div class="mt-4 flex justify-end gap-2">
+                                    <button id="copy-btn-tool-{{ result.idx }}" onclick="copyToClipboard('tool-{{ result.idx }}')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                                            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                                        </svg>
+                                        Copy JSON
+                                    </button>
                                     <button onclick="closeModal('tool-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
