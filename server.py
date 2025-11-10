@@ -993,6 +993,7 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT data: {str(e)}"
 
+
 @mcp.tool(
     name="get_ontology_across_diopt_orthologs",
     description="Get gene ontology terms conserved across a given gene and orthologs in a given species",
@@ -1014,6 +1015,7 @@ async def get_ontology_across_diopt_ortholog(entrez_id: str, taxon_id2: int) -> 
         return data
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT alignment data: {str(e)}"
+
 
 @mcp.tool(
     name="get_diopt_alignment",
@@ -1046,7 +1048,9 @@ async def get_gtex_expression(entrez_id: str) -> str:
         data_obj = json.loads(data)
         for category in data_obj["data"].keys():
             for subcategory in data_obj["data"][category].keys():
-                data_obj["data"][category][subcategory] = statistics.median([float(i) for i in data_obj["data"][category][subcategory]])
+                data_obj["data"][category][subcategory] = statistics.median(
+                    [float(i) for i in data_obj["data"][category][subcategory]]
+                )
         data = json.dumps(data_obj, indent=2)
         return data
     except httpx.HTTPError as e:
