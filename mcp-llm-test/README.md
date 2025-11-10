@@ -42,6 +42,26 @@ export OPENROUTER_API_KEY="your_key_here"
 
 Get your API key from [OpenRouter](https://openrouter.ai/).
 
+### (Optional) Choose a specific OpenRouter model
+
+By default, the evaluator uses Google Gemini 2.5 Flash via OpenRouter, which has reliable tool calling support:
+
+- Default: `google/gemini-2.5-flash`
+
+You can override this at runtime using the `OPENROUTER_MODEL` environment variable:
+
+```bash
+# Examples
+export OPENROUTER_MODEL="google/gemini-2.5-pro"
+export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
+export OPENROUTER_MODEL="openai/gpt-4o"
+
+# Run the evaluator
+python evaluate_mcp.py --force
+```
+
+If `OPENROUTER_MODEL` is not set, the tool will continue to use the default `google/gemini-2.5-flash`.
+
 ## Quick Start
 
 ```bash
@@ -478,6 +498,8 @@ jobs:
       - name: Run MCP evaluation
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+               # Optional: pin a specific model for CI
+               # OPENROUTER_MODEL: "google/gemini-2.5-flash"
         run: |
           cd mcp-llm-test
           python evaluate_mcp.py --force

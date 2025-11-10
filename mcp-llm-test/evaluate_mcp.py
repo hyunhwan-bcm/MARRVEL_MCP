@@ -57,7 +57,24 @@ class TokenLimitExceeded(Exception):
 # Load environment variables from .env file
 load_dotenv()
 
-MODEL = "google/gemini-2.5-flash"  # Switched to a model with guaranteed tool support
+"""NOTE: Model selection
+
+The evaluation harness now supports selecting an OpenRouter model at runtime
+via the environment variable `OPENROUTER_MODEL`. If it is not set, we fall
+back to the latest Gemini 2.5 Flash model (NOT any deprecated 1.5 version).
+
+Examples:
+    export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
+    export OPENROUTER_MODEL="google/gemini-2.5-pro"
+    python evaluate_mcp.py --force
+
+This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
+"""
+
+from llm_config import get_openrouter_model, DEFAULT_OPENROUTER_MODEL
+
+# Resolve model lazily at import so tests can patch env before main() runs.
+MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
 # Cache settings
@@ -780,12 +797,19 @@ async def main():
         )
 
     # Configure LangChain ChatOpenAI with OpenRouter
+    # Re-resolve MODEL inside main to respect any env var changes that occurred
+    # after module import (e.g., in CI or wrapper scripts).
+    resolved_model = get_openrouter_model()
     llm = ChatOpenAI(
-        model=MODEL,
+        model=resolved_model,
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=OPENROUTER_API_KEY,
         temperature=0,
     )
+    if resolved_model != DEFAULT_OPENROUTER_MODEL:
+        print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
+    else:
+        print(f"✨ Using default OpenRouter model: {resolved_model}")
 
     # Clear cache if requested
     if args.clear:
