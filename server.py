@@ -289,6 +289,12 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
                     taxonId
                     symbol
                     uniprotKBId
+                    xref {{
+                        ensemblId
+                        mgiId
+                        omimId
+                        pomBaseId
+                    }}
                 }}
             }}
             """
@@ -299,6 +305,46 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
 
+@mcp.tool(
+    name="get_gene_by_ensembl_id",
+    description="Retrieve comprehensive gene information by Ensembl Gene ID including symbol, location, summary, and transcripts",
+    meta={"category": "gene", "version": "1.0"},
+)
+async def get_gene_by_ensembl_id(ensembl_id: str) -> str:
+    try:
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                geneByEnsemblId(ensemblId: "{ensembl_id}") {{
+                    alias
+                    chr
+                    entrezId
+                    hg19Start
+                    hg19Stop
+                    hg38Start
+                    hg38Stop
+                    hgncId
+                    locusType
+                    name
+                    status
+                    taxonId
+                    symbol
+                    uniprotKBId
+                    xref {{
+                        ensemblId
+                        mgiId
+                        omimId
+                        pomBaseId
+                    }}
+                }}
+            }}
+            """
+        )
+        data = await fix_missing_hg38_vals(data)
+        return data
+
+    except httpx.HTTPError as e:
+        return f"Error fetching gene data: {str(e)}"
 
 @mcp.tool(
     name="get_gene_by_symbol",
@@ -327,7 +373,6 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
                     locusType
                     xref {{
                         ensemblId
-                        hgncId
                         mgiId
                         omimId
                         pomBaseId
@@ -999,7 +1044,7 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
     description="Get gene ontology terms conserved across a given gene and orthologs in a given species",
     meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
 )
-async def get_ontology_across_diopt_ortholog(entrez_id: str, taxon_id2: int) -> str:
+async def get_ontology_across_diopt_orthologs(entrez_id: str, taxon_id2: int) -> str:
     try:
         data = await fetch_marrvel_data(
             f"/diopt/ortholog/gene/entrezId/{entrez_id}", is_graphql=False
@@ -1014,7 +1059,7 @@ async def get_ontology_across_diopt_ortholog(entrez_id: str, taxon_id2: int) -> 
         data = json.dumps(go_terms, indent=2)
         return data
     except httpx.HTTPError as e:
-        return f"Error fetching DIOPT alignment data: {str(e)}"
+        return f"Error fetching DIOPT ontology data: {str(e)}"
 
 
 @mcp.tool(
@@ -1758,6 +1803,139 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
             {"error": f"Failed to retrieve article: {str(e)}", "pubmed_id": pubmed_id},
             indent=2,
         )
+
+# ============================================================================
+# ENSEMBL TOOLS
+# ============================================================================
+
+@mcp.tool(
+    name="get_ensembl_protein_ids_by_ensembl_gene_id",
+    description="List ensembl protein ids for a given ensembl gene id",
+    meta={"category": "ensembl", "database": "ensembl", "from": "ENSG", "to": "ENSP", "version": "1.0"},
+)
+async def get_ensembl_protein_ids_by_ensembl_gene_id(ensembl_gene_id: str) -> str:
+    try:
+        url = f"https://rest.ensembl.org/lookup/id/{ensembl_gene_id}?content-type=application/json;expand=1"
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data_obj = json.loads(resp.content)
+
+        protein_ids = []
+        for transcript in data_obj["Transcript"]:
+            if transcript.get("Translation"):
+                protein_ids.append(transcript.get("Translation").get("id"))
+        data = json.dumps({
+            "ensembl_gene_id": ensembl_gene_id,
+            "ensembl_protein_ids": protein_ids
+        },indent=2)
+        return data
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
+    
+
+@mcp.tool(
+    name="get_ensembl_gene_id_by_ensembl_protein_id",
+    description="Get ensembl gene id for a given ensembl protein id",
+    meta={"category": "ensembl", "database": "ensembl", "from": "ENSP", "to": "ENSG", "version": "1.0"},
+)
+async def get_ensembl_gene_id_from_ensembl_protein_id(ensembl_protein_id: str) -> str:
+    try:
+        url = f"https://rest.ensembl.org/lookup/id/{ensembl_protein_id}?content-type=application/json"
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data_obj = json.loads(resp.content)
+            ensembl_transcript_id = data_obj["Parent"]
+            t_url = f"https://rest.ensembl.org/lookup/id/{ensembl_transcript_id}?content-type=application/json"
+            t_resp = await client.get(t_url)
+            t_resp.raise_for_status()
+            t_data_obj = json.loads(t_resp.content)
+
+        data = json.dumps({
+            "ensembl_protein_id": ensembl_protein_id,
+            "ensembl_transcript_id": data_obj["Parent"],
+            "ensembl_gene_ids": t_data_obj["Parent"]
+        },indent=2)
+        return data
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
+
+
+# ============================================================================
+# STRING TOOLS
+# ============================================================================
+
+
+@mcp.tool(
+    name="get_string_interactions_by_entrez_id",
+    description="Query STRING protein interactions for a given entrez ID. Responses are ensembl protein IDs",
+    meta={"category": "string", "database": "STRING", "version": "1.0"},
+)
+async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
+    try:
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                stringInteractionsByEntrezId(entrezId: {entrez_id}) {{
+                    combExpDb
+                    ensemblId1
+                    ensemblId2
+                    database
+                    experiments
+                }}
+            }}
+            """
+        )
+        data_obj = json.loads(data)
+        self_ensembl_gene_id = await get_gene_by_entrez_id(entrez_id)
+        ensembl_gene_id = json.loads(self_ensembl_gene_id)["data"]["geneByEntrezId"]["xref"]["ensemblId"]
+        self_ensembl_protein_ids = await get_ensembl_protein_ids_by_ensembl_gene_id(ensembl_gene_id)
+        self_protein_ids = set(json.loads(self_ensembl_protein_ids)["ensembl_protein_ids"])
+        i = 0
+        while i < len(data_obj["data"]["stringInteractionsByEntrezId"]):
+            if data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"] in self_protein_ids:
+                data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId"] = data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId1"]
+            else:
+                data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId"] = data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"]
+            key = data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId"]+":"+str(data_obj["data"]["stringInteractionsByEntrezId"][i]["database"])
+            if key in self_protein_ids:
+                data_obj["data"]["stringInteractionsByEntrezId"].pop()
+            else:
+                self_protein_ids.add(key)
+                del data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId1"], data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"]
+                i+=1
+
+        data = json.dumps(data_obj, indent=2)
+        return data
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
+    
+
+@mcp.tool(
+    name="get_string_interactions_between_proteins",
+    description="Get STRING protein interactions between two ensembl protein IDs",
+    meta={"category": "string", "database": "STRING", "version": "1.0"},
+)
+async def get_string_interactions_between_proteins(ensembl_protein_id1: str, ensembl_protein_id2: str) -> str:
+    try:
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                stringInteractionBetweenProteins(
+                    ensemblId1: {ensembl_protein_id1}
+                    ensemblId2: {ensembl_protein_id2}
+                    ) {{
+                    combExpDb
+                    database
+                    experiments
+                }}
+            }}
+            """
+        )
+        return data
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
 
 
 # ============================================================================

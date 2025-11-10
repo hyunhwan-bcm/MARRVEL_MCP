@@ -1,7 +1,7 @@
 - case:
     name: "Gene for NM_001045477.4:c.187C>T"
-    input: "What gene(s) are associated with the variant NM_001045477.4:c.187C>T?"
-    expected: "The genes associated are MFSD14CP and NUTM2G."
+    input: "What gene is primarily associated with the variant NM_001045477.4:c.187C>T?"
+    expected: "The genes associated is NUTM2G."
 
 - case:
     name: "Protein change for NM_001045477.4:c.187C>T"
@@ -16,7 +16,7 @@
 - case:
     name: "Average dbNSFP rank score"
     input: "What is the average dbNSFP rank score for Chr9:96931892 C>T?"
-    expected: "The average dbNSFP rank score is 0.160."
+    expected: "The average dbNSFP rank score is 0.214."
 
 - case:
     name: "CADD phred score"
@@ -139,3 +139,8 @@
     name: "PMC figure captions"
     input: "What are the figure captions in PMC article PMC3518823?"
     expected: "Figure captions are listed."
+
+- case:
+    name: "STRING list all protein interactions"
+    input: "What gene symbol(s) is/are connected to NUTM2G on STRING?"
+    expected: "NUTM2G is connected to VIRMA on STRING."

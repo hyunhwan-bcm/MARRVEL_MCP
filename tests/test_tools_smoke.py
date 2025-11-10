@@ -71,6 +71,7 @@ JSON (or a Python literal convertible to JSON), the test will fail.
 TEST_VARIANT = {"chr": "6", "pos": "98917691", "ref": "T", "alt": "C", "build": "hg38"}
 tool_calls = [
     ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
+    ("get_gene_by_ensembl_id", {"ensembl_id": "ENSG00000188152"}),
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
     ("get_gene_by_position", {"chromosome": "17", "position": 7565099, "taxon_id": "9606"}),
     ("get_variant_dbnsfp", TEST_VARIANT),
@@ -86,7 +87,7 @@ tool_calls = [
     ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
     ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),
-    ("get_ontology_across_diopt_orthologs", {"entrez_id": "7157"}),
+    ("get_ontology_across_diopt_orthologs", {"entrez_id": "7157", "taxon_id2": 7227}),
     ("get_gtex_expression", {"entrez_id": "7157"}),
     ("convert_hgvs_to_genomic", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
     ("search_pubmed", {"query": "MECP2 Rett Syndrome", "max_results": 1}),
@@ -98,6 +99,7 @@ tool_calls = [
     ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
     ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}),
     ("get_decipher_by_location", {"chr": "6", "start": 99316420, "stop": 99395849}),
+    ("get_string_interactions_by_entrez_id", {"entrez_id": "441457"})
 ]
 
 
