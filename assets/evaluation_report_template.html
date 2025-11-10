@@ -83,6 +83,29 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                 <p class="text-blue-100 mt-2">MCP Test Case Evaluation Summary</p>
 
                 <!-- Success Rate Summary -->
+                {% if dual_mode %}
+                <div class="mt-6 bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
+                    <p class="text-blue-100 text-sm font-medium mb-3">Comparison: Vanilla vs Tool Mode</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-blue-100 text-xs font-medium">🍦 Vanilla Mode (No Tools)</p>
+                            <p class="text-white text-2xl font-bold mt-1">{{ "%.1f"|format(vanilla_success_rate) }}%</p>
+                            <p class="text-blue-100 text-xs mt-1">Passed: {{ successful_vanilla }}/{{ total_tests }}</p>
+                            <div class="mt-2 w-full bg-blue-900 bg-opacity-30 rounded-full h-2">
+                                <div class="bg-yellow-400 h-2 rounded-full" style="width: {{ vanilla_success_rate }}%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-blue-100 text-xs font-medium">🔧 Tool Mode (With Tools)</p>
+                            <p class="text-white text-2xl font-bold mt-1">{{ "%.1f"|format(tool_success_rate) }}%</p>
+                            <p class="text-blue-100 text-xs mt-1">Passed: {{ successful_tool }}/{{ total_tests }}</p>
+                            <div class="mt-2 w-full bg-blue-900 bg-opacity-30 rounded-full h-2">
+                                <div class="bg-green-400 h-2 rounded-full" style="width: {{ tool_success_rate }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
                 <div class="mt-6 bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
                     <div class="flex items-center justify-between">
                         <div>
@@ -98,9 +121,146 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                         <div class="bg-green-400 h-2.5 rounded-full" style="width: {{ success_rate }}%"></div>
                     </div>
                 </div>
+                {% endif %}
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full">
+                    {% if dual_mode %}
+                    <thead class="bg-gray-50 border-b-2 border-gray-300">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Mode</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Evaluation</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Tokens</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Question</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Expected</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Response</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Tool Calls</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        {% for result in results %}
+                        <!-- Vanilla Mode Row -->
+                        <tr class="hover:bg-yellow-50 border-b border-gray-200 bg-yellow-50 bg-opacity-30">
+                            <td class="px-4 py-3 text-sm font-semibold text-yellow-700">🍦 Vanilla</td>
+                            <td class="px-4 py-3 text-sm">
+                                {% if result.vanilla.is_yes %}
+                                <button class="inline-flex items-center gap-x-1 rounded-md bg-green-600 px-2 py-1 text-xs font-semibold text-white">
+                                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                    </svg>
+                                    YES
+                                </button>
+                                {% else %}
+                                <button class="inline-flex items-center gap-x-1 rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white">
+                                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                                    </svg>
+                                    NO
+                                </button>
+                                {% endif %}
+                                <div class="mt-1 text-xs text-gray-600">{{ result.vanilla.classification }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-sm">{{ "{:,}".format(result.vanilla.tokens_used) }}</td>
+                            <td class="px-4 py-3 text-sm" rowspan="2">{{ result.question }}</td>
+                            <td class="px-4 py-3 text-sm" rowspan="2">{{ result.expected }}</td>
+                            <td class="px-4 py-3 text-sm">
+                                {% set max_length = 500 %}
+                                {% if result.vanilla.response|length > max_length %}
+                                {{ result.vanilla.response[:max_length] }}...
+                                {% else %}
+                                {{ result.vanilla.response }}
+                                {% endif %}
+                                <button onclick="openModal('vanilla-{{ result.idx }}')" class="mt-1 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer">
+                                    View Full
+                                </button>
+                            </td>
+                            <td class="px-4 py-3 text-sm">
+                                <span class='text-gray-400 italic text-xs'>None</span>
+                            </td>
+                        </tr>
+                        <!-- Tool Mode Row -->
+                        <tr class="hover:bg-green-50 border-b border-gray-300 bg-green-50 bg-opacity-30">
+                            <td class="px-4 py-3 text-sm font-semibold text-green-700">🔧 Tool</td>
+                            <td class="px-4 py-3 text-sm">
+                                {% if result.tool.is_yes %}
+                                <button class="inline-flex items-center gap-x-1 rounded-md bg-green-600 px-2 py-1 text-xs font-semibold text-white">
+                                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                    </svg>
+                                    YES
+                                </button>
+                                {% else %}
+                                <button class="inline-flex items-center gap-x-1 rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white">
+                                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                                    </svg>
+                                    NO
+                                </button>
+                                {% endif %}
+                                <div class="mt-1 text-xs text-gray-600">{{ result.tool.classification }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-sm">{{ "{:,}".format(result.tool.tokens_used) }}</td>
+                            <td class="px-4 py-3 text-sm">
+                                {% set max_length = 500 %}
+                                {% if result.tool.response|length > max_length %}
+                                {{ result.tool.response[:max_length] }}...
+                                {% else %}
+                                {{ result.tool.response }}
+                                {% endif %}
+                                <button onclick="openModal('tool-{{ result.idx }}')" class="mt-1 text-blue-600 hover:text-blue-800 text-xs font-medium underline cursor-pointer">
+                                    View Full
+                                </button>
+                            </td>
+                            <td class="px-4 py-3 text-sm">
+                                {% if result.tool.tool_calls %}
+                                <ul class='list-disc list-inside text-xs'>
+                                    {% for tc in result.tool.tool_calls %}
+                                    <li><code class='bg-gray-100 px-1 rounded'>{{ tc['name'] | default('N/A') }}</code></li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <span class='text-gray-400 italic text-xs'>None</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <!-- Modals for both modes -->
+                        <div id="modal-vanilla-{{ result.idx }}" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onclick="closeModal('vanilla-{{ result.idx }}')">
+                            <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white" onclick="event.stopPropagation()">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">🍦 Vanilla Mode - Full Conversation JSON</h3>
+                                    <button onclick="closeModal('vanilla-{{ result.idx }}')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                                </div>
+                                <div class="max-h-96 overflow-y-auto">
+                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.vanilla.conversation | tojson_pretty }}</pre>
+                                </div>
+                                <div class="mt-4 flex justify-end">
+                                    <button onclick="closeModal('vanilla-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="modal-tool-{{ result.idx }}" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onclick="closeModal('tool-{{ result.idx }}')">
+                            <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white" onclick="event.stopPropagation()">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">🔧 Tool Mode - Full Conversation JSON</h3>
+                                    <button onclick="closeModal('tool-{{ result.idx }}')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                                </div>
+                                <div class="max-h-96 overflow-y-auto">
+                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.tool.conversation | tojson_pretty }}</pre>
+                                </div>
+                                <div class="mt-4 flex justify-end">
+                                    <button onclick="closeModal('tool-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </tbody>
+                    {% else %}
                     <thead class="bg-gray-50 border-b-2 border-gray-300">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-1/8">Evaluation</th>
@@ -194,6 +354,7 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                         </div>
                         {% endfor %}
                     </tbody>
+                    {% endif %}
                 </table>
             </div>
         </div>

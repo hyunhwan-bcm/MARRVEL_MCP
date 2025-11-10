@@ -86,12 +86,21 @@ llm = None
 OPENROUTER_API_KEY = None
 
 
-def get_cache_path(test_case_name: str) -> Path:
-    """Get the cache file path for a test case."""
+def get_cache_path(test_case_name: str, vanilla_mode: bool = False) -> Path:
+    """Get the cache file path for a test case.
+
+    Args:
+        test_case_name: Name of the test case
+        vanilla_mode: If True, append '_vanilla' to distinguish from tool-enabled cache
+
+    Returns:
+        Path to cache file
+    """
     # Use sanitized test case name for filename
     safe_name = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_" for c in test_case_name)
     safe_name = safe_name.strip().replace(" ", "_")
-    return CACHE_DIR / f"{safe_name}.pkl"
+    suffix = "_vanilla" if vanilla_mode else ""
+    return CACHE_DIR / f"{safe_name}{suffix}.pkl"
 
 
 def parse_subset(subset: str | None, total_count: int) -> List[int]:
@@ -159,9 +168,17 @@ def parse_subset(subset: str | None, total_count: int) -> List[int]:
     return sorted(indices)
 
 
-def load_cached_result(test_case_name: str) -> Dict[str, Any] | None:
-    """Load cached result for a test case if it exists."""
-    cache_path = get_cache_path(test_case_name)
+def load_cached_result(test_case_name: str, vanilla_mode: bool = False) -> Dict[str, Any] | None:
+    """Load cached result for a test case if it exists.
+
+    Args:
+        test_case_name: Name of the test case
+        vanilla_mode: If True, load from vanilla cache
+
+    Returns:
+        Cached result or None if not found
+    """
+    cache_path = get_cache_path(test_case_name, vanilla_mode)
     if cache_path.exists():
         try:
             with open(cache_path, "rb") as f:
@@ -172,9 +189,15 @@ def load_cached_result(test_case_name: str) -> Dict[str, Any] | None:
     return None
 
 
-def save_cached_result(test_case_name: str, result: Dict[str, Any]):
-    """Save result to cache."""
-    cache_path = get_cache_path(test_case_name)
+def save_cached_result(test_case_name: str, result: Dict[str, Any], vanilla_mode: bool = False):
+    """Save result to cache.
+
+    Args:
+        test_case_name: Name of the test case
+        result: Test result to cache
+        vanilla_mode: If True, save to vanilla cache
+    """
+    cache_path = get_cache_path(test_case_name, vanilla_mode)
     try:
         with open(cache_path, "wb") as f:
             pickle.dump(result, f)
@@ -302,21 +325,50 @@ def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
 
 
 async def get_langchain_response(
-    mcp_client: Client, user_input: str
+    mcp_client: Client, user_input: str, vanilla_mode: bool = False
 ) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int]:
     """
     Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
-    Returns: (final_response, tool_history, full_conversation)
+
+    Args:
+        mcp_client: MCP client for tool calls
+        user_input: User question/prompt
+        vanilla_mode: If True, LLM responds without tool calling capabilities
+
+    Returns: (final_response, tool_history, full_conversation, tokens_used)
     """
     # Initialize LangChain messages
+    if vanilla_mode:
+        system_message = "You are a helpful genetics research assistant. Answer questions about genes, variants, and genetic data based on your knowledge."
+    else:
+        system_message = "You are a helpful genetics research assistant. You have access to tools that can query genetic databases and provide accurate information. Always use the available tools to answer questions about genes, variants, and genetic data. Do not make up or guess information - use the tools to get accurate data."
+
     messages = [
-        SystemMessage(
-            content="You are a helpful genetics research assistant. You have access to tools that can query genetic databases and provide accurate information. Always use the available tools to answer questions about genes, variants, and genetic data. Do not make up or guess information - use the tools to get accurate data."
-        ),
+        SystemMessage(content=system_message),
         HumanMessage(content=user_input),
     ]
     tool_history = []
     conversation = []
+
+    # In vanilla mode, skip tool binding and just get a direct response
+    if vanilla_mode:
+        # Store initial messages in conversation history
+        conversation.append({"role": "system", "content": system_message})
+        conversation.append({"role": "user", "content": user_input})
+
+        # Get direct response without tool calling
+        response = await llm.ainvoke(messages)
+        final_content = response.content if hasattr(response, "content") else str(response)
+        conversation.append({"role": "assistant", "content": final_content})
+
+        # Compute total tokens used
+        try:
+            conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+            tokens_total = count_tokens(conv_text)
+        except Exception:
+            tokens_total = 0
+
+        return final_content, tool_history, conversation, tokens_total
 
     # Get MCP tools and convert to LangChain format
     mcp_tools_list = await mcp_client.list_tools()
@@ -498,6 +550,7 @@ async def run_test_case(
     mcp_client: Client,
     test_case: Dict[str, Any],
     use_cache: bool = True,
+    vanilla_mode: bool = False,
     pbar=None,
 ) -> Dict[str, Any]:
     """
@@ -508,6 +561,7 @@ async def run_test_case(
         mcp_client: MCP client for tool calls
         test_case: Test case dictionary
         use_cache: Whether to use cached results (default: True)
+        vanilla_mode: If True, run without tool calling (default: False)
         pbar: Optional tqdm progress bar to update
     """
     async with semaphore:
@@ -517,19 +571,21 @@ async def run_test_case(
 
         # Check cache first if enabled
         if use_cache:
-            cached = load_cached_result(name)
+            cached = load_cached_result(name, vanilla_mode)
             if cached is not None:
                 if pbar:
-                    pbar.set_postfix_str(f"Cached: {name[:40]}...")
+                    mode_label = "vanilla" if vanilla_mode else "tool"
+                    pbar.set_postfix_str(f"Cached ({mode_label}): {name[:40]}...")
                     pbar.update(1)
                 return cached
 
         if pbar:
-            pbar.set_postfix_str(f"Running: {name[:40]}...")
+            mode_label = "vanilla" if vanilla_mode else "tool"
+            pbar.set_postfix_str(f"Running ({mode_label}): {name[:40]}...")
 
         try:
             langchain_response, tool_history, full_conversation, tokens_used = (
-                await get_langchain_response(mcp_client, user_input)
+                await get_langchain_response(mcp_client, user_input, vanilla_mode)
             )
             classification = await evaluate_response(langchain_response, expected)
             result = {
@@ -540,9 +596,10 @@ async def run_test_case(
                 "tool_calls": tool_history,
                 "conversation": full_conversation,
                 "tokens_used": tokens_used,
+                "mode": "vanilla" if vanilla_mode else "tool",
             }
             # Save to cache
-            save_cached_result(name, result)
+            save_cached_result(name, result, vanilla_mode)
             if pbar:
                 pbar.update(1)
             return result
@@ -582,8 +639,16 @@ async def run_test_case(
             return result
 
 
-def generate_html_report(results: List[Dict[str, Any]]) -> str:
-    """Generate HTML report with modal popups, reordered columns, and success rate summary."""
+def generate_html_report(results: List[Dict[str, Any]], dual_mode: bool = False) -> str:
+    """Generate HTML report with modal popups, reordered columns, and success rate summary.
+
+    Args:
+        results: List of test results
+        dual_mode: If True, results contain both vanilla and tool mode responses
+
+    Returns:
+        Path to generated HTML file
+    """
     # Create a temporary HTML file
     temp_html = tempfile.NamedTemporaryFile(
         mode="w", suffix=".html", delete=False, prefix="evaluation_results_"
@@ -593,14 +658,31 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
     # Calculate success rate
     total_tests = len(results)
     successful_tests = 0
+    successful_vanilla = 0
+    successful_tool = 0
 
-    for result in results:
-        classification = result["classification"].lower()
-        # Check if evaluation contains "yes" (flexible matching)
-        if re.search(r"\byes\b", classification):
-            successful_tests += 1
+    if dual_mode:
+        # Calculate success rates for both modes
+        for result in results:
+            vanilla_classification = result["vanilla"]["classification"].lower()
+            tool_classification = result["tool"]["classification"].lower()
 
-    success_rate = (successful_tests / total_tests * 100) if total_tests > 0 else 0
+            if re.search(r"\byes\b", vanilla_classification):
+                successful_vanilla += 1
+            if re.search(r"\byes\b", tool_classification):
+                successful_tool += 1
+
+        vanilla_success_rate = (successful_vanilla / total_tests * 100) if total_tests > 0 else 0
+        tool_success_rate = (successful_tool / total_tests * 100) if total_tests > 0 else 0
+    else:
+        # Calculate success rate for single mode
+        for result in results:
+            classification = result["classification"].lower()
+            # Check if evaluation contains "yes" (flexible matching)
+            if re.search(r"\byes\b", classification):
+                successful_tests += 1
+
+        success_rate = (successful_tests / total_tests * 100) if total_tests > 0 else 0
 
     # Helper function to clean conversation data
     def clean_conversation(conversation: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -637,26 +719,67 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
 
     # Prepare data for template - add metadata to each result
     enriched_results = []
-    for idx, result in enumerate(results):
-        classification_lower = result["classification"].lower()
-        is_yes = re.search(r"\byes\b", classification_lower)
 
-        # Clean up conversation data for better JSON display
-        conversation = result.get("conversation", [])
-        cleaned_conversation = clean_conversation(conversation)
+    if dual_mode:
+        # Prepare dual-mode results with both vanilla and tool responses
+        for idx, result in enumerate(results):
+            vanilla_res = result["vanilla"]
+            tool_res = result["tool"]
 
-        enriched_result = {
-            "idx": idx,
-            "question": result["question"],
-            "expected": result["expected"],
-            "response": result.get("response", ""),
-            "classification": result["classification"],
-            "is_yes": is_yes is not None,
-            "tokens_used": result.get("tokens_used", 0),
-            "tool_calls": result.get("tool_calls", []),
-            "conversation": cleaned_conversation,
-        }
-        enriched_results.append(enriched_result)
+            vanilla_classification_lower = vanilla_res["classification"].lower()
+            tool_classification_lower = tool_res["classification"].lower()
+
+            vanilla_is_yes = re.search(r"\byes\b", vanilla_classification_lower)
+            tool_is_yes = re.search(r"\byes\b", tool_classification_lower)
+
+            # Clean up conversation data for both modes
+            vanilla_conversation = clean_conversation(vanilla_res.get("conversation", []))
+            tool_conversation = clean_conversation(tool_res.get("conversation", []))
+
+            enriched_result = {
+                "idx": idx,
+                "question": result["question"],
+                "expected": result["expected"],
+                "vanilla": {
+                    "response": vanilla_res.get("response", ""),
+                    "classification": vanilla_res["classification"],
+                    "is_yes": vanilla_is_yes is not None,
+                    "tokens_used": vanilla_res.get("tokens_used", 0),
+                    "tool_calls": vanilla_res.get("tool_calls", []),
+                    "conversation": vanilla_conversation,
+                },
+                "tool": {
+                    "response": tool_res.get("response", ""),
+                    "classification": tool_res["classification"],
+                    "is_yes": tool_is_yes is not None,
+                    "tokens_used": tool_res.get("tokens_used", 0),
+                    "tool_calls": tool_res.get("tool_calls", []),
+                    "conversation": tool_conversation,
+                },
+            }
+            enriched_results.append(enriched_result)
+    else:
+        # Single-mode results (original behavior)
+        for idx, result in enumerate(results):
+            classification_lower = result["classification"].lower()
+            is_yes = re.search(r"\byes\b", classification_lower)
+
+            # Clean up conversation data for better JSON display
+            conversation = result.get("conversation", [])
+            cleaned_conversation = clean_conversation(conversation)
+
+            enriched_result = {
+                "idx": idx,
+                "question": result["question"],
+                "expected": result["expected"],
+                "response": result.get("response", ""),
+                "classification": result["classification"],
+                "is_yes": is_yes is not None,
+                "tokens_used": result.get("tokens_used", 0),
+                "tool_calls": result.get("tool_calls", []),
+                "conversation": cleaned_conversation,
+            }
+            enriched_results.append(enriched_result)
 
     # Load and render Jinja2 template
     template_path = Path(__file__).parent.parent / "assets"
@@ -688,12 +811,24 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
     env.filters["tojson_pretty"] = tojson_pretty
     template = env.get_template("evaluation_report_template.html")
 
-    html_content = template.render(
-        success_rate=success_rate,
-        successful_tests=successful_tests,
-        total_tests=total_tests,
-        results=enriched_results,
-    )
+    if dual_mode:
+        html_content = template.render(
+            dual_mode=True,
+            vanilla_success_rate=vanilla_success_rate,
+            tool_success_rate=tool_success_rate,
+            successful_vanilla=successful_vanilla,
+            successful_tool=successful_tool,
+            total_tests=total_tests,
+            results=enriched_results,
+        )
+    else:
+        html_content = template.render(
+            dual_mode=False,
+            success_rate=success_rate,
+            successful_tests=successful_tests,
+            total_tests=total_tests,
+            results=enriched_results,
+        )
 
     temp_html.write(html_content)
     temp_html.close()
@@ -774,6 +909,12 @@ Cache Location:
         default=4,
         metavar="N",
         help="Maximum number of concurrent test executions (default: 4). Increase for faster execution if API rate limits allow.",
+    )
+
+    parser.add_argument(
+        "--with-vanilla",
+        action="store_true",
+        help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",
     )
 
     return parser.parse_args()
@@ -883,33 +1024,85 @@ async def main():
     # Determine whether to use cache
     use_cache = not args.force
 
-    print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
-    print(f"💾 Cache {'disabled (--force)' if not use_cache else 'enabled'}")
+    # Handle --with-vanilla mode: run both vanilla and tool modes
+    if args.with_vanilla:
+        print(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
+        print(f"   Concurrency: {args.concurrency}")
+        print(f"💾 Cache {'disabled (--force)' if not use_cache else 'enabled'}")
 
-    async with mcp_client:
-        # Create progress bar
-        pbar = atqdm(total=len(test_cases), desc="Evaluating tests", unit="test")
+        async with mcp_client:
+            # Run vanilla mode tests
+            print("\n🍦 Running VANILLA mode (without tool calling)...")
+            pbar_vanilla = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
 
-        tasks = [
-            run_test_case(semaphore, mcp_client, test_case, use_cache=use_cache, pbar=pbar)
-            for test_case in test_cases
+            vanilla_tasks = [
+                run_test_case(
+                    semaphore, mcp_client, test_case, use_cache=use_cache, vanilla_mode=True, pbar=pbar_vanilla
+                )
+                for test_case in test_cases
+            ]
+            vanilla_results = await asyncio.gather(*vanilla_tasks)
+            pbar_vanilla.close()
+
+            # Run tool mode tests
+            print("\n🔧 Running TOOL mode (with tool calling)...")
+            pbar_tool = atqdm(total=len(test_cases), desc="Tool mode", unit="test")
+
+            tool_tasks = [
+                run_test_case(
+                    semaphore, mcp_client, test_case, use_cache=use_cache, vanilla_mode=False, pbar=pbar_tool
+                )
+                for test_case in test_cases
+            ]
+            tool_results = await asyncio.gather(*tool_tasks)
+            pbar_tool.close()
+
+        # Combine results - create paired results for comparison
+        combined_results = []
+        for i, test_case in enumerate(test_cases):
+            combined_results.append({
+                "question": test_case["case"]["input"],
+                "expected": test_case["case"]["expected"],
+                "vanilla": vanilla_results[i],
+                "tool": tool_results[i],
+            })
+
+        # Generate HTML report with dual-mode results
+        try:
+            html_path = generate_html_report(combined_results, dual_mode=True)
+            open_in_browser(html_path)
+        except Exception as e:
+            print(f"--- Error generating HTML or opening browser: {e} ---")
+
+    else:
+        # Normal mode: run with tools only
+        print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
+        print(f"💾 Cache {'disabled (--force)' if not use_cache else 'enabled'}")
+
+        async with mcp_client:
+            # Create progress bar
+            pbar = atqdm(total=len(test_cases), desc="Evaluating tests", unit="test")
+
+            tasks = [
+                run_test_case(semaphore, mcp_client, test_case, use_cache=use_cache, vanilla_mode=False, pbar=pbar)
+                for test_case in test_cases
+            ]
+            results = await asyncio.gather(*tasks)
+
+            pbar.close()
+
+        # Sort results to match the original order of test cases
+        results_map = {res["question"]: res for res in results}
+        ordered_results = [
+            results_map[tc["case"]["input"]] for tc in test_cases if tc["case"]["input"] in results_map
         ]
-        results = await asyncio.gather(*tasks)
 
-        pbar.close()
-
-    # Sort results to match the original order of test cases
-    results_map = {res["question"]: res for res in results}
-    ordered_results = [
-        results_map[tc["case"]["input"]] for tc in test_cases if tc["case"]["input"] in results_map
-    ]
-
-    # Generate HTML report and open in browser
-    try:
-        html_path = generate_html_report(ordered_results)
-        open_in_browser(html_path)
-    except Exception as e:
-        print(f"--- Error generating HTML or opening browser: {e} ---")
+        # Generate HTML report and open in browser
+        try:
+            html_path = generate_html_report(ordered_results)
+            open_in_browser(html_path)
+        except Exception as e:
+            print(f"--- Error generating HTML or opening browser: {e} ---")
 
 
 if __name__ == "__main__":
