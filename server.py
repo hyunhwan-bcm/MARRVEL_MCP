@@ -266,7 +266,7 @@ async def fix_missing_hg38_vals(data: str) -> str:
 
 @mcp.tool(
     name="get_gene_by_entrez_id",
-    description="Retrieve comprehensive gene information by NCBI Entrez Gene ID including symbol, location, summary, and transcripts",
+    description="Retrieve comprehensive gene information by NCBI Entrez Gene ID including symbol, ensembl gene id, uniprot ID, location, summary, and transcripts",
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_entrez_id(entrez_id: str) -> str:
@@ -307,7 +307,7 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_gene_by_ensembl_id",
-    description="Retrieve comprehensive gene information by Ensembl Gene ID including symbol, location, summary, and transcripts",
+    description="Retrieve comprehensive gene information by Ensembl Gene ID including symbol, entrezID, uniprot ID, location, summary, and transcripts",
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_ensembl_id(ensembl_id: str) -> str:
@@ -348,7 +348,7 @@ async def get_gene_by_ensembl_id(ensembl_id: str) -> str:
 
 @mcp.tool(
     name="get_gene_by_symbol",
-    description="Find gene information (including entrezID) by gene symbol across multiple species (human, mouse, fly, worm, etc.)",
+    description="Find gene information including Entrez ID, Uniprot ID, ensembl ID for a given gene symbol and species (human, mouse, fly, worm, etc.)",
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
@@ -389,7 +389,7 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
 
 @mcp.tool(
     name="get_gene_by_position",
-    description="Identify genes at a specific chromosomal position in hg38/GRCh38 coordinates",
+    description="Find genes with information including Entrez ID, Uniprot ID, ensembl ID for a specific chromosomal position in hg38/GRCh38 coordinates",
     meta={"category": "gene", "version": "1.0", "genome_build": "hg38"},
 )
 async def get_gene_by_position(chromosome: str, position: int) -> str:
@@ -718,8 +718,10 @@ async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
+        lo_data = await liftover_hg38_to_hg19(chr, pos)
+        lo_data_obj = json.loads(lo_data)
 
-        variant = f"{chr}:{pos} {ref}>{alt}"
+        variant = f"{lo_data_obj["hg19Chr"]}:{lo_data_obj["hg19Pos"]} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/gnomAD/variant/{variant_uri}", is_graphql=False)
         return data
@@ -1064,7 +1066,7 @@ async def get_ontology_across_diopt_orthologs(entrez_id: str, taxon_id2: int) ->
 
 @mcp.tool(
     name="get_diopt_alignment",
-    description="Get protein sequence alignment across orthologous species showing protein/functional domains and conservation patterns",
+    description="Get protein sequence alignment across orthologous species showing uniprot protein/functional domains and conservation patterns",
     meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
 )
 async def get_diopt_alignment(entrez_id: str) -> str:
@@ -1836,8 +1838,8 @@ async def get_ensembl_protein_ids_by_ensembl_gene_id(ensembl_gene_id: str) -> st
 
 @mcp.tool(
     name="get_ensembl_gene_id_by_ensembl_protein_id",
-    description="Get ensembl gene id for a given ensembl protein id",
-    meta={"category": "ensembl", "database": "ensembl", "from": "ENSP", "to": "ENSG", "version": "1.0"},
+    description="retreive the Ensembl Gene id for the corresponding Ensembl Protein id",
+    meta={"category": "ensembl", "database": "ensembl", "from": "ensembl protein id", "to": "ensembl gene id", "version": "1.0"},
 )
 async def get_ensembl_gene_id_from_ensembl_protein_id(ensembl_protein_id: str) -> str:
     try:
@@ -1869,7 +1871,7 @@ async def get_ensembl_gene_id_from_ensembl_protein_id(ensembl_protein_id: str) -
 
 @mcp.tool(
     name="get_string_interactions_by_entrez_id",
-    description="Query STRING protein interactions for a given entrez ID. Responses are ensembl protein IDs",
+    description="Query Ensembl Protein IDs with STRING protein interactions for a given entrez ID.",
     meta={"category": "string", "database": "STRING", "version": "1.0"},
 )
 async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
@@ -1895,10 +1897,10 @@ async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
         i = 0
         while i < len(data_obj["data"]["stringInteractionsByEntrezId"]):
             if data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"] in self_protein_ids:
-                data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId"] = data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId1"]
+                data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"] = data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId1"]
             else:
-                data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId"] = data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"]
-            key = data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId"]+":"+str(data_obj["data"]["stringInteractionsByEntrezId"][i]["database"])
+                data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"] = data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"]
+            key = data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"]+":"+str(data_obj["data"]["stringInteractionsByEntrezId"][i]["database"])
             if key in self_protein_ids:
                 data_obj["data"]["stringInteractionsByEntrezId"].pop()
             else:

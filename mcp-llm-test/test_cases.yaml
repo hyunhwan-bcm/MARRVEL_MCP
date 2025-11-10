@@ -1,7 +1,7 @@
 - case:
     name: "Gene for NM_001045477.4:c.187C>T"
     input: "What gene is primarily associated with the variant NM_001045477.4:c.187C>T?"
-    expected: "The genes associated is NUTM2G."
+    expected: "The genes associated includes NUTM2G."
 
 - case:
     name: "Protein change for NM_001045477.4:c.187C>T"
@@ -12,6 +12,11 @@
     name: "NUTM2G OMIM entries"
     input: "Does NUTM2G have any OMIM entries or associated Mendelian phenotypes?"
     expected: "NUTM2G has no OMIM match and no known Mendelian phenotypes."
+
+- case:
+    name: "MECP2 OMIM entries"
+    input: "Does MECP2 have any OMIM entries or associated Mendelian phenotypes?"
+    expected: "MECP2 is linked with several OMIM matches and Mendelian phenotypes(including MIM: 300496 and MIM: 300673) ."
 
 - case:
     name: "Average dbNSFP rank score"
@@ -56,14 +61,19 @@
     expected: "Chr9:99694174 C>T is not found in gnomAD control populations."
 
 - case:
+    name: "gnomAD presence 2"
+    input: "Is Chr9:96937172 C>A found in gnomAD?"
+    expected: "Yes, Chr9:96937172 C>A is found in gnomAD control populations."
+
+- case:
     name: "LoF o/e score"
     input: "What is the LoF o/e (loss-of-function observed/expected) score for NUTM2G?"
     expected: "The LoF o/e score is 0.84"
 
 - case:
     name: "LoF o/e implication"
-    input: "What does the LoF o/e score imply about NUTM2G?"
-    expected: "NUTM2G is tolerant of loss-of-function alleles."
+    input: "What does the LoF o/e score imply about the strength of selection on NUTM2G?"
+    expected: "NUTM2G is not under significant selection against loss-of-function alleles."
 
 - case:
     name: "DGV entries"
@@ -118,7 +128,7 @@
 - case:
     name: "PubMed search by disease name"
     input: "Search PubMed for articles about Rett syndrome. Limit to 3 results."
-    expected: "Articles about Rett syndrome are found."
+    expected: "No more than 3 articles are found, all are about Rett syndrome and include accurate PubMed ids."
 
 - case:
     name: "PMC abstract lookup by PMC ID"
@@ -142,5 +152,5 @@
 
 - case:
     name: "STRING list all protein interactions"
-    input: "What gene symbol(s) is/are connected to NUTM2G on STRING?"
+    input: "What are the gene symbol(s) for the protein(s) connected to NUTM2G on STRING?"
     expected: "NUTM2G is connected to VIRMA on STRING."
