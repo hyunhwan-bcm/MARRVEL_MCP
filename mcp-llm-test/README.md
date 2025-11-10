@@ -42,19 +42,39 @@ export OPENROUTER_API_KEY="your_key_here"
 
 Get your API key from [OpenRouter](https://openrouter.ai/).
 
+### (Optional) Choose a specific OpenRouter model
+
+By default, the evaluator uses Google Gemini 2.5 Flash via OpenRouter, which has reliable tool calling support:
+
+- Default: `google/gemini-2.5-flash`
+
+You can override this at runtime using the `OPENROUTER_MODEL` environment variable:
+
+```bash
+# Examples
+export OPENROUTER_MODEL="google/gemini-2.5-pro"
+export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
+export OPENROUTER_MODEL="openai/gpt-4o"
+
+# Run the evaluator
+python evaluate_mcp.py
+```
+
+If `OPENROUTER_MODEL` is not set, the tool will continue to use the default `google/gemini-2.5-flash`.
+
 ## Quick Start
 
 ```bash
 cd mcp-llm-test
 
-# Run all test cases (uses cache for faster execution)
+# Run all test cases (fresh evaluation, results cached automatically)
 python evaluate_mcp.py
 
-# Run with fresh evaluation (ignore cache)
-python evaluate_mcp.py --force
+# Use cached results (re-run only failed tests)
+python evaluate_mcp.py --cache
 
-# Run specific test cases only
-python evaluate_mcp.py --subset "Gene for NM_001045477.4:c.187C>T" "CADD phred score"
+# Run specific test cases by index
+python evaluate_mcp.py --subset "1-5"
 ```
 
 ## Command-Line Interface
@@ -89,24 +109,30 @@ python evaluate_mcp.py --clear
 
 ---
 
-#### `--force`
+#### `--cache`
 
-Force re-evaluation of all test cases, ignoring any cached results.
+Use cached results from previous runs and re-run only failed test cases.
 
 **When to use:**
-- Testing changes to the MCP server or tools
-- Verifying consistency of results
-- Updating cache with fresh evaluations without deleting old cache first
-- Running evaluations after API or model updates
+- Quick validation runs to save time and API costs
+- Re-running after fixing issues (only failed tests will be re-evaluated)
+- Continuous development workflow where most tests pass
+- Checking if previous failures have been resolved
 
 **Example:**
 ```bash
-python evaluate_mcp.py --force
+python evaluate_mcp.py --cache
 ```
 
-**Difference from `--clear`:**
-- `--clear`: Deletes cache, then runs evaluations
-- `--force`: Ignores cache but overwrites it with new results
+**Behavior:**
+- Successful cached results are reused
+- Failed tests (classification starts with "no" or contains "Error") are automatically re-run
+- Results are always saved to cache after evaluation
+- Without `--cache`, all tests are re-evaluated from scratch
+
+**Difference from default:**
+- Default (no flag): Re-runs all tests, updates cache
+- `--cache`: Uses successful cached results, re-runs only failures
 
 ---
 
@@ -128,14 +154,14 @@ python evaluate_mcp.py --subset "Gene for NM_001045477.4:c.187C>T"
 # Run multiple tests
 python evaluate_mcp.py --subset "CADD phred score" "REVEL prediction" "PolyPhen-2 prediction"
 
-# Combine with --force for fresh evaluation
-python evaluate_mcp.py --force --subset "Gene for NM_001045477.4:c.187C>T"
+# Combine with --cache to use cached results for these tests
+python evaluate_mcp.py --cache --subset "Gene for NM_001045477.4:c.187C>T"
 ```
 
 **Notes:**
 - Test names must match exactly as they appear in `test_cases.yaml`
 - Warnings are shown for non-existent test names
-- Cached results are still used for subset runs unless `--force` is specified
+- Use `--cache` with subset to reuse successful cached results
 
 ---
 
@@ -171,10 +197,11 @@ The evaluation tool implements a **file-based caching system** to improve perfor
    - Token usage statistics
 
 4. **Cache Behavior**:
-   - By default, cached results are used if available
-   - Cache is automatically created on first run
+   - Results are **always saved** to cache after every run (automatic)
+   - Use `--cache` flag to **read** from cache (opt-in)
+   - When `--cache` is enabled, failed tests are automatically re-run
    - Each test case is cached independently
-   - Failed evaluations and errors are NOT cached
+   - Without `--cache`, all tests run fresh but results are still cached
 
 ### Cache Management
 
@@ -207,14 +234,14 @@ du -sh ~/.cache/marrvel-mcp/evaluations/
 
 ### When Cache is Used
 
-| Scenario | Cache Used? | Notes |
-|----------|-------------|-------|
-| Default run | ✅ Yes | Fastest execution |
-| `--force` flag | ❌ No | Ignores cache, overwrites with new results |
-| `--clear` flag | ❌ No | Deletes cache first, then runs fresh |
-| `--subset` flag | ✅ Yes | Only for selected tests (unless `--force` is used) |
-| First run | ❌ No | No cache exists yet |
-| Test case modified | ⚠️ Yes | Cache doesn't detect changes - use `--force` |
+| Scenario | Cache Read? | Cache Written? | Notes |
+|----------|-------------|----------------|-------|
+| Default run | ❌ No | ✅ Yes | All tests run fresh, results saved |
+| `--cache` flag | ✅ Yes | ✅ Yes | Reuses successful results, re-runs failures |
+| `--clear` flag | ❌ No | ✅ Yes | Deletes cache first, then runs fresh |
+| `--subset` flag | ❌ No | ✅ Yes | Selected tests only (add `--cache` to read cache) |
+| First run | ❌ No | ✅ Yes | No cache exists yet, creates cache |
+| Failed test | ♻️ Re-run | ✅ Yes | Failed tests are re-run even with `--cache` |
 
 ### Cache Invalidation
 
@@ -224,47 +251,50 @@ The cache **does not** automatically detect changes to:
 - API endpoints or responses
 - LLM model behavior
 
-**Best practice:** Use `--clear` or `--force` after making changes to ensure accurate results.
+**Best practice:** Run without `--cache` flag (default behavior) after making changes to ensure accurate results. The `--cache` flag is best used for quick validation when you know the code hasn't changed.
 
 ## Usage Examples
 
 ### Routine Testing
 
 ```bash
-# Daily check - fast, uses cache
+# Quick check using cached results (fast, re-runs only failures)
+python evaluate_mcp.py --cache
+
+# After making changes to MCP tools (fresh evaluation)
 python evaluate_mcp.py
 
-# After making changes to MCP tools
-python evaluate_mcp.py --force
-
 # Test a specific feature you're working on
-python evaluate_mcp.py --subset "Gene for NM_001045477.4:c.187C>T" "Protein change for NM_001045477.4:c.187C>T"
+python evaluate_mcp.py --subset "1-5"
 ```
 
 ### Development Workflow
 
 ```bash
-# 1. Clear cache and establish baseline
-python evaluate_mcp.py --clear
+# 1. Establish baseline (fresh run, results cached)
+python evaluate_mcp.py
 
 # 2. Make changes to MCP server/tools
 # ... edit server.py or tool files ...
 
-# 3. Test specific affected functionality
-python evaluate_mcp.py --force --subset "DGV entries" "DECIPHER control variants"
+# 3. Quick check to see if anything broke
+python evaluate_mcp.py --cache
 
-# 4. Run full suite with fresh evaluation
-python evaluate_mcp.py --force
+# 4. Test specific affected functionality with fresh evaluation
+python evaluate_mcp.py --subset "1-5"
+
+# 5. Run full suite with fresh evaluation before committing
+python evaluate_mcp.py
 ```
 
 ### Debugging Failures
 
 ```bash
-# 1. Identify failing test from report
-# ... open HTML report and find failing test ...
+# 1. Run with cache to quickly identify which tests are failing
+python evaluate_mcp.py --cache
 
-# 2. Re-run failing test with fresh evaluation
-python evaluate_mcp.py --force --subset "NUTM2G OMIM entries"
+# 2. Re-run specific failing test with fresh evaluation
+python evaluate_mcp.py --subset "5"
 
 # 3. Check the detailed conversation history in the HTML report
 ```
@@ -272,23 +302,23 @@ python evaluate_mcp.py --force --subset "NUTM2G OMIM entries"
 ### Performance Optimization
 
 ```bash
-# First run - takes ~5-10 minutes for all tests
-python evaluate_mcp.py --clear
-
-# Subsequent runs - takes seconds with cache
+# First run - establishes cache baseline (~5-10 minutes)
 python evaluate_mcp.py
 
-# Quick validation of critical tests
-python evaluate_mcp.py --subset "Gene for NM_001045477.4:c.187C>T" "CADD phred score" "REVEL prediction"
+# Quick validation using cache - takes seconds (re-runs only failures)
+python evaluate_mcp.py --cache
+
+# Quick validation of specific tests
+python evaluate_mcp.py --subset "1-3"
 ```
 
 ### CI/CD Integration
 
 ```bash
-# Run in CI with fresh evaluation (no cache)
-python evaluate_mcp.py --force
+# Run in CI with fresh evaluation (default behavior)
+python evaluate_mcp.py
 
-# Or clear cache explicitly
+# Or clear cache explicitly first
 python evaluate_mcp.py --clear
 ```
 
@@ -296,14 +326,14 @@ python evaluate_mcp.py --clear
 
 ### For Routine Testing
 
-1. **Use cache by default**: Let the tool use cached results for fast feedback
+1. **Use cache for quick checks**: Use `--cache` flag for fast feedback
    ```bash
-   python evaluate_mcp.py
+   python evaluate_mcp.py --cache
    ```
 
-2. **Clear cache periodically**: Start fresh weekly or after major changes
+2. **Run fresh after changes**: Default behavior re-runs all tests
    ```bash
-   python evaluate_mcp.py --clear
+   python evaluate_mcp.py
    ```
 
 3. **Review HTML reports**: Check conversation history for unexpected tool calls or responses
@@ -312,31 +342,31 @@ python evaluate_mcp.py --clear
 
 1. **Use `--subset` for iteration**: Focus on specific tests during development
    ```bash
-   python evaluate_mcp.py --subset "Gene for NM_001045477.4:c.187C>T"
+   python evaluate_mcp.py --subset "1-5"
    ```
 
-2. **Use `--force` after changes**: Ensure fresh evaluation after modifying code
+2. **Quick validation with cache**: Check if changes broke anything
    ```bash
-   python evaluate_mcp.py --force --subset "affected_test"
+   python evaluate_mcp.py --cache
    ```
 
-3. **Validate with full suite**: Run complete evaluation before committing
+3. **Validate with full suite**: Run complete fresh evaluation before committing
    ```bash
-   python evaluate_mcp.py --force
+   python evaluate_mcp.py
    ```
 
 ### For Debugging
 
 1. **Start with cached run**: Quickly identify which tests are failing
-2. **Re-run failed tests**: Use `--subset` with `--force` for detailed debugging
+2. **Re-run failed tests**: Use `--subset` for fresh evaluation and detailed debugging
 3. **Check conversation logs**: Review full conversation JSON in HTML report
 4. **Isolate issues**: Run related tests together to find patterns
 
 ### For Production/CI
 
-1. **Always use `--force` or `--clear`**: Ensure fresh evaluation in CI
-2. **Save artifacts**: Keep HTML reports and cache for debugging
-3. **Set timeouts**: Consider evaluation time in CI pipeline (5-10 min without cache)
+1. **Use default behavior**: Fresh evaluation is the default (no flag needed)
+2. **Save artifacts**: Keep HTML reports for debugging
+3. **Set timeouts**: Consider evaluation time in CI pipeline (5-10 min for full suite)
 4. **Monitor API costs**: Track token usage in HTML reports
 
 ## Test Cases
@@ -406,27 +436,27 @@ During execution, the console shows:
 echo "OPENROUTER_API_KEY=your_key_here" > .env
 ```
 
-### Issue: Cache not being used
+### Issue: Want to use cached results
 
-**Causes:**
-- Using `--force` flag
-- First run (no cache exists)
-- Cache files were deleted
+**Solution:** Add the `--cache` flag
+```bash
+python evaluate_mcp.py --cache
+```
 
-**Solution:** Remove `--force` flag to enable cache usage
+**Note:** Cache usage is opt-in. Without `--cache`, all tests run fresh.
 
 ### Issue: Stale cached results
 
-**Solution:**
+**Solution:** Run without `--cache` flag (default behavior)
 ```bash
-python evaluate_mcp.py --force
+python evaluate_mcp.py
 ```
 
 ### Issue: Test takes too long
 
 **Solutions:**
-1. Use cache: `python evaluate_mcp.py` (fast)
-2. Run subset: `python evaluate_mcp.py --subset "specific_test"`
+1. Use cache: `python evaluate_mcp.py --cache` (fast)
+2. Run subset: `python evaluate_mcp.py --subset "1-5"`
 3. Check network connectivity and API rate limits
 
 ### Issue: All tests failing
@@ -478,9 +508,11 @@ jobs:
       - name: Run MCP evaluation
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+               # Optional: pin a specific model for CI
+               # OPENROUTER_MODEL: "google/gemini-2.5-flash"
         run: |
           cd mcp-llm-test
-          python evaluate_mcp.py --force
+          python evaluate_mcp.py
 
       - name: Upload report
         uses: actions/upload-artifact@v3
