@@ -60,7 +60,7 @@ This configuration allows your MCP client to launch the MARRVEL server and acces
 
 Ask your AI assistant natural language questions about genes, variants, diseases, orthologs, and literature.
 
-For comprehensive examples and test cases, see: [test_cases.yaml](https://github.com/hyunhwan-bcm/MARRVEL_MCP/blob/main/mcp-llm-test/test_cases.yaml)
+For comprehensive examples and test cases, see: [test_cases.yaml](mcp-llm-test/test_cases.yaml)
 
 ## Features
 
