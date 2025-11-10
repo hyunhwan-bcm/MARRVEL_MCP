@@ -22,6 +22,28 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
         function closeModal(id) {
             document.getElementById('modal-' + id).classList.add('hidden');
         }
+        function copyToClipboard(id) {
+            const preElement = document.getElementById('json-content-' + id);
+            const textContent = preElement.textContent;
+
+            navigator.clipboard.writeText(textContent).then(function() {
+                // Show success feedback
+                const button = document.getElementById('copy-btn-' + id);
+                const originalText = button.innerHTML;
+                button.innerHTML = '<svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" /></svg> Copied!';
+                button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+                button.classList.add('bg-green-600', 'hover:bg-green-700');
+
+                setTimeout(function() {
+                    button.innerHTML = originalText;
+                    button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
         // Close modal on Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
@@ -118,9 +140,16 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button onclick="closeModal({{ result.idx }})" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
                                 </div>
                                 <div class="max-h-96 overflow-y-auto">
-                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre-wrap break-words">{{ result.conversation | tojson_pretty }}</pre>
+                                    <pre id="json-content-{{ result.idx }}" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.conversation | tojson_pretty }}</pre>
                                 </div>
-                                <div class="mt-4 flex justify-end">
+                                <div class="mt-4 flex justify-end gap-2">
+                                    <button id="copy-btn-{{ result.idx }}" onclick="copyToClipboard({{ result.idx }})" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                                            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                                        </svg>
+                                        Copy to Clipboard
+                                    </button>
                                     <button onclick="closeModal({{ result.idx }})" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
