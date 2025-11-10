@@ -647,8 +647,26 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
 
     # Add custom filter for JSON serialization with proper formatting
     def tojson_pretty(value):
-        """Format JSON with proper indentation for better readability."""
-        return json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False)
+        """
+        Format JSON with proper indentation for better readability.
+
+        Converts escape sequences in string values to actual characters:
+        - \\n becomes actual newline (and removes preceding backslash if present)
+        - \\t becomes actual tab
+        - \\r becomes actual carriage return
+
+        This makes multiline strings (like markdown tables) display with
+        proper line breaks instead of showing \\n escape sequences.
+        """
+        json_str = json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False)
+        # Replace escape sequences with actual characters for better readability
+        # First replace \\\n (backslash-newline) with just newline to clean up markdown
+        json_str = json_str.replace('\\\\n', '\n')
+        # Then replace remaining \n with newlines
+        json_str = json_str.replace('\\n', '\n')
+        json_str = json_str.replace('\\t', '\t')
+        json_str = json_str.replace('\\r', '\r')
+        return json_str
 
     env.filters["tojson_pretty"] = tojson_pretty
     template = env.get_template("evaluation_report_template.html")
