@@ -256,7 +256,7 @@ def parse_tool_result_content(content: Any) -> Any:
                 return unescaped
 
     # If content looks like JSON (starts with { or [), try to parse it
-    if content.startswith('{') or content.startswith('['):
+    if content.startswith("{") or content.startswith("["):
         try:
             return json.loads(content)
         except json.JSONDecodeError:
@@ -661,11 +661,11 @@ def generate_html_report(results: List[Dict[str, Any]]) -> str:
         json_str = json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False)
         # Replace escape sequences with actual characters for better readability
         # First replace \\\n (backslash-newline) with just newline to clean up markdown
-        json_str = json_str.replace('\\\\n', '\n')
+        json_str = json_str.replace("\\\\n", "\n")
         # Then replace remaining \n with newlines
-        json_str = json_str.replace('\\n', '\n')
-        json_str = json_str.replace('\\t', '\t')
-        json_str = json_str.replace('\\r', '\r')
+        json_str = json_str.replace("\\n", "\n")
+        json_str = json_str.replace("\\t", "\t")
+        json_str = json_str.replace("\\r", "\r")
         return json_str
 
     env.filters["tojson_pretty"] = tojson_pretty
