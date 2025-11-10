@@ -66,7 +66,7 @@ back to the latest Gemini 2.5 Flash model (NOT any deprecated 1.5 version).
 Examples:
     export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
     export OPENROUTER_MODEL="google/gemini-2.5-pro"
-    python evaluate_mcp.py --force
+    python evaluate_mcp.py
 
 This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
 """
@@ -573,11 +573,26 @@ async def run_test_case(
         if use_cache:
             cached = load_cached_result(name, vanilla_mode)
             if cached is not None:
+                # Check if cached result is a failure
+                classification = cached.get("classification", "")
+                is_failure = (
+                    classification.lower().startswith("no")
+                    or "error" in classification.lower()
+                    or "token" in classification.lower()
+                )
+
+                # If cached result was successful, reuse it
+                if not is_failure:
+                    if pbar:
+                        mode_label = "vanilla" if vanilla_mode else "tool"
+                        pbar.set_postfix_str(f"Cached ({mode_label}): {name[:40]}...")
+                        pbar.update(1)
+                    return cached
+
+                # Otherwise, re-run the failed test
                 if pbar:
                     mode_label = "vanilla" if vanilla_mode else "tool"
-                    pbar.set_postfix_str(f"Cached ({mode_label}): {name[:40]}...")
-                    pbar.update(1)
-                return cached
+                    pbar.set_postfix_str(f"Re-running failed ({mode_label}): {name[:40]}...")
 
         if pbar:
             mode_label = "vanilla" if vanilla_mode else "tool"
@@ -849,14 +864,14 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run all test cases (uses cache by default)
+  # Run all test cases (fresh evaluation, results saved to cache)
   python evaluate_mcp.py
+
+  # Use cached results (re-run only failed tests)
+  python evaluate_mcp.py --cache
 
   # Clear cache only (does not run tests)
   python evaluate_mcp.py --clear
-
-  # Force re-evaluation (ignore cache)
-  python evaluate_mcp.py --force
 
   # Run specific test cases by index (1-based)
   python evaluate_mcp.py --subset "1-5"        # Run tests 1 through 5
@@ -867,11 +882,11 @@ Examples:
   python evaluate_mcp.py --prompt "tell me about MECP2"
   python evaluate_mcp.py --prompt "What is the CADD score for chr1:12345 A>G?"
 
-Cache Location:
-  Results are cached at: {cache_dir}
+Cache Behavior:
+  Results are always cached at: {cache_dir}
 
-  The cache stores evaluation results to avoid redundant API calls and speed up
-  re-runs. Each test case result is cached separately.
+  Cache is stored after every run. Use --cache to reuse successful results
+  and re-run only failed tests. Without --cache, all tests are re-evaluated.
         """.format(
             cache_dir=CACHE_DIR
         ),
@@ -884,9 +899,9 @@ Cache Location:
     )
 
     parser.add_argument(
-        "--force",
+        "--cache",
         action="store_true",
-        help="Force re-evaluation of all test cases, ignoring cached results. Cache will be updated with new results.",
+        help="Use cached results from previous runs. Failed test cases will be re-run. Without this flag, all tests are re-evaluated.",
     )
 
     parser.add_argument(
@@ -1022,13 +1037,13 @@ async def main():
     semaphore = asyncio.Semaphore(args.concurrency)
 
     # Determine whether to use cache
-    use_cache = not args.force
+    use_cache = args.cache
 
     # Handle --with-vanilla mode: run both vanilla and tool modes
     if args.with_vanilla:
         print(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
         print(f"   Concurrency: {args.concurrency}")
-        print(f"💾 Cache {'disabled (--force)' if not use_cache else 'enabled'}")
+        print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
 
         async with mcp_client:
             # Run vanilla mode tests
@@ -1089,7 +1104,7 @@ async def main():
     else:
         # Normal mode: run with tools only
         print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
-        print(f"💾 Cache {'disabled (--force)' if not use_cache else 'enabled'}")
+        print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
 
         async with mcp_client:
             # Create progress bar

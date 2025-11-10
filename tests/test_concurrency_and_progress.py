@@ -37,10 +37,10 @@ def test_concurrency_argument_parsing():
         assert args.concurrency == 8, "Custom concurrency should be 8"
 
     # Test concurrency with other arguments
-    with patch("sys.argv", ["evaluate_mcp.py", "--concurrency", "10", "--force", "--clear"]):
+    with patch("sys.argv", ["evaluate_mcp.py", "--concurrency", "10", "--cache", "--clear"]):
         args = parse_arguments()
         assert args.concurrency == 10
-        assert args.force is True
+        assert args.cache is True
         assert args.clear is True
 
 
