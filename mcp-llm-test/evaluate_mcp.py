@@ -198,7 +198,7 @@ def validate_token_count(text: str, max_tokens: int = MAX_TOKENS) -> Tuple[bool,
     return token_count <= max_tokens, token_count
 
 
-def parse_tool_result_content(content: str) -> Any:
+def parse_tool_result_content(content: Any) -> Any:
     """
     Parse tool result content to extract actual data.
 
@@ -206,7 +206,13 @@ def parse_tool_result_content(content: str) -> Any:
     "toolNameOutput(result='<JSON_STRING>')"
 
     This function attempts to extract and parse the nested JSON for better display.
+    Converts JSON strings to objects so that escape sequences like \n and \\
+    are properly handled when rendered.
     """
+    # If content is not a string, return as-is (already parsed)
+    if not isinstance(content, str):
+        return content
+
     # Try to match the pattern: SomeOutput(result='<JSON>')
     match = re.search(r"Output\(result='(.+)'\)\s*$", content, re.DOTALL)
     if match:
@@ -220,12 +226,17 @@ def parse_tool_result_content(content: str) -> Any:
             # If parsing fails, return the extracted string
             return json_str
 
-    # If no match, try to parse the whole content as JSON
-    try:
-        return json.loads(content)
-    except (json.JSONDecodeError, TypeError):
-        # Return as-is if we can't parse it
-        return content
+    # If content looks like JSON (starts with { or [), try to parse it
+    content_stripped = content.strip()
+    if content_stripped.startswith('{') or content_stripped.startswith('['):
+        try:
+            return json.loads(content_stripped)
+        except json.JSONDecodeError:
+            # If parsing fails, return as-is
+            pass
+
+    # Return as-is if we can't parse it
+    return content
 
 
 def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
