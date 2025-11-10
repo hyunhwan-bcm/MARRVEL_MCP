@@ -376,18 +376,40 @@ async def get_langchain_response(
         active_llm = llm_web if web_mode else llm
 
         # Get direct response without tool calling
-        response = await active_llm.ainvoke(messages)
-        final_content = response.content if hasattr(response, "content") else str(response)
-        conversation.append({"role": "assistant", "content": final_content})
-
-        # Compute total tokens used
         try:
-            conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
-            tokens_total = count_tokens(conv_text)
-        except Exception:
-            tokens_total = 0
+            response = await active_llm.ainvoke(messages)
 
-        return final_content, tool_history, conversation, tokens_total
+            # Debug: Log response structure
+            if web_mode and hasattr(response, "__dict__"):
+                print(f"Debug - Web mode response attributes: {response.__dict__.keys()}")
+
+            final_content = response.content if hasattr(response, "content") else str(response)
+
+            # Check if response is empty and warn
+            if not final_content or final_content.strip() == "":
+                mode_name = "web search" if web_mode else "vanilla"
+                print(
+                    f"⚠️  Warning: Empty response from {mode_name} mode. Model may not support this mode or encountered an error."
+                )
+                final_content = f"**No response generated from {mode_name} mode. The model may not support this feature or encountered an API error.**"
+
+            conversation.append({"role": "assistant", "content": final_content})
+
+            # Compute total tokens used
+            try:
+                conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+                tokens_total = count_tokens(conv_text)
+            except Exception:
+                tokens_total = 0
+
+            return final_content, tool_history, conversation, tokens_total
+
+        except Exception as e:
+            mode_name = "web search" if web_mode else "vanilla"
+            error_msg = f"**Error in {mode_name} mode: {str(e)}**"
+            print(f"❌ Error in {mode_name} mode: {e}")
+            conversation.append({"role": "assistant", "content": error_msg})
+            return error_msg, tool_history, conversation, 0
 
     # Get MCP tools and convert to LangChain format
     mcp_tools_list = await mcp_client.list_tools()
@@ -1088,6 +1110,13 @@ async def main():
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
+        print(
+            f"⚠️  Note: Not all models support web search. Check OpenRouter docs for compatibility."
+        )
+        print(
+            f"   Models known to support :online - OpenAI (gpt-4, gpt-3.5-turbo, etc), Anthropic Claude"
+        )
+        print(f"   If you see empty responses, try a different model that supports web search.")
 
     # Clear cache if requested
     if args.clear:
