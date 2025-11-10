@@ -208,35 +208,63 @@ def parse_tool_result_content(content: Any) -> Any:
     This function attempts to extract and parse the nested JSON for better display.
     Converts JSON strings to objects so that escape sequences like \n and \\
     are properly handled when rendered.
+
+    Handles multiple layers of escaping from cached data.
     """
     # If content is not a string, return as-is (already parsed)
     if not isinstance(content, str):
         return content
 
+    original_content = content
+
+    # Strip outer whitespace
+    content = content.strip()
+
+    # If wrapped in quotes, try to unwrap one layer by parsing as JSON string
+    if content.startswith('"') and content.endswith('"'):
+        try:
+            content = json.loads(content)
+            if not isinstance(content, str):
+                # Successfully parsed to object, return it
+                return content
+        except json.JSONDecodeError:
+            pass
+
     # Try to match the pattern: SomeOutput(result='<JSON>')
     match = re.search(r"Output\(result='(.+)'\)\s*$", content, re.DOTALL)
     if match:
         json_str = match.group(1)
-        # Unescape the string
-        json_str = json_str.replace("\\n", "\n").replace('\\"', '"').replace("\\'", "'")
         try:
-            # Try to parse as JSON
+            # Try to parse as JSON directly - json.loads handles escape sequences
             return json.loads(json_str)
         except json.JSONDecodeError:
-            # If parsing fails, return the extracted string
-            return json_str
+            # If direct parsing fails, try manual unescaping for non-standard formats
+            # Handle: \\n -> \n, \\" -> ", \\' -> ', but preserve \\\\ -> \\
+            # Do \\\\ first to avoid conflicts
+            unescaped = json_str.replace("\\\\", "\x00")  # Temp placeholder for \\
+            unescaped = unescaped.replace("\\n", "\n")
+            unescaped = unescaped.replace('\\"', '"')
+            unescaped = unescaped.replace("\\'", "'")
+            unescaped = unescaped.replace("\\t", "\t")
+            unescaped = unescaped.replace("\\r", "\r")
+            unescaped = unescaped.replace("\x00", "\\")  # Restore single backslash
+            try:
+                # Try parsing the manually unescaped version
+                return json.loads(unescaped)
+            except json.JSONDecodeError:
+                # Return the unescaped string if parsing still fails
+                return unescaped
 
     # If content looks like JSON (starts with { or [), try to parse it
-    content_stripped = content.strip()
-    if content_stripped.startswith('{') or content_stripped.startswith('['):
+    if content.startswith('{') or content.startswith('['):
         try:
-            return json.loads(content_stripped)
+            return json.loads(content)
         except json.JSONDecodeError:
             # If parsing fails, return as-is
             pass
 
     # Return as-is if we can't parse it
-    return content
+    return original_content
 
 
 def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
