@@ -380,8 +380,26 @@ async def get_langchain_response(
             response = await active_llm.ainvoke(messages)
 
             # Debug: Log response structure
-            if web_mode and hasattr(response, "__dict__"):
-                print(f"Debug - Web mode response attributes: {response.__dict__.keys()}")
+            if web_mode:
+                print(f"\n🔍 Debug - Web mode response for: {user_input[:50]}...")
+                if hasattr(response, "__dict__"):
+                    print(f"  Response type: {type(response)}")
+                    print(f"  Has content attr: {hasattr(response, 'content')}")
+                    if hasattr(response, "content"):
+                        print(
+                            f"  Content length: {len(response.content) if response.content else 0}"
+                        )
+                        print(f"  Content preview: {str(response.content)[:100]}")
+                    if hasattr(response, "response_metadata"):
+                        metadata = response.response_metadata
+                        print(f"  Model used: {metadata.get('model_name', 'N/A')}")
+                        if "finish_reason" in metadata:
+                            print(f"  Finish reason: {metadata['finish_reason']}")
+                    if hasattr(response, "usage_metadata"):
+                        usage = response.usage_metadata
+                        print(
+                            f"  Tokens - Input: {usage.get('input_tokens', 0)}, Output: {usage.get('output_tokens', 0)}"
+                        )
 
             final_content = response.content if hasattr(response, "content") else str(response)
 
@@ -391,6 +409,7 @@ async def get_langchain_response(
                 print(
                     f"⚠️  Warning: Empty response from {mode_name} mode. Model may not support this mode or encountered an error."
                 )
+                print(f"  Question was: {user_input}")
                 final_content = f"**No response generated from {mode_name} mode. The model may not support this feature or encountered an API error.**"
 
             conversation.append({"role": "assistant", "content": final_content})
