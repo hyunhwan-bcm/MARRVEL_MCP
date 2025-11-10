@@ -358,7 +358,7 @@ python evaluate_mcp.py --clear
 ### For Debugging
 
 1. **Start with cached run**: Quickly identify which tests are failing
-2. **Re-run failed tests**: Use `--subset` with `--force` for detailed debugging
+2. **Re-run failed tests**: Use `--subset` for fresh evaluation and detailed debugging
 3. **Check conversation logs**: Review full conversation JSON in HTML report
 4. **Isolate issues**: Run related tests together to find patterns
 

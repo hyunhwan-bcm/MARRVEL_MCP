@@ -66,7 +66,7 @@ back to the latest Gemini 2.5 Flash model (NOT any deprecated 1.5 version).
 Examples:
     export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
     export OPENROUTER_MODEL="google/gemini-2.5-pro"
-    python evaluate_mcp.py --force
+    python evaluate_mcp.py
 
 This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
 """
