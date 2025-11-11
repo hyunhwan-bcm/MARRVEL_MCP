@@ -223,10 +223,14 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                             </td>
                             <!-- Web -->
                             <td class="px-2 py-3 text-center bg-blue-50 bg-opacity-30">
+                                {% if model_data.web.is_na %}
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">N/A</span>
+                                {% else %}
                                 <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')"
                                         class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.web.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.web.is_yes else "NO" }}
                                 </button>
+                                {% endif %}
                             </td>
                             <!-- MARRVEL -->
                             <td class="px-2 py-3 text-center bg-green-50 bg-opacity-30">
@@ -265,13 +269,22 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <h3 class="text-lg font-semibold text-gray-900">{{ model_data.name }} - 🌐 Web Search Mode</h3>
                                     <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
                                 </div>
+                                {% if model_data.web.is_na %}
+                                <div class="p-4 bg-gray-100 rounded text-center">
+                                    <p class="text-lg font-semibold text-gray-700">N/A</p>
+                                    <p class="text-gray-600 mt-2">{{ model_data.web.na_reason }}</p>
+                                </div>
+                                {% else %}
                                 <div class="max-h-96 overflow-y-auto">
                                     <pre id="json-content-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ model_data.web.conversation | tojson_pretty }}</pre>
                                 </div>
+                                {% endif %}
                                 <div class="mt-4 flex justify-end gap-2">
+                                    {% if not model_data.web.is_na %}
                                     <button onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
                                         Copy JSON
                                     </button>
+                                    {% endif %}
                                     <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>

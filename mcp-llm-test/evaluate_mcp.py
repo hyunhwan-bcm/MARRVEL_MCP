@@ -1509,7 +1509,15 @@ async def main():
                     if skip_web_search:
                         print(f"\n⏭️  Skipping WEB SEARCH mode for {model_name} (not supported)")
                         web_results = [
-                            {"status": "N/A", "reason": "Web search not supported by this model"}
+                            {
+                                "status": "N/A",
+                                "reason": "Web search not supported by this model",
+                                "response": "N/A",
+                                "classification": "N/A",
+                                "tokens_used": 0,
+                                "tool_calls": [],
+                                "conversation": [],
+                            }
                             for _ in test_cases
                         ]
                     else:
