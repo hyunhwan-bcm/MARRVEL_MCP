@@ -249,7 +249,7 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <pre id="json-content-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ model_data.vanilla.conversation | tojson_pretty }}</pre>
                                 </div>
                                 <div class="mt-4 flex justify-end gap-2">
-                                    <button onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                    <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
                                         Copy JSON
                                     </button>
                                     <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
@@ -269,7 +269,7 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <pre id="json-content-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ model_data.web.conversation | tojson_pretty }}</pre>
                                 </div>
                                 <div class="mt-4 flex justify-end gap-2">
-                                    <button onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                    <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
                                         Copy JSON
                                     </button>
                                     <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
@@ -289,7 +289,7 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <pre id="json-content-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ model_data.tool.conversation | tojson_pretty }}</pre>
                                 </div>
                                 <div class="mt-4 flex justify-end gap-2">
-                                    <button onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                    <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
                                         Copy JSON
                                     </button>
                                     <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
