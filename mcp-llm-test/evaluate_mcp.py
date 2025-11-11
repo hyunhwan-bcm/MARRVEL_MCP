@@ -339,7 +339,7 @@ def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
 
 async def get_langchain_response(
     mcp_client: Client, user_input: str, vanilla_mode: bool = False, web_mode: bool = False
-) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int]:
+) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int, Dict[str, Any]]:
     """
     Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
 
@@ -349,7 +349,7 @@ async def get_langchain_response(
         vanilla_mode: If True, LLM responds without tool calling capabilities
         web_mode: If True, LLM responds with web search enabled (no tool calling)
 
-    Returns: (final_response, tool_history, full_conversation, tokens_used)
+    Returns: (final_response, tool_history, full_conversation, tokens_used, metadata)
     """
     # Initialize LangChain messages
     if vanilla_mode:
@@ -396,27 +396,26 @@ When answering:
         try:
             response = await active_llm.ainvoke(messages)
 
-            # Debug: Log response structure
-            if web_mode:
-                print(f"\n🔍 Debug - Web mode response for: {user_input[:50]}...")
+            # Collect metadata (especially useful for web_mode debugging)
+            response_metadata = {}
+            if web_mode or vanilla_mode:
                 if hasattr(response, "__dict__"):
-                    print(f"  Response type: {type(response)}")
-                    print(f"  Has content attr: {hasattr(response, 'content')}")
+                    response_metadata["response_type"] = str(type(response))
+                    response_metadata["has_content_attr"] = hasattr(response, "content")
                     if hasattr(response, "content"):
-                        print(
-                            f"  Content length: {len(response.content) if response.content else 0}"
+                        response_metadata["content_length"] = (
+                            len(response.content) if response.content else 0
                         )
-                        print(f"  Content preview: {str(response.content)[:100]}")
+                        response_metadata["content_preview"] = str(response.content)[:100]
                     if hasattr(response, "response_metadata"):
                         metadata = response.response_metadata
-                        print(f"  Model used: {metadata.get('model_name', 'N/A')}")
+                        response_metadata["model_used"] = metadata.get("model_name", "N/A")
                         if "finish_reason" in metadata:
-                            print(f"  Finish reason: {metadata['finish_reason']}")
+                            response_metadata["finish_reason"] = metadata["finish_reason"]
                     if hasattr(response, "usage_metadata"):
                         usage = response.usage_metadata
-                        print(
-                            f"  Tokens - Input: {usage.get('input_tokens', 0)}, Output: {usage.get('output_tokens', 0)}"
-                        )
+                        response_metadata["input_tokens"] = usage.get("input_tokens", 0)
+                        response_metadata["output_tokens"] = usage.get("output_tokens", 0)
 
             final_content = response.content if hasattr(response, "content") else str(response)
 
@@ -438,14 +437,14 @@ When answering:
             except Exception:
                 tokens_total = 0
 
-            return final_content, tool_history, conversation, tokens_total
+            return final_content, tool_history, conversation, tokens_total, response_metadata
 
         except Exception as e:
             mode_name = "web search" if web_mode else "vanilla"
             error_msg = f"**Error in {mode_name} mode: {str(e)}**"
             print(f"❌ Error in {mode_name} mode: {e}")
             conversation.append({"role": "assistant", "content": error_msg})
-            return error_msg, tool_history, conversation, 0
+            return error_msg, tool_history, conversation, 0, {"error": str(e)}
 
     # Get MCP tools and convert to LangChain format
     mcp_tools_list = await mcp_client.list_tools()
@@ -570,7 +569,7 @@ When answering:
                 tokens_total = count_tokens(conv_text)
             except Exception:
                 tokens_total = 0
-            return final_content, tool_history, conversation, tokens_total
+            return final_content, tool_history, conversation, tokens_total, {}
 
     # If we hit max iterations without getting a final response, return the last message
     # Note: messages should never be empty here as we start with 2 messages and append responses
@@ -587,7 +586,7 @@ When answering:
         tokens_total = count_tokens(conv_text)
     except Exception:
         tokens_total = 0
-    return final_content, tool_history, conversation, tokens_total
+    return final_content, tool_history, conversation, tokens_total, {}
 
 
 async def evaluate_response(actual: str, expected: str) -> str:
@@ -678,7 +677,7 @@ async def run_test_case(
             pbar.set_postfix_str(f"Running ({mode_label}): {name[:40]}...")
 
         try:
-            langchain_response, tool_history, full_conversation, tokens_used = (
+            langchain_response, tool_history, full_conversation, tokens_used, metadata = (
                 await get_langchain_response(mcp_client, user_input, vanilla_mode, web_mode)
             )
             classification = await evaluate_response(langchain_response, expected)
@@ -691,6 +690,7 @@ async def run_test_case(
                 "conversation": full_conversation,
                 "tokens_used": tokens_used,
                 "mode": "web" if web_mode else ("vanilla" if vanilla_mode else "tool"),
+                "metadata": metadata,
             }
             # Save to cache
             save_cached_result(name, result, vanilla_mode, web_mode)
@@ -1170,8 +1170,8 @@ async def main():
 
         async with mcp_client:
             try:
-                response, tool_history, conversation, tokens_used = await get_langchain_response(
-                    mcp_client, args.prompt
+                response, tool_history, conversation, tokens_used, metadata = (
+                    await get_langchain_response(mcp_client, args.prompt)
                 )
 
                 # Output as JSON
@@ -1181,6 +1181,7 @@ async def main():
                     "tool_calls": tool_history,
                     "conversation": conversation,
                     "tokens_used": tokens_used,
+                    "metadata": metadata,
                 }
 
                 print("\n📊 RESULT (JSON):")
