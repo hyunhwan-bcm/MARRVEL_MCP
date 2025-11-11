@@ -19,6 +19,9 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
         function openModal(id) {
             document.getElementById('modal-' + id).classList.remove('hidden');
         }
+        function showModal(fullId) {
+            document.getElementById(fullId).classList.remove('hidden');
+        }
         function closeModal(id) {
             document.getElementById('modal-' + id).classList.add('hidden');
         }
