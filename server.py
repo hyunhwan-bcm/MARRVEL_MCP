@@ -242,6 +242,11 @@ def get_example_genes() -> dict:
 async def fix_missing_hg38_vals(data: str) -> str:
     data_obj = json.loads(data)
     sub_dict_list = next(iter(data_obj["data"].values()))
+
+    # Handle case where API returns null (no data found)
+    if sub_dict_list is None:
+        return data
+
     if isinstance(sub_dict_list, dict):
         sub_dict_list = [sub_dict_list]
     for sub_dict in sub_dict_list:
