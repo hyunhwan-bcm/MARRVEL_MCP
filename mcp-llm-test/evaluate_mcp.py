@@ -355,7 +355,7 @@ async def get_langchain_response(
     if vanilla_mode:
         system_message = "You are a helpful genetics research assistant. Answer questions about genes, variants, and genetic data based on your knowledge."
     elif web_mode:
-        system_message = "You are a helpful genetics research assistant. Use web search to find accurate and up-to-date information about genes, variants, and genetic data. Search for reliable sources and scientific databases."
+        system_message = "You are a helpful genetics research assistant with access to web search. When you need information about genes, variants, genetic data, or scientific literature, search the internet for accurate and up-to-date information. Look for reliable sources such as scientific databases (NCBI, Ensembl, UniProt), research papers, and authoritative genetics resources. Always search for information rather than relying solely on your training data."
     else:
         system_message = "You are a helpful genetics research assistant. You have access to tools that can query genetic databases and provide accurate information. Always use the available tools to answer questions about genes, variants, and genetic data. Do not make up or guess information - use the tools to get accurate data."
 
