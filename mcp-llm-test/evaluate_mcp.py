@@ -83,15 +83,17 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Global variables for LLM (initialized in main after arg parsing)
 llm = None
+llm_web = None  # LLM with web search enabled (:online suffix)
 OPENROUTER_API_KEY = None
 
 
-def get_cache_path(test_case_name: str, vanilla_mode: bool = False) -> Path:
+def get_cache_path(test_case_name: str, vanilla_mode: bool = False, web_mode: bool = False) -> Path:
     """Get the cache file path for a test case.
 
     Args:
         test_case_name: Name of the test case
         vanilla_mode: If True, append '_vanilla' to distinguish from tool-enabled cache
+        web_mode: If True, append '_web' to distinguish from vanilla cache
 
     Returns:
         Path to cache file
@@ -99,7 +101,12 @@ def get_cache_path(test_case_name: str, vanilla_mode: bool = False) -> Path:
     # Use sanitized test case name for filename
     safe_name = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_" for c in test_case_name)
     safe_name = safe_name.strip().replace(" ", "_")
-    suffix = "_vanilla" if vanilla_mode else ""
+    if web_mode:
+        suffix = "_web"
+    elif vanilla_mode:
+        suffix = "_vanilla"
+    else:
+        suffix = ""
     return CACHE_DIR / f"{safe_name}{suffix}.pkl"
 
 
@@ -168,17 +175,20 @@ def parse_subset(subset: str | None, total_count: int) -> List[int]:
     return sorted(indices)
 
 
-def load_cached_result(test_case_name: str, vanilla_mode: bool = False) -> Dict[str, Any] | None:
+def load_cached_result(
+    test_case_name: str, vanilla_mode: bool = False, web_mode: bool = False
+) -> Dict[str, Any] | None:
     """Load cached result for a test case if it exists.
 
     Args:
         test_case_name: Name of the test case
         vanilla_mode: If True, load from vanilla cache
+        web_mode: If True, load from web cache
 
     Returns:
         Cached result or None if not found
     """
-    cache_path = get_cache_path(test_case_name, vanilla_mode)
+    cache_path = get_cache_path(test_case_name, vanilla_mode, web_mode)
     if cache_path.exists():
         try:
             with open(cache_path, "rb") as f:
@@ -189,15 +199,18 @@ def load_cached_result(test_case_name: str, vanilla_mode: bool = False) -> Dict[
     return None
 
 
-def save_cached_result(test_case_name: str, result: Dict[str, Any], vanilla_mode: bool = False):
+def save_cached_result(
+    test_case_name: str, result: Dict[str, Any], vanilla_mode: bool = False, web_mode: bool = False
+):
     """Save result to cache.
 
     Args:
         test_case_name: Name of the test case
         result: Test result to cache
         vanilla_mode: If True, save to vanilla cache
+        web_mode: If True, save to web cache
     """
-    cache_path = get_cache_path(test_case_name, vanilla_mode)
+    cache_path = get_cache_path(test_case_name, vanilla_mode, web_mode)
     try:
         with open(cache_path, "wb") as f:
             pickle.dump(result, f)
@@ -325,7 +338,7 @@ def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
 
 
 async def get_langchain_response(
-    mcp_client: Client, user_input: str, vanilla_mode: bool = False
+    mcp_client: Client, user_input: str, vanilla_mode: bool = False, web_mode: bool = False
 ) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int]:
     """
     Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
@@ -334,12 +347,15 @@ async def get_langchain_response(
         mcp_client: MCP client for tool calls
         user_input: User question/prompt
         vanilla_mode: If True, LLM responds without tool calling capabilities
+        web_mode: If True, LLM responds with web search enabled (no tool calling)
 
     Returns: (final_response, tool_history, full_conversation, tokens_used)
     """
     # Initialize LangChain messages
     if vanilla_mode:
         system_message = "You are a helpful genetics research assistant. Answer questions about genes, variants, and genetic data based on your knowledge."
+    elif web_mode:
+        system_message = "You are a helpful genetics research assistant. Use web search to find accurate and up-to-date information about genes, variants, and genetic data. Search for reliable sources and scientific databases."
     else:
         system_message = "You are a helpful genetics research assistant. You have access to tools that can query genetic databases and provide accurate information. Always use the available tools to answer questions about genes, variants, and genetic data. Do not make up or guess information - use the tools to get accurate data."
 
@@ -350,25 +366,69 @@ async def get_langchain_response(
     tool_history = []
     conversation = []
 
-    # In vanilla mode, skip tool binding and just get a direct response
-    if vanilla_mode:
+    # In vanilla or web mode, skip tool binding and just get a direct response
+    if vanilla_mode or web_mode:
         # Store initial messages in conversation history
         conversation.append({"role": "system", "content": system_message})
         conversation.append({"role": "user", "content": user_input})
 
+        # Use web-enabled LLM for web mode, regular LLM for vanilla mode
+        active_llm = llm_web if web_mode else llm
+
         # Get direct response without tool calling
-        response = await llm.ainvoke(messages)
-        final_content = response.content if hasattr(response, "content") else str(response)
-        conversation.append({"role": "assistant", "content": final_content})
-
-        # Compute total tokens used
         try:
-            conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
-            tokens_total = count_tokens(conv_text)
-        except Exception:
-            tokens_total = 0
+            response = await active_llm.ainvoke(messages)
 
-        return final_content, tool_history, conversation, tokens_total
+            # Debug: Log response structure
+            if web_mode:
+                print(f"\n🔍 Debug - Web mode response for: {user_input[:50]}...")
+                if hasattr(response, "__dict__"):
+                    print(f"  Response type: {type(response)}")
+                    print(f"  Has content attr: {hasattr(response, 'content')}")
+                    if hasattr(response, "content"):
+                        print(
+                            f"  Content length: {len(response.content) if response.content else 0}"
+                        )
+                        print(f"  Content preview: {str(response.content)[:100]}")
+                    if hasattr(response, "response_metadata"):
+                        metadata = response.response_metadata
+                        print(f"  Model used: {metadata.get('model_name', 'N/A')}")
+                        if "finish_reason" in metadata:
+                            print(f"  Finish reason: {metadata['finish_reason']}")
+                    if hasattr(response, "usage_metadata"):
+                        usage = response.usage_metadata
+                        print(
+                            f"  Tokens - Input: {usage.get('input_tokens', 0)}, Output: {usage.get('output_tokens', 0)}"
+                        )
+
+            final_content = response.content if hasattr(response, "content") else str(response)
+
+            # Check if response is empty and warn
+            if not final_content or final_content.strip() == "":
+                mode_name = "web search" if web_mode else "vanilla"
+                print(
+                    f"⚠️  Warning: Empty response from {mode_name} mode. Model may not support this mode or encountered an error."
+                )
+                print(f"  Question was: {user_input}")
+                final_content = f"**No response generated from {mode_name} mode. The model may not support this feature or encountered an API error.**"
+
+            conversation.append({"role": "assistant", "content": final_content})
+
+            # Compute total tokens used
+            try:
+                conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+                tokens_total = count_tokens(conv_text)
+            except Exception:
+                tokens_total = 0
+
+            return final_content, tool_history, conversation, tokens_total
+
+        except Exception as e:
+            mode_name = "web search" if web_mode else "vanilla"
+            error_msg = f"**Error in {mode_name} mode: {str(e)}**"
+            print(f"❌ Error in {mode_name} mode: {e}")
+            conversation.append({"role": "assistant", "content": error_msg})
+            return error_msg, tool_history, conversation, 0
 
     # Get MCP tools and convert to LangChain format
     mcp_tools_list = await mcp_client.list_tools()
@@ -551,6 +611,7 @@ async def run_test_case(
     test_case: Dict[str, Any],
     use_cache: bool = True,
     vanilla_mode: bool = False,
+    web_mode: bool = False,
     pbar=None,
 ) -> Dict[str, Any]:
     """
@@ -562,6 +623,7 @@ async def run_test_case(
         test_case: Test case dictionary
         use_cache: Whether to use cached results (default: True)
         vanilla_mode: If True, run without tool calling (default: False)
+        web_mode: If True, run with web search enabled (default: False)
         pbar: Optional tqdm progress bar to update
     """
     async with semaphore:
@@ -571,7 +633,7 @@ async def run_test_case(
 
         # Check cache first if enabled
         if use_cache:
-            cached = load_cached_result(name, vanilla_mode)
+            cached = load_cached_result(name, vanilla_mode, web_mode)
             if cached is not None:
                 # Check if cached result is a failure
                 classification = cached.get("classification", "")
@@ -584,23 +646,23 @@ async def run_test_case(
                 # If cached result was successful, reuse it
                 if not is_failure:
                     if pbar:
-                        mode_label = "vanilla" if vanilla_mode else "tool"
+                        mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
                         pbar.set_postfix_str(f"Cached ({mode_label}): {name[:40]}...")
                         pbar.update(1)
                     return cached
 
                 # Otherwise, re-run the failed test
                 if pbar:
-                    mode_label = "vanilla" if vanilla_mode else "tool"
+                    mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
                     pbar.set_postfix_str(f"Re-running failed ({mode_label}): {name[:40]}...")
 
         if pbar:
-            mode_label = "vanilla" if vanilla_mode else "tool"
+            mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
             pbar.set_postfix_str(f"Running ({mode_label}): {name[:40]}...")
 
         try:
             langchain_response, tool_history, full_conversation, tokens_used = (
-                await get_langchain_response(mcp_client, user_input, vanilla_mode)
+                await get_langchain_response(mcp_client, user_input, vanilla_mode, web_mode)
             )
             classification = await evaluate_response(langchain_response, expected)
             result = {
@@ -611,10 +673,10 @@ async def run_test_case(
                 "tool_calls": tool_history,
                 "conversation": full_conversation,
                 "tokens_used": tokens_used,
-                "mode": "vanilla" if vanilla_mode else "tool",
+                "mode": "web" if web_mode else ("vanilla" if vanilla_mode else "tool"),
             }
             # Save to cache
-            save_cached_result(name, result, vanilla_mode)
+            save_cached_result(name, result, vanilla_mode, web_mode)
             if pbar:
                 pbar.update(1)
             return result
@@ -654,12 +716,15 @@ async def run_test_case(
             return result
 
 
-def generate_html_report(results: List[Dict[str, Any]], dual_mode: bool = False) -> str:
+def generate_html_report(
+    results: List[Dict[str, Any]], dual_mode: bool = False, tri_mode: bool = False
+) -> str:
     """Generate HTML report with modal popups, reordered columns, and success rate summary.
 
     Args:
         results: List of test results
         dual_mode: If True, results contain both vanilla and tool mode responses
+        tri_mode: If True, results contain vanilla, web, and tool mode responses
 
     Returns:
         Path to generated HTML file
@@ -674,9 +739,27 @@ def generate_html_report(results: List[Dict[str, Any]], dual_mode: bool = False)
     total_tests = len(results)
     successful_tests = 0
     successful_vanilla = 0
+    successful_web = 0
     successful_tool = 0
 
-    if dual_mode:
+    if tri_mode:
+        # Calculate success rates for all three modes
+        for result in results:
+            vanilla_classification = result["vanilla"]["classification"].lower()
+            web_classification = result["web"]["classification"].lower()
+            tool_classification = result["tool"]["classification"].lower()
+
+            if re.search(r"\byes\b", vanilla_classification):
+                successful_vanilla += 1
+            if re.search(r"\byes\b", web_classification):
+                successful_web += 1
+            if re.search(r"\byes\b", tool_classification):
+                successful_tool += 1
+
+        vanilla_success_rate = (successful_vanilla / total_tests * 100) if total_tests > 0 else 0
+        web_success_rate = (successful_web / total_tests * 100) if total_tests > 0 else 0
+        tool_success_rate = (successful_tool / total_tests * 100) if total_tests > 0 else 0
+    elif dual_mode:
         # Calculate success rates for both modes
         for result in results:
             vanilla_classification = result["vanilla"]["classification"].lower()
@@ -735,7 +818,57 @@ def generate_html_report(results: List[Dict[str, Any]], dual_mode: bool = False)
     # Prepare data for template - add metadata to each result
     enriched_results = []
 
-    if dual_mode:
+    if tri_mode:
+        # Prepare tri-mode results with vanilla, web, and tool responses
+        for idx, result in enumerate(results):
+            vanilla_res = result["vanilla"]
+            web_res = result["web"]
+            tool_res = result["tool"]
+
+            vanilla_classification_lower = vanilla_res["classification"].lower()
+            web_classification_lower = web_res["classification"].lower()
+            tool_classification_lower = tool_res["classification"].lower()
+
+            vanilla_is_yes = re.search(r"\byes\b", vanilla_classification_lower)
+            web_is_yes = re.search(r"\byes\b", web_classification_lower)
+            tool_is_yes = re.search(r"\byes\b", tool_classification_lower)
+
+            # Clean up conversation data for all three modes
+            vanilla_conversation = clean_conversation(vanilla_res.get("conversation", []))
+            web_conversation = clean_conversation(web_res.get("conversation", []))
+            tool_conversation = clean_conversation(tool_res.get("conversation", []))
+
+            enriched_result = {
+                "idx": idx,
+                "question": result["question"],
+                "expected": result["expected"],
+                "vanilla": {
+                    "response": vanilla_res.get("response", ""),
+                    "classification": vanilla_res["classification"],
+                    "is_yes": vanilla_is_yes is not None,
+                    "tokens_used": vanilla_res.get("tokens_used", 0),
+                    "tool_calls": vanilla_res.get("tool_calls", []),
+                    "conversation": vanilla_conversation,
+                },
+                "web": {
+                    "response": web_res.get("response", ""),
+                    "classification": web_res["classification"],
+                    "is_yes": web_is_yes is not None,
+                    "tokens_used": web_res.get("tokens_used", 0),
+                    "tool_calls": web_res.get("tool_calls", []),
+                    "conversation": web_conversation,
+                },
+                "tool": {
+                    "response": tool_res.get("response", ""),
+                    "classification": tool_res["classification"],
+                    "is_yes": tool_is_yes is not None,
+                    "tokens_used": tool_res.get("tokens_used", 0),
+                    "tool_calls": tool_res.get("tool_calls", []),
+                    "conversation": tool_conversation,
+                },
+            }
+            enriched_results.append(enriched_result)
+    elif dual_mode:
         # Prepare dual-mode results with both vanilla and tool responses
         for idx, result in enumerate(results):
             vanilla_res = result["vanilla"]
@@ -826,7 +959,19 @@ def generate_html_report(results: List[Dict[str, Any]], dual_mode: bool = False)
     env.filters["tojson_pretty"] = tojson_pretty
     template = env.get_template("evaluation_report_template.html")
 
-    if dual_mode:
+    if tri_mode:
+        html_content = template.render(
+            tri_mode=True,
+            vanilla_success_rate=vanilla_success_rate,
+            web_success_rate=web_success_rate,
+            tool_success_rate=tool_success_rate,
+            successful_vanilla=successful_vanilla,
+            successful_web=successful_web,
+            successful_tool=successful_tool,
+            total_tests=total_tests,
+            results=enriched_results,
+        )
+    elif dual_mode:
         html_content = template.render(
             dual_mode=True,
             vanilla_success_rate=vanilla_success_rate,
@@ -932,6 +1077,12 @@ Cache Behavior:
         help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",
     )
 
+    parser.add_argument(
+        "--with-web",
+        action="store_true",
+        help="Run tests in three modes: vanilla (no tools, no web), web search (:online suffix), and MARRVEL-MCP (with tools). Creates 3-way comparison.",
+    )
+
     return parser.parse_args()
 
 
@@ -939,7 +1090,7 @@ async def main():
     """
     Main function to run the evaluation concurrently.
     """
-    global llm, OPENROUTER_API_KEY
+    global llm, llm_web, OPENROUTER_API_KEY
 
     # Parse command-line arguments
     args = parse_arguments()
@@ -962,10 +1113,29 @@ async def main():
         openai_api_key=OPENROUTER_API_KEY,
         temperature=0,
     )
+
+    # Configure web-enabled LLM (with :online suffix for OpenRouter web search)
+    llm_web = ChatOpenAI(
+        model=f"{resolved_model}:online",
+        openai_api_base="https://openrouter.ai/api/v1",
+        openai_api_key=OPENROUTER_API_KEY,
+        temperature=0,
+    )
+
     if resolved_model != DEFAULT_OPENROUTER_MODEL:
         print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
     else:
         print(f"✨ Using default OpenRouter model: {resolved_model}")
+
+    if args.with_web:
+        print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
+        print(
+            f"⚠️  Note: Not all models support web search. Check OpenRouter docs for compatibility."
+        )
+        print(
+            f"   Models known to support :online - OpenAI (gpt-4, gpt-3.5-turbo, etc), Anthropic Claude"
+        )
+        print(f"   If you see empty responses, try a different model that supports web search.")
 
     # Clear cache if requested
     if args.clear:
@@ -1039,8 +1209,91 @@ async def main():
     # Determine whether to use cache
     use_cache = args.cache
 
+    # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
+    if args.with_web:
+        print(
+            f"🚀 Running {len(test_cases)} test case(s) with THREE modes: vanilla, web search, and MARRVEL-MCP"
+        )
+        print(f"   Concurrency: {args.concurrency}")
+        print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
+
+        async with mcp_client:
+            # Run vanilla mode tests
+            print("\n🍦 Running VANILLA mode (no tools, no web search)...")
+            pbar_vanilla = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
+
+            vanilla_tasks = [
+                run_test_case(
+                    semaphore,
+                    mcp_client,
+                    test_case,
+                    use_cache=use_cache,
+                    vanilla_mode=True,
+                    pbar=pbar_vanilla,
+                )
+                for test_case in test_cases
+            ]
+            vanilla_results = await asyncio.gather(*vanilla_tasks)
+            pbar_vanilla.close()
+
+            # Run web search mode tests
+            print("\n🌐 Running WEB SEARCH mode (web search enabled via :online)...")
+            pbar_web = atqdm(total=len(test_cases), desc="Web search mode", unit="test")
+
+            web_tasks = [
+                run_test_case(
+                    semaphore,
+                    mcp_client,
+                    test_case,
+                    use_cache=use_cache,
+                    web_mode=True,
+                    pbar=pbar_web,
+                )
+                for test_case in test_cases
+            ]
+            web_results = await asyncio.gather(*web_tasks)
+            pbar_web.close()
+
+            # Run tool mode tests
+            print("\n🔧 Running MARRVEL-MCP mode (with specialized tools)...")
+            pbar_tool = atqdm(total=len(test_cases), desc="Tool mode", unit="test")
+
+            tool_tasks = [
+                run_test_case(
+                    semaphore,
+                    mcp_client,
+                    test_case,
+                    use_cache=use_cache,
+                    vanilla_mode=False,
+                    pbar=pbar_tool,
+                )
+                for test_case in test_cases
+            ]
+            tool_results = await asyncio.gather(*tool_tasks)
+            pbar_tool.close()
+
+        # Combine results - create 3-way comparison
+        combined_results = []
+        for i, test_case in enumerate(test_cases):
+            combined_results.append(
+                {
+                    "question": test_case["case"]["input"],
+                    "expected": test_case["case"]["expected"],
+                    "vanilla": vanilla_results[i],
+                    "web": web_results[i],
+                    "tool": tool_results[i],
+                }
+            )
+
+        # Generate HTML report with 3-way comparison
+        try:
+            html_path = generate_html_report(combined_results, tri_mode=True)
+            open_in_browser(html_path)
+        except Exception as e:
+            print(f"--- Error generating HTML or opening browser: {e} ---")
+
     # Handle --with-vanilla mode: run both vanilla and tool modes
-    if args.with_vanilla:
+    elif args.with_vanilla:
         print(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
         print(f"   Concurrency: {args.concurrency}")
         print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
