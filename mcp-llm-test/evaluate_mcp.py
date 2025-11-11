@@ -87,13 +87,19 @@ llm_web = None  # LLM with web search enabled (:online suffix)
 OPENROUTER_API_KEY = None
 
 
-def get_cache_path(test_case_name: str, vanilla_mode: bool = False, web_mode: bool = False) -> Path:
+def get_cache_path(
+    test_case_name: str,
+    vanilla_mode: bool = False,
+    web_mode: bool = False,
+    model_id: str | None = None,
+) -> Path:
     """Get the cache file path for a test case.
 
     Args:
         test_case_name: Name of the test case
         vanilla_mode: If True, append '_vanilla' to distinguish from tool-enabled cache
         web_mode: If True, append '_web' to distinguish from vanilla cache
+        model_id: Model identifier (e.g., "google/gemini-2.5-flash"). If provided, cache is model-specific.
 
     Returns:
         Path to cache file
@@ -101,13 +107,23 @@ def get_cache_path(test_case_name: str, vanilla_mode: bool = False, web_mode: bo
     # Use sanitized test case name for filename
     safe_name = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_" for c in test_case_name)
     safe_name = safe_name.strip().replace(" ", "_")
-    if web_mode:
-        suffix = "_web"
-    elif vanilla_mode:
-        suffix = "_vanilla"
+
+    # Add model identifier if provided (sanitize it too)
+    if model_id:
+        safe_model = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in model_id)
+        safe_model = safe_model.replace("/", "_")
+        model_suffix = f"_{safe_model}"
     else:
-        suffix = ""
-    return CACHE_DIR / f"{safe_name}{suffix}.pkl"
+        model_suffix = ""
+
+    if web_mode:
+        mode_suffix = "_web"
+    elif vanilla_mode:
+        mode_suffix = "_vanilla"
+    else:
+        mode_suffix = ""
+
+    return CACHE_DIR / f"{safe_name}{model_suffix}{mode_suffix}.pkl"
 
 
 def parse_subset(subset: str | None, total_count: int) -> List[int]:
@@ -176,7 +192,10 @@ def parse_subset(subset: str | None, total_count: int) -> List[int]:
 
 
 def load_cached_result(
-    test_case_name: str, vanilla_mode: bool = False, web_mode: bool = False
+    test_case_name: str,
+    vanilla_mode: bool = False,
+    web_mode: bool = False,
+    model_id: str | None = None,
 ) -> Dict[str, Any] | None:
     """Load cached result for a test case if it exists.
 
@@ -184,11 +203,12 @@ def load_cached_result(
         test_case_name: Name of the test case
         vanilla_mode: If True, load from vanilla cache
         web_mode: If True, load from web cache
+        model_id: Model identifier for model-specific cache
 
     Returns:
         Cached result or None if not found
     """
-    cache_path = get_cache_path(test_case_name, vanilla_mode, web_mode)
+    cache_path = get_cache_path(test_case_name, vanilla_mode, web_mode, model_id)
     if cache_path.exists():
         try:
             with open(cache_path, "rb") as f:
@@ -200,7 +220,11 @@ def load_cached_result(
 
 
 def save_cached_result(
-    test_case_name: str, result: Dict[str, Any], vanilla_mode: bool = False, web_mode: bool = False
+    test_case_name: str,
+    result: Dict[str, Any],
+    vanilla_mode: bool = False,
+    web_mode: bool = False,
+    model_id: str | None = None,
 ):
     """Save result to cache.
 
@@ -209,8 +233,9 @@ def save_cached_result(
         result: Test result to cache
         vanilla_mode: If True, save to vanilla cache
         web_mode: If True, save to web cache
+        model_id: Model identifier for model-specific cache
     """
-    cache_path = get_cache_path(test_case_name, vanilla_mode, web_mode)
+    cache_path = get_cache_path(test_case_name, vanilla_mode, web_mode, model_id)
     try:
         with open(cache_path, "wb") as f:
             pickle.dump(result, f)
@@ -628,6 +653,7 @@ async def run_test_case(
     use_cache: bool = True,
     vanilla_mode: bool = False,
     web_mode: bool = False,
+    model_id: str | None = None,
     pbar=None,
 ) -> Dict[str, Any]:
     """
@@ -640,6 +666,7 @@ async def run_test_case(
         use_cache: Whether to use cached results (default: True)
         vanilla_mode: If True, run without tool calling (default: False)
         web_mode: If True, run with web search enabled (default: False)
+        model_id: Model identifier for model-specific cache (default: None)
         pbar: Optional tqdm progress bar to update
     """
     async with semaphore:
@@ -649,7 +676,7 @@ async def run_test_case(
 
         # Check cache first if enabled
         if use_cache:
-            cached = load_cached_result(name, vanilla_mode, web_mode)
+            cached = load_cached_result(name, vanilla_mode, web_mode, model_id)
             if cached is not None:
                 # Check if cached result is a failure
                 classification = cached.get("classification", "")
@@ -693,7 +720,7 @@ async def run_test_case(
                 "metadata": metadata,
             }
             # Save to cache
-            save_cached_result(name, result, vanilla_mode, web_mode)
+            save_cached_result(name, result, vanilla_mode, web_mode, model_id)
             if pbar:
                 pbar.update(1)
             return result
@@ -734,7 +761,10 @@ async def run_test_case(
 
 
 def generate_html_report(
-    results: List[Dict[str, Any]], dual_mode: bool = False, tri_mode: bool = False
+    results: List[Dict[str, Any]],
+    dual_mode: bool = False,
+    tri_mode: bool = False,
+    multi_model: bool = False,
 ) -> str:
     """Generate HTML report with modal popups, reordered columns, and success rate summary.
 
@@ -742,6 +772,7 @@ def generate_html_report(
         results: List of test results
         dual_mode: If True, results contain both vanilla and tool mode responses
         tri_mode: If True, results contain vanilla, web, and tool mode responses
+        multi_model: If True, results contain multiple models across all three modes
 
     Returns:
         Path to generated HTML file
@@ -759,7 +790,44 @@ def generate_html_report(
     successful_web = 0
     successful_tool = 0
 
-    if tri_mode:
+    if multi_model:
+        # Calculate success rates for each model across all modes
+        models_stats = {}
+        for result in results:
+            for model_id, model_data in result["models"].items():
+                if model_id not in models_stats:
+                    models_stats[model_id] = {
+                        "name": model_data["name"],
+                        "vanilla_success": 0,
+                        "web_success": 0,
+                        "tool_success": 0,
+                    }
+
+                vanilla_classification = model_data["vanilla"]["classification"].lower()
+                web_classification = model_data["web"]["classification"].lower()
+                tool_classification = model_data["tool"]["classification"].lower()
+
+                if re.search(r"\byes\b", vanilla_classification):
+                    models_stats[model_id]["vanilla_success"] += 1
+                if re.search(r"\byes\b", web_classification):
+                    models_stats[model_id]["web_success"] += 1
+                if re.search(r"\byes\b", tool_classification):
+                    models_stats[model_id]["tool_success"] += 1
+
+        # Calculate percentages
+        for model_id in models_stats:
+            models_stats[model_id]["vanilla_rate"] = (
+                models_stats[model_id]["vanilla_success"] / total_tests * 100
+                if total_tests > 0
+                else 0
+            )
+            models_stats[model_id]["web_rate"] = (
+                models_stats[model_id]["web_success"] / total_tests * 100 if total_tests > 0 else 0
+            )
+            models_stats[model_id]["tool_rate"] = (
+                models_stats[model_id]["tool_success"] / total_tests * 100 if total_tests > 0 else 0
+            )
+    elif tri_mode:
         # Calculate success rates for all three modes
         for result in results:
             vanilla_classification = result["vanilla"]["classification"].lower()
@@ -835,7 +903,64 @@ def generate_html_report(
     # Prepare data for template - add metadata to each result
     enriched_results = []
 
-    if tri_mode:
+    if multi_model:
+        # Prepare multi-model results with all models across all three modes
+        for idx, result in enumerate(results):
+            enriched_result = {
+                "idx": idx,
+                "question": result["question"],
+                "expected": result["expected"],
+                "models": {},
+            }
+
+            for model_id, model_data in result["models"].items():
+                vanilla_res = model_data["vanilla"]
+                web_res = model_data["web"]
+                tool_res = model_data["tool"]
+
+                vanilla_classification_lower = vanilla_res["classification"].lower()
+                web_classification_lower = web_res["classification"].lower()
+                tool_classification_lower = tool_res["classification"].lower()
+
+                vanilla_is_yes = re.search(r"\byes\b", vanilla_classification_lower)
+                web_is_yes = re.search(r"\byes\b", web_classification_lower)
+                tool_is_yes = re.search(r"\byes\b", tool_classification_lower)
+
+                # Clean up conversation data for all three modes
+                vanilla_conversation = clean_conversation(vanilla_res.get("conversation", []))
+                web_conversation = clean_conversation(web_res.get("conversation", []))
+                tool_conversation = clean_conversation(tool_res.get("conversation", []))
+
+                enriched_result["models"][model_id] = {
+                    "name": model_data["name"],
+                    "vanilla": {
+                        "response": vanilla_res.get("response", ""),
+                        "classification": vanilla_res["classification"],
+                        "is_yes": vanilla_is_yes is not None,
+                        "tokens_used": vanilla_res.get("tokens_used", 0),
+                        "tool_calls": vanilla_res.get("tool_calls", []),
+                        "conversation": vanilla_conversation,
+                    },
+                    "web": {
+                        "response": web_res.get("response", ""),
+                        "classification": web_res["classification"],
+                        "is_yes": web_is_yes is not None,
+                        "tokens_used": web_res.get("tokens_used", 0),
+                        "tool_calls": web_res.get("tool_calls", []),
+                        "conversation": web_conversation,
+                    },
+                    "tool": {
+                        "response": tool_res.get("response", ""),
+                        "classification": tool_res["classification"],
+                        "is_yes": tool_is_yes is not None,
+                        "tokens_used": tool_res.get("tokens_used", 0),
+                        "tool_calls": tool_res.get("tool_calls", []),
+                        "conversation": tool_conversation,
+                    },
+                }
+
+            enriched_results.append(enriched_result)
+    elif tri_mode:
         # Prepare tri-mode results with vanilla, web, and tool responses
         for idx, result in enumerate(results):
             vanilla_res = result["vanilla"]
@@ -976,7 +1101,14 @@ def generate_html_report(
     env.filters["tojson_pretty"] = tojson_pretty
     template = env.get_template("evaluation_report_template.html")
 
-    if tri_mode:
+    if multi_model:
+        html_content = template.render(
+            multi_model=True,
+            models_stats=models_stats,
+            total_tests=total_tests,
+            results=enriched_results,
+        )
+    elif tri_mode:
         html_content = template.render(
             tri_mode=True,
             vanilla_success_rate=vanilla_success_rate,
@@ -1019,6 +1151,40 @@ def open_in_browser(html_path: str):
     print(f"--- Opened {html_path} in browser ---")
 
 
+def load_models_config(config_path: Path | None = None) -> List[Dict[str, Any]]:
+    """Load models configuration from YAML file.
+
+    Args:
+        config_path: Path to models configuration YAML file.
+                     If None, uses default models_config.yaml in mcp-llm-test directory.
+
+    Returns:
+        List of enabled model configurations
+    """
+    if config_path is None:
+        config_path = Path(__file__).parent / "models_config.yaml"
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config_data = yaml.safe_load(f)
+
+        models = config_data.get("models", [])
+        config = config_data.get("config", {})
+        only_enabled = config.get("only_enabled", True)
+
+        if only_enabled:
+            enabled_models = [m for m in models if m.get("enabled", False)]
+        else:
+            enabled_models = models
+
+        if not enabled_models:
+            raise ValueError("No enabled models found in configuration file")
+
+        return enabled_models
+    except Exception as e:
+        raise ValueError(f"Failed to load models configuration: {e}")
+
+
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -1043,6 +1209,10 @@ Examples:
   # Ask a custom question and get JSON response (no HTML)
   python evaluate_mcp.py --prompt "tell me about MECP2"
   python evaluate_mcp.py --prompt "What is the CADD score for chr1:12345 A>G?"
+
+  # Run multi-model comparison (test multiple models across vanilla, web, MARRVEL-MCP modes)
+  python evaluate_mcp.py --multi-model
+  python evaluate_mcp.py --multi-model --models-config custom_models.yaml
 
 Cache Behavior:
   Results are always cached at: {cache_dir}
@@ -1098,6 +1268,19 @@ Cache Behavior:
         "--with-web",
         action="store_true",
         help="Run tests in three modes: vanilla (no tools, no web), web search (:online suffix), and MARRVEL-MCP (with tools). Creates 3-way comparison.",
+    )
+
+    parser.add_argument(
+        "--multi-model",
+        action="store_true",
+        help="Run tests with multiple LLM models across all three modes (vanilla, web, MARRVEL-MCP). Each model * mode combination is tested. Results are shown in a grid format.",
+    )
+
+    parser.add_argument(
+        "--models-config",
+        type=str,
+        metavar="PATH",
+        help="Path to models configuration YAML file for --multi-model mode. Defaults to mcp-llm-test/models_config.yaml",
     )
 
     return parser.parse_args()
@@ -1227,8 +1410,164 @@ async def main():
     # Determine whether to use cache
     use_cache = args.cache
 
+    # Handle --multi-model mode: test multiple models across all three modes
+    if args.multi_model:
+        # Load models configuration
+        try:
+            models_config_path = Path(args.models_config) if args.models_config else None
+            models = load_models_config(models_config_path)
+            print(f"🎯 Multi-Model Testing Mode")
+            print(f"   Models to test: {len(models)}")
+            for model in models:
+                print(f"     • {model['name']} ({model['id']})")
+            print(f"   Test cases: {len(test_cases)}")
+            print(f"   Modes per model: 3 (vanilla, web, MARRVEL-MCP)")
+            print(
+                f"   Total evaluations: {len(models)} models × 3 modes × {len(test_cases)} tests = {len(models) * 3 * len(test_cases)}"
+            )
+            print(f"   Concurrency: {args.concurrency}")
+            print(
+                f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}"
+            )
+        except ValueError as e:
+            print(f"❌ Error loading models configuration: {e}")
+            return
+
+        # Dictionary to store results for each model
+        all_models_results = {}
+
+        async with mcp_client:
+            for model_config in models:
+                model_name = model_config["name"]
+                model_id = model_config["id"]
+
+                print(f"\n{'='*80}")
+                print(f"🤖 Testing model: {model_name} ({model_id})")
+                print(f"{'='*80}")
+
+                # Create LLM instances for this model
+                model_llm = ChatOpenAI(
+                    model=model_id,
+                    openai_api_base="https://openrouter.ai/api/v1",
+                    openai_api_key=OPENROUTER_API_KEY,
+                    temperature=0,
+                )
+                model_llm_web = ChatOpenAI(
+                    model=f"{model_id}:online",
+                    openai_api_base="https://openrouter.ai/api/v1",
+                    openai_api_key=OPENROUTER_API_KEY,
+                    temperature=0,
+                )
+
+                # Temporarily swap global llm instances
+                original_llm = llm
+                original_llm_web = llm_web
+                llm = model_llm
+                llm_web = model_llm_web
+
+                try:
+                    # Run vanilla mode tests
+                    print(f"\n🍦 Running VANILLA mode for {model_name}...")
+                    pbar_vanilla = atqdm(
+                        total=len(test_cases), desc=f"{model_name} Vanilla", unit="test"
+                    )
+
+                    vanilla_tasks = [
+                        run_test_case(
+                            semaphore,
+                            mcp_client,
+                            test_case,
+                            use_cache=use_cache,
+                            vanilla_mode=True,
+                            model_id=model_id,
+                            pbar=pbar_vanilla,
+                        )
+                        for test_case in test_cases
+                    ]
+                    vanilla_results = await asyncio.gather(*vanilla_tasks)
+                    pbar_vanilla.close()
+
+                    # Run web search mode tests
+                    print(f"\n🌐 Running WEB SEARCH mode for {model_name}...")
+                    pbar_web = atqdm(total=len(test_cases), desc=f"{model_name} Web", unit="test")
+
+                    web_tasks = [
+                        run_test_case(
+                            semaphore,
+                            mcp_client,
+                            test_case,
+                            use_cache=use_cache,
+                            web_mode=True,
+                            model_id=model_id,
+                            pbar=pbar_web,
+                        )
+                        for test_case in test_cases
+                    ]
+                    web_results = await asyncio.gather(*web_tasks)
+                    pbar_web.close()
+
+                    # Run tool mode tests
+                    print(f"\n🔧 Running MARRVEL-MCP mode for {model_name}...")
+                    pbar_tool = atqdm(total=len(test_cases), desc=f"{model_name} Tool", unit="test")
+
+                    tool_tasks = [
+                        run_test_case(
+                            semaphore,
+                            mcp_client,
+                            test_case,
+                            use_cache=use_cache,
+                            vanilla_mode=False,
+                            model_id=model_id,
+                            pbar=pbar_tool,
+                        )
+                        for test_case in test_cases
+                    ]
+                    tool_results = await asyncio.gather(*tool_tasks)
+                    pbar_tool.close()
+
+                    # Store results for this model
+                    all_models_results[model_id] = {
+                        "name": model_name,
+                        "id": model_id,
+                        "vanilla": vanilla_results,
+                        "web": web_results,
+                        "tool": tool_results,
+                    }
+
+                finally:
+                    # Restore original llm instances
+                    llm = original_llm
+                    llm_web = original_llm_web
+
+        # Combine results into multi-model format
+        combined_results = []
+        for i, test_case in enumerate(test_cases):
+            test_result = {
+                "question": test_case["case"]["input"],
+                "expected": test_case["case"]["expected"],
+                "models": {},
+            }
+            for model_id, model_data in all_models_results.items():
+                test_result["models"][model_id] = {
+                    "name": model_data["name"],
+                    "vanilla": model_data["vanilla"][i],
+                    "web": model_data["web"][i],
+                    "tool": model_data["tool"][i],
+                }
+            combined_results.append(test_result)
+
+        # Generate HTML report with multi-model comparison
+        try:
+            html_path = generate_html_report(combined_results, multi_model=True)
+            open_in_browser(html_path)
+        except Exception as e:
+            print(f"--- Error generating HTML or opening browser: {e} ---")
+            import traceback
+
+            traceback.print_exc()
+
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
-    if args.with_web:
+    elif args.with_web:
         print(
             f"🚀 Running {len(test_cases)} test case(s) with THREE modes: vanilla, web search, and MARRVEL-MCP"
         )
