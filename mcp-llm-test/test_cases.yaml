@@ -15,8 +15,13 @@
 
 - case:
     name: "MECP2 OMIM entries"
-    input: "Does MECP2 have any OMIM entries or associated Mendelian phenotypes?"
-    expected: "MECP2 is linked with several OMIM matches and Mendelian phenotypes(including MIM: 300496 and MIM: 300673) ."
+    input: "Does MECP2 have any OMIM entries?"
+    expected: "MECP2 is linked with one OMIM match."
+
+- case:
+    name: "MECP2 OMIM entries 2"
+    input: "Does MECP2 have any associated Mendelian phenotypes?"
+    expected: "MECP2 is linked with several Mendelian phenotypes (generally: autism susceptibility and intellectual developmental disorders)."
 
 - case:
     name: "Average dbNSFP rank score"
@@ -53,7 +58,6 @@
     name: "ClinVar likely pathogenic allele count"
     input: "How many NUTM2G alleles are reported as likely pathogenic in ClinVar?"
     expected: "3 alleles are reported as likely pathogenic."
-
 
 - case:
     name: "gnomAD presence"
