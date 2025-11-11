@@ -188,49 +188,51 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                 <table class="min-w-full">
                     {% if multi_model %}
                     <thead class="bg-gray-50 border-b-2 border-gray-300">
+                        <!-- Model names row -->
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Model</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Mode</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Result</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Question</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Expected</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" rowspan="2">Question</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" rowspan="2">Expected</th>
+                            {% for model_id, stats in models_stats.items() %}
+                            <th class="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider border-l-2 border-gray-400" colspan="3">{{ stats.name }}</th>
+                            {% endfor %}
+                        </tr>
+                        <!-- Mode names row -->
+                        <tr>
+                            {% for model_id, stats in models_stats.items() %}
+                            <th class="px-2 py-2 text-center text-xs font-semibold text-yellow-700 bg-yellow-50 border-l-2 border-gray-400">🍦 Vanilla</th>
+                            <th class="px-2 py-2 text-center text-xs font-semibold text-blue-700 bg-blue-50">🌐 Web</th>
+                            <th class="px-2 py-2 text-center text-xs font-semibold text-green-700 bg-green-50">🔧 MARRVEL</th>
+                            {% endfor %}
                         </tr>
                     </thead>
                     <tbody class="bg-white">
                         {% for result in results %}
-                        {% for model_id, model_data in result.models.items() %}
-                        <!-- Vanilla Mode Row -->
-                        <tr class="hover:bg-yellow-50 border-b border-gray-200 bg-yellow-50 bg-opacity-30">
-                            <td class="px-4 py-3 text-sm font-semibold text-gray-800" rowspan="3">{{ model_data.name }}</td>
-                            <td class="px-4 py-3 text-sm font-semibold text-yellow-700">🍦 Vanilla</td>
-                            <td class="px-4 py-3 text-center">
+                        <tr class="hover:bg-gray-50 border-b border-gray-200">
+                            <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ result.question }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ result.expected }}</td>
+                            {% for model_id, model_data in result.models.items() %}
+                            <!-- Vanilla -->
+                            <td class="px-2 py-3 text-center bg-yellow-50 bg-opacity-30 border-l-2 border-gray-400">
                                 <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')"
-                                        class="px-4 py-1.5 rounded-full text-xs font-semibold {% if model_data.vanilla.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
+                                        class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.vanilla.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.vanilla.is_yes else "NO" }}
                                 </button>
                             </td>
-                            <td class="px-4 py-3 text-sm text-gray-900" rowspan="3">{{ result.question }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700" rowspan="3">{{ result.expected }}</td>
-                        </tr>
-                        <!-- Web Mode Row -->
-                        <tr class="hover:bg-blue-50 border-b border-gray-200 bg-blue-50 bg-opacity-30">
-                            <td class="px-4 py-3 text-sm font-semibold text-blue-700">🌐 Web</td>
-                            <td class="px-4 py-3 text-center">
+                            <!-- Web -->
+                            <td class="px-2 py-3 text-center bg-blue-50 bg-opacity-30">
                                 <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')"
-                                        class="px-4 py-1.5 rounded-full text-xs font-semibold {% if model_data.web.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
+                                        class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.web.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.web.is_yes else "NO" }}
                                 </button>
                             </td>
-                        </tr>
-                        <!-- MARRVEL Mode Row -->
-                        <tr class="hover:bg-green-50 border-b border-gray-300 bg-green-50 bg-opacity-30">
-                            <td class="px-4 py-3 text-sm font-semibold text-green-700">🔧 MARRVEL</td>
-                            <td class="px-4 py-3 text-center">
+                            <!-- MARRVEL -->
+                            <td class="px-2 py-3 text-center bg-green-50 bg-opacity-30">
                                 <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')"
-                                        class="px-4 py-1.5 rounded-full text-xs font-semibold {% if model_data.tool.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
+                                        class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.tool.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.tool.is_yes else "NO" }}
                                 </button>
                             </td>
+                            {% endfor %}
                         </tr>
                         <!-- Modals for multi-model mode -->
                         {% for model_id, model_data in result.models.items() %}
@@ -293,7 +295,6 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                 </div>
                             </div>
                         </div>
-                        {% endfor %}
                         {% endfor %}
                         {% endfor %}
                     </tbody>
