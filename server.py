@@ -724,6 +724,16 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
         variant = f"{lo_data_obj["hg19Chr"]}:{lo_data_obj["hg19Pos"]} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/gnomAD/variant/{variant_uri}", is_graphql=False)
+        data_obj = json.loads(data)
+        if data_obj:
+            for ome in ["exome","genome"]:
+                if data_obj.get(ome):
+                    data_obj[ome]["alleleFrequency"] = data_obj[ome]["alleleCount"]/data_obj[ome]["alleleNum"]
+        else:
+            data_obj = {
+                "message": "This variant does not appear in gnomad reference populations."
+            }
+        data = json.dumps(data_obj, indent=2)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -1824,12 +1834,16 @@ async def get_ensembl_protein_ids_by_ensembl_gene_id(ensembl_gene_id: str) -> st
             data_obj = json.loads(resp.content)
 
         protein_ids = []
+        canon_id = None
         for transcript in data_obj["Transcript"]:
             if transcript.get("Translation"):
                 protein_ids.append(transcript.get("Translation").get("id"))
+                if transcript["is_canonical"]:
+                    canon_id = transcript.get("Translation").get("id")
         data = json.dumps({
             "ensembl_gene_id": ensembl_gene_id,
-            "ensembl_protein_ids": protein_ids
+            "ensembl_protein_ids": protein_ids,
+            "ensembl_canonical_protein_id": canon_id
         },indent=2)
         return data
     except Exception as e:
@@ -1902,7 +1916,7 @@ async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
                 data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"] = data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"]
             key = data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"]+":"+str(data_obj["data"]["stringInteractionsByEntrezId"][i]["database"])
             if key in self_protein_ids:
-                data_obj["data"]["stringInteractionsByEntrezId"].pop()
+                data_obj["data"]["stringInteractionsByEntrezId"].pop(i)
             else:
                 self_protein_ids.add(key)
                 del data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId1"], data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"]
@@ -1912,22 +1926,32 @@ async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
-    
+
 
 @mcp.tool(
-    name="get_string_interactions_between_proteins",
-    description="Get STRING protein interactions between two ensembl protein IDs",
+    name="get_string_interactions_between_entrez_ids",
+    description="Get STRING protein interactions between two entrez gene ids",
     meta={"category": "string", "database": "STRING", "version": "1.0"},
 )
-async def get_string_interactions_between_proteins(ensembl_protein_id1: str, ensembl_protein_id2: str) -> str:
+async def get_string_interactions_between_entrez_ids(entrez_id1: str, entrez_id2: str) -> str:
     try:
+        ensembl_gene_id_1_res = await get_gene_by_entrez_id(entrez_id1)
+        ensembl_gene_id_1 = json.loads(ensembl_gene_id_1_res)["data"]["geneByEntrezId"]["xref"]["ensemblId"]
+        ensembl_protein_ids_1_res = await get_ensembl_protein_ids_by_ensembl_gene_id(ensembl_gene_id_1)
+        protein_id_1 = json.loads(ensembl_protein_ids_1_res)["ensembl_canonical_protein_id"]
+
+        ensembl_gene_id_2_res = await get_gene_by_entrez_id(entrez_id2)
+        ensembl_gene_id_2 = json.loads(ensembl_gene_id_2_res)["data"]["geneByEntrezId"]["xref"]["ensemblId"]
+        ensembl_protein_ids_2_res = await get_ensembl_protein_ids_by_ensembl_gene_id(ensembl_gene_id_2)
+        protein_id_2 = json.loads(ensembl_protein_ids_2_res)["ensembl_canonical_protein_id"]
+
         data = await fetch_marrvel_data(
             f"""
             query MyQuery {{
                 stringInteractionBetweenProteins(
-                    ensemblId1: {ensembl_protein_id1}
-                    ensemblId2: {ensembl_protein_id2}
-                    ) {{
+                    ensemblId1: "{protein_id_1}"
+                    ensemblId2: "{protein_id_2}"
+                ) {{
                     combExpDb
                     database
                     experiments
@@ -1936,6 +1960,7 @@ async def get_string_interactions_between_proteins(ensembl_protein_id1: str, ens
             """
         )
         return data
+    
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
 

@@ -154,3 +154,13 @@
     name: "STRING list all protein interactions"
     input: "What are the gene symbol(s) for the protein(s) connected to NUTM2G on STRING?"
     expected: "NUTM2G is connected to VIRMA on STRING."
+
+- case:
+    name: "STRING check for existing protein interaction"
+    input: "Is there an interaction between MAP2K1 and MAP3K1 in STRING?"
+    expected: "Yes, there is an interaction between these two genes in STRING."
+
+- case:
+    name: "STRING check for nonexistent protein interaction"
+    input: "Is there an interaction between MAP3K1 and NUTM2G in STRING?"
+    expected: "No, there is not an interaction between these two genes in STRING."

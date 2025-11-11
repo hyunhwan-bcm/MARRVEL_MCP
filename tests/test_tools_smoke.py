@@ -99,7 +99,8 @@ tool_calls = [
     ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
     ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}),
     ("get_decipher_by_location", {"chr": "6", "start": 99316420, "stop": 99395849}),
-    ("get_string_interactions_by_entrez_id", {"entrez_id": "441457"})
+    ("get_string_interactions_by_entrez_id", {"entrez_id": "10"}),
+    ("get_string_interactions_between_entrez_ids", {"entrez_id1": "4214", "entrez_id2": "5604"})
 ]
 
 
