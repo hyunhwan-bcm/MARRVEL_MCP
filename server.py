@@ -25,6 +25,7 @@ import ssl
 import certifi
 import inspect
 import ast
+import asyncio
 from typing import Optional
 from urllib.parse import quote
 import urllib.parse
@@ -66,6 +67,52 @@ VERIFY_SSL = False  # Set to True for production
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
+
+async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 1.0):
+    """
+    Retry an async function with exponential backoff for rate limiting (429 errors).
+
+    Args:
+        func: Async function to retry
+        max_retries: Maximum number of retry attempts
+        initial_delay: Initial delay in seconds before first retry
+
+    Returns:
+        Result from the function
+
+    Raises:
+        Last exception if all retries fail
+    """
+    delay = initial_delay
+    last_exception = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            return await func()
+        except httpx.HTTPStatusError as e:
+            last_exception = e
+            # Only retry on 429 (Too Many Requests)
+            if e.response.status_code == 429:
+                if attempt < max_retries:
+                    # Add jitter to avoid thundering herd
+                    jitter = delay * 0.1 * (asyncio.get_event_loop().time() % 1.0)
+                    sleep_time = delay + jitter
+                    logging.warning(
+                        f"Rate limited (429), retrying in {sleep_time:.2f}s "
+                        f"(attempt {attempt + 1}/{max_retries})"
+                    )
+                    await asyncio.sleep(sleep_time)
+                    delay *= 2  # Exponential backoff
+                    continue
+            # For other HTTP errors, raise immediately
+            raise
+        except Exception as e:
+            # For non-HTTP errors, raise immediately
+            raise
+
+    # If we get here, we exhausted all retries
+    raise last_exception
 
 
 async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) -> str:
@@ -1416,10 +1463,14 @@ async def get_pmc_abstract_by_pmcid(pmcid: str) -> str:
             return json.dumps({"pmcid": pmcid, "abstract": "", "error": "Invalid PMCID"}, indent=2)
 
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            xml = resp.content
+
+        async def fetch_pmc_data():
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return resp.content
+
+        xml = await retry_with_backoff(fetch_pmc_data)
         root = etree.fromstring(xml)
 
         # Extract abstract
@@ -1483,10 +1534,14 @@ async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
             return json.dumps({"pmcid": pmcid, "fulltext": "", "error": "Invalid PMCID"}, indent=2)
 
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            xml = resp.content
+
+        async def fetch_pmc_data():
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return resp.content
+
+        xml = await retry_with_backoff(fetch_pmc_data)
         root = etree.fromstring(xml)
 
         # Extract full body text using proper XML text extraction
@@ -1551,10 +1606,14 @@ async def get_pmc_tables_by_pmcid(pmcid: str) -> str:
             return json.dumps({"pmcid": pmcid, "tables": [], "error": "Invalid PMCID"}, indent=2)
 
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            xml = resp.content
+
+        async def fetch_pmc_data():
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return resp.content
+
+        xml = await retry_with_backoff(fetch_pmc_data)
         root = etree.fromstring(xml)
 
         # Find all table-wrap elements
@@ -1672,10 +1731,14 @@ async def get_pmc_figure_captions_by_pmcid(pmcid: str) -> str:
             return json.dumps({"pmcid": pmcid, "figures": [], "error": "Invalid PMCID"}, indent=2)
 
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            xml = resp.content
+
+        async def fetch_pmc_data():
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return resp.content
+
+        xml = await retry_with_backoff(fetch_pmc_data)
         root = etree.fromstring(xml)
 
         # Find all fig elements
@@ -1756,10 +1819,14 @@ async def pmid_to_pmcid(pmid: str) -> str:
             return json.dumps({"pmid": pmid, "pmcid": "", "error": "Invalid PMID"}, indent=2)
 
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=pmc&id={pmid}&retmode=json"
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data = resp.json()
+
+        async def fetch_pmid_data():
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return resp.json()
+
+        data = await retry_with_backoff(fetch_pmid_data)
 
         pmcid = ""
         try:
