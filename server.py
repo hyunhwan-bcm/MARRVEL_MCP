@@ -1907,6 +1907,46 @@ async def get_ensembl_gene_id_from_ensembl_protein_id(ensembl_protein_id: str) -
 # ============================================================================
 
 
+async def resolve_ensembl_protein_to_gene_id(ensembl_id: str) -> dict:
+    """
+    Helper function to resolve an Ensembl ID to its gene ID.
+
+    If the input is already an ENSG (gene) ID, returns it directly.
+    If the input is an ENSP (protein) ID, converts it to ENSG via Ensembl REST API.
+
+    Args:
+        ensembl_id: Either an ENSG gene ID or ENSP protein ID
+
+    Returns:
+        dict with 'ensembl_gene_id' key on success, or 'error' key on failure
+    """
+    try:
+        # If already a gene ID, return it directly
+        if ensembl_id.startswith("ENSG"):
+            return {"ensembl_gene_id": ensembl_id}
+
+        # If it's a protein ID, convert it
+        if ensembl_id.startswith("ENSP"):
+            result = await get_ensembl_gene_id_from_ensembl_protein_id(ensembl_id)
+            result_obj = json.loads(result)
+
+            if "error" in result_obj:
+                return {"error": f"Failed to convert ENSP to ENSG: {result_obj['error']}"}
+
+            # The function returns ensembl_gene_ids (note plural in the key name)
+            gene_id = result_obj.get("ensembl_gene_ids")
+            if gene_id:
+                return {"ensembl_gene_id": gene_id}
+            else:
+                return {"error": "No gene ID found in conversion result"}
+
+        # Unknown ID format
+        return {"error": f"Unknown Ensembl ID format: {ensembl_id}"}
+
+    except Exception as e:
+        return {"error": f"Failed to resolve Ensembl ID: {str(e)}"}
+
+
 @mcp.tool(
     name="get_string_interactions_by_entrez_id",
     description="Query Ensembl Protein IDs with STRING protein interactions for a given entrez ID.",
@@ -1947,8 +1987,25 @@ async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
                 data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"] = (
                     data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"]
                 )
+            # Convert connected protein ID to gene ID
+            connected_protein_id = data_obj["data"]["stringInteractionsByEntrezId"][i][
+                "connectedEnsemblId"
+            ]
+            gene_id_result = await resolve_ensembl_protein_to_gene_id(connected_protein_id)
+
+            if "ensembl_gene_id" in gene_id_result:
+                data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblGeneId"] = (
+                    gene_id_result["ensembl_gene_id"]
+                )
+            else:
+                # Log error but continue - set to None to indicate conversion failed
+                data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblGeneId"] = None
+                data_obj["data"]["stringInteractionsByEntrezId"][i]["conversionError"] = (
+                    gene_id_result.get("error", "Unknown error")
+                )
+
             key = (
-                data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"]
+                connected_protein_id
                 + ":"
                 + str(data_obj["data"]["stringInteractionsByEntrezId"][i]["database"])
             )
