@@ -250,3 +250,98 @@ async def test_string_interactions_handles_conversion_error():
     assert first_interaction["connectedEnsemblGeneId"] is None
     assert "conversionError" in first_interaction
     assert "Failed to convert" in first_interaction["conversionError"]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_gene_by_ensembl_id_with_ensg():
+    """Test that get_gene_by_ensembl_id works with ENSG IDs (normal case)."""
+    import server
+
+    mock_response = json.dumps(
+        {
+            "data": {
+                "geneByEnsemblId": {
+                    "symbol": "NUTM2G",
+                    "entrezId": "441457",
+                    "chr": "10",
+                    "xref": {"ensemblId": "ENSG00000188152"},
+                }
+            }
+        }
+    )
+
+    async def mock_fetch(query, is_graphql=True):
+        return mock_response
+
+    async def mock_fix_vals(data):
+        return data
+
+    with (
+        patch.object(server, "fetch_marrvel_data", new=mock_fetch),
+        patch.object(server, "fix_missing_hg38_vals", new=mock_fix_vals),
+    ):
+        result = await server.get_gene_by_ensembl_id("ENSG00000188152")
+        result_obj = json.loads(result)
+
+    assert "data" in result_obj
+    assert result_obj["data"]["geneByEnsemblId"]["symbol"] == "NUTM2G"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_gene_by_ensembl_id_with_ensp():
+    """Test that get_gene_by_ensembl_id accepts and converts ENSP IDs."""
+    import server
+
+    mock_gene_response = json.dumps(
+        {
+            "data": {
+                "geneByEnsemblId": {
+                    "symbol": "NUTM2G",
+                    "entrezId": "441457",
+                    "chr": "10",
+                    "xref": {"ensemblId": "ENSG00000188152"},
+                }
+            }
+        }
+    )
+
+    async def mock_resolve(protein_id):
+        if protein_id == "ENSP00000297591":
+            return {"ensembl_gene_id": "ENSG00000188152"}
+        return {"error": "Not found"}
+
+    async def mock_fetch(query, is_graphql=True):
+        return mock_gene_response
+
+    async def mock_fix_vals(data):
+        return data
+
+    with (
+        patch.object(server, "resolve_ensembl_protein_to_gene_id", new=mock_resolve),
+        patch.object(server, "fetch_marrvel_data", new=mock_fetch),
+        patch.object(server, "fix_missing_hg38_vals", new=mock_fix_vals),
+    ):
+        result = await server.get_gene_by_ensembl_id("ENSP00000297591")
+        result_obj = json.loads(result)
+
+    assert "data" in result_obj
+    assert result_obj["data"]["geneByEnsemblId"]["symbol"] == "NUTM2G"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_gene_by_ensembl_id_with_invalid_ensp():
+    """Test that get_gene_by_ensembl_id handles invalid ENSP IDs gracefully."""
+    import server
+
+    async def mock_resolve_error(protein_id):
+        return {"error": "Protein not found in Ensembl"}
+
+    with patch.object(server, "resolve_ensembl_protein_to_gene_id", new=mock_resolve_error):
+        result = await server.get_gene_by_ensembl_id("ENSP00000999999")
+        result_obj = json.loads(result)
+
+    assert "error" in result_obj
+    assert "Failed to resolve protein ID" in result_obj["error"]

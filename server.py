@@ -308,15 +308,25 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_gene_by_ensembl_id",
-    description="Retrieve comprehensive gene information by Ensembl Gene ID including symbol, entrezID, uniprot ID, location, summary, and transcripts",
+    description="Retrieve comprehensive gene information by Ensembl Gene ID (ENSG) or Ensembl Protein ID (ENSP) including symbol, entrezID, uniprot ID, location, summary, and transcripts",
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_ensembl_id(ensembl_id: str) -> str:
     try:
+        # If the input is an ENSP (protein) ID, convert it to ENSG first
+        actual_gene_id = ensembl_id
+        if ensembl_id.startswith("ENSP"):
+            resolution = await resolve_ensembl_protein_to_gene_id(ensembl_id)
+            if "error" in resolution:
+                return json.dumps(
+                    {"error": f"Failed to resolve protein ID to gene ID: {resolution['error']}"}
+                )
+            actual_gene_id = resolution["ensembl_gene_id"]
+
         data = await fetch_marrvel_data(
             f"""
             query MyQuery {{
-                geneByEnsemblId(ensemblId: "{ensembl_id}") {{
+                geneByEnsemblId(ensemblId: "{actual_gene_id}") {{
                     alias
                     chr
                     entrezId
