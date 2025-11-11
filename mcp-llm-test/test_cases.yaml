@@ -1,7 +1,7 @@
 - case:
     name: "Gene for NM_001045477.4:c.187C>T"
-    input: "What gene(s) are associated with the variant NM_001045477.4:c.187C>T?"
-    expected: "The genes associated are MFSD14CP and NUTM2G."
+    input: "What gene is primarily associated with the variant NM_001045477.4:c.187C>T?"
+    expected: "The genes associated includes NUTM2G."
 
 - case:
     name: "Protein change for NM_001045477.4:c.187C>T"
@@ -14,9 +14,19 @@
     expected: "NUTM2G has no OMIM match and no known Mendelian phenotypes."
 
 - case:
+    name: "MECP2 OMIM entries"
+    input: "Does MECP2 have any OMIM entries?"
+    expected: "MECP2 is linked with one OMIM match."
+
+- case:
+    name: "MECP2 OMIM entries 2"
+    input: "Does MECP2 have any associated Mendelian phenotypes?"
+    expected: "MECP2 is linked with several Mendelian phenotypes (generally: autism susceptibility and intellectual developmental disorders)."
+
+- case:
     name: "Average dbNSFP rank score"
     input: "What is the average dbNSFP rank score for Chr9:96931892 C>T?"
-    expected: "The average dbNSFP rank score is 0.160."
+    expected: "The average dbNSFP rank score is 0.214."
 
 - case:
     name: "CADD phred score"
@@ -49,11 +59,15 @@
     input: "How many NUTM2G alleles are reported as likely pathogenic in ClinVar?"
     expected: "3 alleles are reported as likely pathogenic."
 
-
 - case:
     name: "gnomAD presence"
     input: "Is Chr9:99694174 C>T found in gnomAD?"
     expected: "Chr9:99694174 C>T is not found in gnomAD control populations."
+
+- case:
+    name: "gnomAD presence 2"
+    input: "Is Chr9:96937172 C>A found in gnomAD?"
+    expected: "Yes, Chr9:96937172 C>A is found in gnomAD control populations."
 
 - case:
     name: "LoF o/e score"
@@ -62,8 +76,8 @@
 
 - case:
     name: "LoF o/e implication"
-    input: "What does the LoF o/e score imply about NUTM2G?"
-    expected: "NUTM2G is tolerant of loss-of-function alleles."
+    input: "What does the LoF o/e score imply about the strength of selection on NUTM2G?"
+    expected: "NUTM2G is not under significant selection against loss-of-function alleles."
 
 - case:
     name: "DGV entries"
@@ -118,7 +132,7 @@
 - case:
     name: "PubMed search by disease name"
     input: "Search PubMed for articles about Rett syndrome. Limit to 3 results."
-    expected: "Articles about Rett syndrome are found."
+    expected: "No more than 3 articles are found, all are about Rett syndrome and include accurate PubMed ids."
 
 - case:
     name: "PMC abstract lookup by PMC ID"
@@ -139,3 +153,18 @@
     name: "PMC figure captions"
     input: "What are the figure captions in PMC article PMC3518823?"
     expected: "Figure captions are listed."
+
+- case:
+    name: "STRING list all protein interactions"
+    input: "What are the gene symbol(s) for the protein(s) connected to NUTM2G on STRING?"
+    expected: "NUTM2G is connected to VIRMA on STRING."
+
+- case:
+    name: "STRING check for existing protein interaction"
+    input: "Is there an interaction between MAP2K1 and MAP3K1 in STRING?"
+    expected: "Yes, there is an interaction between these two genes in STRING."
+
+- case:
+    name: "STRING check for nonexistent protein interaction"
+    input: "Is there an interaction between MAP3K1 and NUTM2G in STRING?"
+    expected: "No, there is not an interaction between these two genes in STRING."
