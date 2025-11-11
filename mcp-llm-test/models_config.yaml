@@ -9,27 +9,16 @@
 # The result will show a grid comparing all models across all modes.
 
 models:
-  # OpenAI models
-  - name: "GPT-4 Turbo"
-    id: "openai/gpt-4-turbo"
-    enabled: true
-    description: "OpenAI GPT-4 Turbo - high capability model"
-
-  - name: "GPT-3.5 Turbo"
-    id: "openai/gpt-3.5-turbo"
-    enabled: true
-    description: "OpenAI GPT-3.5 Turbo - fast and cost-effective"
-
   # Anthropic Claude models
   - name: "Claude 3.5 Sonnet"
     id: "anthropic/claude-3.5-sonnet"
     enabled: true
     description: "Anthropic Claude 3.5 Sonnet - balanced performance"
 
-  - name: "Claude 3 Haiku"
-    id: "anthropic/claude-3-haiku"
-    enabled: false
-    description: "Anthropic Claude 3 Haiku - fast and efficient"
+  - name: "Claude 3.5 Haiku"
+    id: "anthropic/claude-3.5-haiku"
+    enabled: true
+    description: "Anthropic Claude 3.5 Haiku - fast and efficient"
 
   # Google models
   - name: "Gemini 2.5 Flash"
@@ -37,16 +26,29 @@ models:
     enabled: true
     description: "Google Gemini 2.5 Flash - default model (fast, with tool support)"
 
-  - name: "Gemini 2.5 Pro"
-    id: "google/gemini-2.5-pro"
-    enabled: false
-    description: "Google Gemini 2.5 Pro - high capability model"
 
   # Meta models
   - name: "Llama 3.3 70B"
     id: "meta-llama/llama-3.3-70b-instruct"
-    enabled: false
+    enabled: true
     description: "Meta Llama 3.3 70B - open source model"
+
+
+  # Meta models
+  - name: "Z.AI GLM 4 32B"
+    id: "z-ai/glm-4-32b"
+    enabled: true
+    description: "Meta Llama 3.3 70B - open source model"
+
+  # OpenAI OSS models
+  - name: "GPT-OSS 20B"
+    id: "openai/gpt-oss-20b"
+    enabled: true
+    skip_web_search: true
+    description: "OpenAI GPT-OSS 20B - open source model (does not support web search)"
+
+
+
 
 # Configuration options
 config:

@@ -804,12 +804,15 @@ def generate_html_report(
                     }
 
                 vanilla_classification = model_data["vanilla"]["classification"].lower()
-                web_classification = model_data["web"]["classification"].lower()
+                web_classification = model_data["web"].get("classification", "").lower()
                 tool_classification = model_data["tool"]["classification"].lower()
 
                 if re.search(r"\byes\b", vanilla_classification):
                     models_stats[model_id]["vanilla_success"] += 1
-                if re.search(r"\byes\b", web_classification):
+                # Skip counting N/A web results
+                if model_data["web"].get("status") != "N/A" and re.search(
+                    r"\byes\b", web_classification
+                ):
                     models_stats[model_id]["web_success"] += 1
                 if re.search(r"\byes\b", tool_classification):
                     models_stats[model_id]["tool_success"] += 1
@@ -919,16 +922,24 @@ def generate_html_report(
                 tool_res = model_data["tool"]
 
                 vanilla_classification_lower = vanilla_res["classification"].lower()
-                web_classification_lower = web_res["classification"].lower()
+                web_classification_lower = web_res.get("classification", "").lower()
                 tool_classification_lower = tool_res["classification"].lower()
 
                 vanilla_is_yes = re.search(r"\byes\b", vanilla_classification_lower)
-                web_is_yes = re.search(r"\byes\b", web_classification_lower)
+                web_is_yes = (
+                    re.search(r"\byes\b", web_classification_lower)
+                    if web_res.get("status") != "N/A"
+                    else None
+                )
                 tool_is_yes = re.search(r"\byes\b", tool_classification_lower)
 
                 # Clean up conversation data for all three modes
                 vanilla_conversation = clean_conversation(vanilla_res.get("conversation", []))
-                web_conversation = clean_conversation(web_res.get("conversation", []))
+                web_conversation = (
+                    clean_conversation(web_res.get("conversation", []))
+                    if web_res.get("status") != "N/A"
+                    else []
+                )
                 tool_conversation = clean_conversation(tool_res.get("conversation", []))
 
                 enriched_result["models"][model_id] = {
@@ -942,12 +953,16 @@ def generate_html_report(
                         "conversation": vanilla_conversation,
                     },
                     "web": {
-                        "response": web_res.get("response", ""),
-                        "classification": web_res["classification"],
-                        "is_yes": web_is_yes is not None,
+                        "response": web_res.get("response", "N/A"),
+                        "classification": web_res.get("classification", "N/A"),
+                        "is_yes": (
+                            web_is_yes is not None if web_res.get("status") != "N/A" else False
+                        ),
                         "tokens_used": web_res.get("tokens_used", 0),
                         "tool_calls": web_res.get("tool_calls", []),
                         "conversation": web_conversation,
+                        "is_na": web_res.get("status") == "N/A",
+                        "na_reason": web_res.get("reason", ""),
                     },
                     "tool": {
                         "response": tool_res.get("response", ""),
@@ -1440,9 +1455,12 @@ async def main():
             for model_config in models:
                 model_name = model_config["name"]
                 model_id = model_config["id"]
+                skip_web_search = model_config.get("skip_web_search", False)
 
                 print(f"\n{'='*80}")
                 print(f"🤖 Testing model: {model_name} ({model_id})")
+                if skip_web_search:
+                    print(f"   ⚠️  Web search not supported for this model")
                 print(f"{'='*80}")
 
                 # Create LLM instances for this model
@@ -1487,24 +1505,33 @@ async def main():
                     vanilla_results = await asyncio.gather(*vanilla_tasks)
                     pbar_vanilla.close()
 
-                    # Run web search mode tests
-                    print(f"\n🌐 Running WEB SEARCH mode for {model_name}...")
-                    pbar_web = atqdm(total=len(test_cases), desc=f"{model_name} Web", unit="test")
-
-                    web_tasks = [
-                        run_test_case(
-                            semaphore,
-                            mcp_client,
-                            test_case,
-                            use_cache=use_cache,
-                            web_mode=True,
-                            model_id=model_id,
-                            pbar=pbar_web,
+                    # Run web search mode tests (skip if not supported)
+                    if skip_web_search:
+                        print(f"\n⏭️  Skipping WEB SEARCH mode for {model_name} (not supported)")
+                        web_results = [
+                            {"status": "N/A", "reason": "Web search not supported by this model"}
+                            for _ in test_cases
+                        ]
+                    else:
+                        print(f"\n🌐 Running WEB SEARCH mode for {model_name}...")
+                        pbar_web = atqdm(
+                            total=len(test_cases), desc=f"{model_name} Web", unit="test"
                         )
-                        for test_case in test_cases
-                    ]
-                    web_results = await asyncio.gather(*web_tasks)
-                    pbar_web.close()
+
+                        web_tasks = [
+                            run_test_case(
+                                semaphore,
+                                mcp_client,
+                                test_case,
+                                use_cache=use_cache,
+                                web_mode=True,
+                                model_id=model_id,
+                                pbar=pbar_web,
+                            )
+                            for test_case in test_cases
+                        ]
+                        web_results = await asyncio.gather(*web_tasks)
+                        pbar_web.close()
 
                     # Run tool mode tests
                     print(f"\n🔧 Running MARRVEL-MCP mode for {model_name}...")
