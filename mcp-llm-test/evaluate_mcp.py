@@ -47,8 +47,9 @@ from tqdm.asyncio import tqdm as atqdm
 
 from server import create_server
 from llm_providers import create_llm_instance, get_provider_config, ProviderType
-from tool_calling import convert_tool_to_langchain_format, parse_tool_result_content
-from agentic_loop import (
+from mcp_agent import (
+    convert_tool_to_langchain_format,
+    parse_tool_result_content,
     execute_agentic_loop,
     count_tokens,
     validate_token_count,
