@@ -1,12 +1,25 @@
-# MCP Agent Package
+# MARRVEL MCP Package
 
-A reusable Python package for building LLM agents with tool calling capabilities using the Model Context Protocol (MCP) and LangChain.
+The official Python package for MARRVEL (Model organism Aggregated Resources for Rare Variant ExpLoration), providing an MCP server with 35+ genetics research tools and reusable agent components for building LLM agents with tool calling capabilities.
 
 ## Overview
 
-This package provides core components for implementing agentic workflows with LLMs that can call tools iteratively until a task is complete. It's designed to work with FastMCP servers and LangChain LLM instances.
+This package combines the MARRVEL MCP server with core components for implementing agentic workflows. It's designed to work with FastMCP, LangChain, and various LLM providers for rare disease genetics research.
 
 ## Components
+
+### `server.py`
+
+MARRVEL MCP server with 35+ genetics research tools:
+
+- **`create_server()`** - Creates and configures the MARRVEL MCP server instance
+- Gene queries (Entrez ID, symbol, position)
+- Variant annotations (dbNSFP, ClinVar, gnomAD, DGV, Geno2MP)
+- Disease associations (OMIM, HPO, DECIPHER)
+- Ortholog predictions (DIOPT across model organisms)
+- Expression data (GTEx, drug targets)
+- Literature search (PubMed, PMC)
+- Coordinate conversion (hg19/hg38 liftover)
 
 ### `tool_calling.py`
 
@@ -34,7 +47,8 @@ Since this is part of the MARRVEL_MCP project, it's already available. Simply en
 import sys
 sys.path.insert(0, '/path/to/MARRVEL_MCP')
 
-from mcp_agent import execute_agentic_loop, convert_tool_to_langchain_format
+from marrvel_mcp import execute_agentic_loop, convert_tool_to_langchain_format
+from marrvel_mcp.server import create_server
 ```
 
 ## Usage Example
@@ -42,11 +56,12 @@ from mcp_agent import execute_agentic_loop, convert_tool_to_langchain_format
 ### Basic Agentic Loop
 
 ```python
-from mcp_agent import (
+from marrvel_mcp import (
     execute_agentic_loop,
     convert_tool_to_langchain_format,
     TokenLimitExceeded,
 )
+from marrvel_mcp.server import create_server
 from fastmcp.client import Client
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -99,7 +114,7 @@ async with mcp_client:
 ### Using Individual Functions
 
 ```python
-from mcp_agent import (
+from marrvel_mcp import (
     parse_tool_result_content,
     count_tokens,
     validate_token_count,

@@ -1,11 +1,11 @@
 # Testing Script Refactoring
 
 ## Overview
-This refactoring extracted the tool calling and agentic loop logic from `evaluate_mcp.py` into a separate, reusable package (`mcp_agent`) for better code organization, maintainability, and reusability across the project.
+This refactoring extracted the tool calling and agentic loop logic from `evaluate_mcp.py` into a separate, reusable package (`marrvel_mcp`) for better code organization, maintainability, and reusability across the project.
 
 ## Changes Made
 
-### New Package Created: `mcp_agent/`
+### New Package Created: `marrvel_mcp/`
 
 A standalone Python package located at the project root, containing:
 
@@ -25,7 +25,7 @@ Manages the iterative agent loop for multiple tool calls and responses:
 
 #### 3. `__init__.py`
 Package initialization that exports the public API:
-- Provides clean imports: `from mcp_agent import execute_agentic_loop, ...`
+- Provides clean imports: `from marrvel_mcp import execute_agentic_loop, ...`
 - Documents package usage and examples
 - Defines `__all__` for explicit public API
 
@@ -40,13 +40,13 @@ Comprehensive package documentation with:
 
 ```
 MARRVEL_MCP/
-├── mcp_agent/              # NEW: Reusable agent package
+├── marrvel_mcp/              # NEW: Reusable agent package
 │   ├── __init__.py
 │   ├── tool_calling.py
 │   ├── agentic_loop.py
 │   └── README.md
-├── mcp-llm-test/
-│   └── evaluate_mcp.py     # MODIFIED: Now imports from mcp_agent
+├── mcp_llm_test/
+│   └── evaluate_mcp.py     # MODIFIED: Now imports from marrvel_mcp
 ├── server.py
 └── ...
 ```
@@ -54,7 +54,7 @@ MARRVEL_MCP/
 ### Modified Files
 
 #### `evaluate_mcp.py`
-- Updated imports to use the `mcp_agent` package
+- Updated imports to use the `marrvel_mcp` package
 - Removed duplicate function definitions (moved to package)
 - Simplified `get_langchain_response()` to use `execute_agentic_loop()`
 - Reduced file size from ~2000 lines to ~1850 lines
@@ -73,17 +73,17 @@ MARRVEL_MCP/
 
 ## Usage in Other Parts of the Project
 
-The `mcp_agent` package can now be used in any part of the project:
+The `marrvel_mcp` package can now be used in any part of the project:
 
 ```python
 # From the testing script
-from mcp_agent import execute_agentic_loop, TokenLimitExceeded
+from marrvel_mcp import execute_agentic_loop, TokenLimitExceeded
 
 # From the server or other tools
-from mcp_agent import convert_tool_to_langchain_format, count_tokens
+from marrvel_mcp import convert_tool_to_langchain_format, count_tokens
 
 # Single import for all components
-from mcp_agent import *
+from marrvel_mcp import *
 ```
 
 ## Backward Compatibility
@@ -105,11 +105,57 @@ The refactoring has been verified with:
 
 ## Package Structure
 
-The `mcp_agent` package follows Python best practices:
+The `marrvel_mcp` package follows Python best practices:
 - Proper `__init__.py` with explicit exports
 - Relative imports within the package
 - Clear module boundaries
 - Comprehensive documentation
+
+## Package Rename and Consolidation (Latest Update)
+
+### Changes Made
+
+1. **Directory Renaming**:
+   - `mcp-llm-test` → `mcp_llm_test` (Python-friendly naming with underscores)
+   - `mcp_agent` → `marrvel_mcp` (better reflects project scope)
+
+2. **Server Integration**:
+   - Moved `server.py` into `marrvel_mcp/` package
+   - Now the package contains both the MCP server and agent components
+   - Single unified package for all MARRVEL MCP functionality
+
+3. **Updated Package Structure**:
+```
+MARRVEL_MCP/
+├── marrvel_mcp/              # Unified package
+│   ├── __init__.py           # Exports agent components
+│   ├── server.py             # MARRVEL MCP server (moved here)
+│   ├── tool_calling.py       # Tool utilities
+│   ├── agentic_loop.py       # Agent loop
+│   └── README.md             # Package documentation
+├── mcp_llm_test/             # Testing scripts (renamed)
+│   └── evaluate_mcp.py       # Imports from marrvel_mcp
+└── ...
+```
+
+4. **Import Updates**:
+```python
+# Old imports (before rename)
+from server import create_server
+from mcp_agent import execute_agentic_loop
+
+# New imports (after rename)
+from marrvel_mcp.server import create_server
+from marrvel_mcp import execute_agentic_loop
+```
+
+### Benefits
+
+- **Unified Package**: All MARRVEL MCP functionality in one place
+- **Python-Friendly**: Uses underscores instead of hyphens
+- **Clear Branding**: Package name reflects the MARRVEL project
+- **Better Organization**: Server and agent components together
+- **Easier Imports**: More intuitive import paths
 
 ## Future Improvements
 

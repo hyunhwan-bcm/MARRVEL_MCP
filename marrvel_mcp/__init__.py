@@ -1,14 +1,20 @@
 """
-MCP Agent Package
+MARRVEL MCP Package
 
-This package provides reusable components for building LLM agents with tool calling
-capabilities using the Model Context Protocol (MCP) and LangChain.
+This package provides the MARRVEL MCP server and reusable agent components for
+building LLM agents with tool calling capabilities using the Model Context
+Protocol (MCP) and LangChain.
 
 Modules:
+    server: MARRVEL MCP server with 35+ genetics research tools
     tool_calling: Tool conversion, ID management, and result parsing
     agentic_loop: Iterative agent loop for multiple tool calls and responses
 
 Key Components:
+
+Server:
+    - create_server: Create and configure the MARRVEL MCP server instance
+    - 35+ genetics research tools (gene queries, variants, orthologs, etc.)
 
 Tool Calling:
     - convert_tool_to_langchain_format: Convert FastMCP tools to LangChain format
@@ -23,8 +29,12 @@ Agentic Loop:
     - TokenLimitExceeded: Exception for token limit violations
 
 Example:
-    >>> from mcp_agent import execute_agentic_loop, convert_tool_to_langchain_format
-    >>> from mcp_agent import TokenLimitExceeded
+    >>> from marrvel_mcp import execute_agentic_loop, convert_tool_to_langchain_format
+    >>> from marrvel_mcp.server import create_server
+    >>> from marrvel_mcp import TokenLimitExceeded
+    >>>
+    >>> # Create MCP server
+    >>> server = create_server()
     >>>
     >>> # Convert MCP tools to LangChain format
     >>> tools = [convert_tool_to_langchain_format(tool) for tool in mcp_tools]
@@ -77,4 +87,4 @@ __all__ = [
 # Package metadata
 __version__ = "1.0.0"
 __author__ = "MARRVEL Team"
-__description__ = "MCP Agent components for LLM tool calling and agentic loops"
+__description__ = "MARRVEL MCP server and agent components for genetics research with LLM tool calling"
