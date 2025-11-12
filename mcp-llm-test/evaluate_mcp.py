@@ -1504,6 +1504,7 @@ async def main():
                 # Validate provider credentials for each model
                 try:
                     from llm_providers import validate_provider_credentials
+
                     validate_provider_credentials(model_provider)
                 except ValueError as e:
                     print(f"⚠️  Skipping model {model_id}: {e}")
