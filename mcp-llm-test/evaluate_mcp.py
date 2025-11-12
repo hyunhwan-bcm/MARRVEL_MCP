@@ -367,8 +367,8 @@ async def get_langchain_response(
     user_input: str,
     vanilla_mode: bool = False,
     web_mode: bool = False,
-    llm_instance = None,
-    llm_web_instance = None,
+    llm_instance=None,
+    llm_web_instance=None,
 ) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int, Dict[str, Any]]:
     """
     Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
@@ -625,7 +625,7 @@ When answering:
     return final_content, tool_history, conversation, tokens_total, {}
 
 
-async def evaluate_response(actual: str, expected: str, llm_instance = None) -> str:
+async def evaluate_response(actual: str, expected: str, llm_instance=None) -> str:
     """
     Evaluate the response using LangChain and return the classification text.
     Be flexible - if the actual response contains the expected information plus additional details, consider it acceptable.
@@ -674,8 +674,8 @@ async def run_test_case(
     web_mode: bool = False,
     model_id: str | None = None,
     pbar=None,
-    llm_instance = None,
-    llm_web_instance = None,
+    llm_instance=None,
+    llm_web_instance=None,
 ) -> Dict[str, Any]:
     """
     Runs a single test case and returns the results for the table.
@@ -1525,24 +1525,28 @@ async def main():
                         llm_web_instance=model_llm_web,
                     )
                     all_tasks.append(task)
-                    task_metadata.append({
-                        "model_id": model_id,
-                        "model_name": model_name,
-                        "mode": "vanilla",
-                        "test_index": i,
-                    })
+                    task_metadata.append(
+                        {
+                            "model_id": model_id,
+                            "model_name": model_name,
+                            "mode": "vanilla",
+                            "test_index": i,
+                        }
+                    )
 
                 # Web mode tasks (or N/A placeholders if not supported)
                 if skip_web_search:
                     # Don't create tasks, we'll fill in N/A results later
                     for i in enumerate(test_cases):
-                        task_metadata.append({
-                            "model_id": model_id,
-                            "model_name": model_name,
-                            "mode": "web",
-                            "test_index": i[0],
-                            "skip": True,
-                        })
+                        task_metadata.append(
+                            {
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "web",
+                                "test_index": i[0],
+                                "skip": True,
+                            }
+                        )
                 else:
                     for i, test_case in enumerate(test_cases):
                         task = run_test_case(
@@ -1558,12 +1562,14 @@ async def main():
                             llm_web_instance=model_llm_web,
                         )
                         all_tasks.append(task)
-                        task_metadata.append({
-                            "model_id": model_id,
-                            "model_name": model_name,
-                            "mode": "web",
-                            "test_index": i,
-                        })
+                        task_metadata.append(
+                            {
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "web",
+                                "test_index": i,
+                            }
+                        )
 
                 # Tool mode tasks
                 for i, test_case in enumerate(test_cases):
@@ -1580,25 +1586,43 @@ async def main():
                         llm_web_instance=model_llm_web,
                     )
                     all_tasks.append(task)
-                    task_metadata.append({
-                        "model_id": model_id,
-                        "model_name": model_name,
-                        "mode": "tool",
-                        "test_index": i,
-                    })
+                    task_metadata.append(
+                        {
+                            "model_id": model_id,
+                            "model_name": model_name,
+                            "mode": "tool",
+                            "test_index": i,
+                        }
+                    )
 
             # Execute ALL tasks concurrently!
-            print(f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})...")
+            print(
+                f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})..."
+            )
             print(f"   This will run ALL models × modes × tests in parallel!")
             pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
 
-            # Run all tasks and update progress bar as they complete
-            all_results = []
-            for coro in asyncio.as_completed(all_tasks):
-                result = await coro
-                all_results.append(result)
+            # Run all tasks concurrently using gather, which preserves order
+            # We'll update the progress bar as tasks complete using a callback
+            async def run_task_with_progress(task):
+                result = await task
                 pbar_global.update(1)
+                return result
+
+            # Wrap all tasks with progress tracking
+            tasks_with_progress = [run_task_with_progress(task) for task in all_tasks]
+
+            # Execute all tasks concurrently and get results in order
+            task_results = await asyncio.gather(*tasks_with_progress)
             pbar_global.close()
+
+            # Map results back to their metadata indices (only non-skipped tasks have results)
+            results_map = {}
+            task_idx = 0
+            for metadata_idx, meta in enumerate(task_metadata):
+                if not meta.get("skip", False):
+                    results_map[metadata_idx] = task_results[task_idx]
+                    task_idx += 1
 
             # Reorganize results back into the expected structure
             print(f"\n📊 Organizing results...")
@@ -1623,11 +1647,13 @@ async def main():
                 for i in range(len(test_cases)):
                     # Find the corresponding result
                     for idx, meta in enumerate(task_metadata):
-                        if (meta["model_id"] == model_id and
-                            meta["mode"] == "vanilla" and
-                            meta["test_index"] == i and
-                            not meta.get("skip", False)):
-                            vanilla_results.append(all_results[idx])
+                        if (
+                            meta["model_id"] == model_id
+                            and meta["mode"] == "vanilla"
+                            and meta["test_index"] == i
+                            and not meta.get("skip", False)
+                        ):
+                            vanilla_results.append(results_map[idx])
                             break
                 all_models_results[model_id]["vanilla"] = vanilla_results
 
@@ -1649,11 +1675,13 @@ async def main():
                     web_results = []
                     for i in range(len(test_cases)):
                         for idx, meta in enumerate(task_metadata):
-                            if (meta["model_id"] == model_id and
-                                meta["mode"] == "web" and
-                                meta["test_index"] == i and
-                                not meta.get("skip", False)):
-                                web_results.append(all_results[idx])
+                            if (
+                                meta["model_id"] == model_id
+                                and meta["mode"] == "web"
+                                and meta["test_index"] == i
+                                and not meta.get("skip", False)
+                            ):
+                                web_results.append(results_map[idx])
                                 break
                 all_models_results[model_id]["web"] = web_results
 
@@ -1661,10 +1689,12 @@ async def main():
                 tool_results = []
                 for i in range(len(test_cases)):
                     for idx, meta in enumerate(task_metadata):
-                        if (meta["model_id"] == model_id and
-                            meta["mode"] == "tool" and
-                            meta["test_index"] == i):
-                            tool_results.append(all_results[idx])
+                        if (
+                            meta["model_id"] == model_id
+                            and meta["mode"] == "tool"
+                            and meta["test_index"] == i
+                        ):
+                            tool_results.append(results_map[idx])
                             break
                 all_models_results[model_id]["tool"] = tool_results
 
