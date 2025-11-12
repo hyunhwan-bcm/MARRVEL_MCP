@@ -71,7 +71,12 @@ Examples:
 This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
 """
 
-from llm_config import get_openrouter_model, get_evaluator_model, DEFAULT_OPENROUTER_MODEL, DEFAULT_EVALUATOR_MODEL
+from llm_config import (
+    get_openrouter_model,
+    get_evaluator_model,
+    DEFAULT_OPENROUTER_MODEL,
+    DEFAULT_EVALUATOR_MODEL,
+)
 
 # Resolve model lazily at import so tests can patch env before main() runs.
 MODEL = "google/gemini-2.5-pro"  # Unified evaluator: always use Gemini 2.5 Pro (deprecated, use EVALUATOR_MODEL)
