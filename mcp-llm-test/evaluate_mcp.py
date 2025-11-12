@@ -46,6 +46,7 @@ import tiktoken
 from tqdm.asyncio import tqdm as atqdm
 
 from server import create_server
+from llm_providers import create_llm_instance, get_provider_config, ProviderType
 
 
 class TokenLimitExceeded(Exception):
@@ -71,10 +72,10 @@ Examples:
 This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
 """
 
-from llm_config import get_openrouter_model, DEFAULT_OPENROUTER_MODEL
+from llm_config import get_openrouter_model, get_default_model_config, DEFAULT_MODEL
 
 # Resolve model lazily at import so tests can patch env before main() runs.
-MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash
+MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash (backward compat)
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
 # Cache settings
@@ -1336,36 +1337,52 @@ async def main():
     args = parse_arguments()
 
     # Configure API keys (after argument parsing so --help works)
+    # Note: Provider-specific credential validation is done later
+    # This preserves backward compatibility for OpenRouter-only usage
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-    if not OPENROUTER_API_KEY:
-        raise ValueError(
-            "OPENROUTER_API_KEY not found in environment variables. "
-            "Please set it in a .env file or export it as an environment variable."
-        )
 
-    # Configure LangChain ChatOpenAI with OpenRouter
-    # Re-resolve MODEL inside main to respect any env var changes that occurred
+    # Configure LLM with provider abstraction
+    # Re-resolve model config inside main to respect any env var changes that occurred
     # after module import (e.g., in CI or wrapper scripts).
-    resolved_model = get_openrouter_model()
-    llm = ChatOpenAI(
-        model=resolved_model,
-        openai_api_base="https://openrouter.ai/api/v1",
-        openai_api_key=OPENROUTER_API_KEY,
+    resolved_model, provider = get_default_model_config()
+
+    # Validate provider credentials before proceeding
+    from llm_providers import validate_provider_credentials
+
+    try:
+        validate_provider_credentials(provider)
+    except ValueError as e:
+        print(f"❌ Error: {e}")
+        return
+
+    # Create LLM instances using the provider abstraction
+    llm = create_llm_instance(
+        provider=provider,
+        model_id=resolved_model,
         temperature=0,
     )
 
-    # Configure web-enabled LLM (with :online suffix for OpenRouter web search)
-    llm_web = ChatOpenAI(
-        model=f"{resolved_model}:online",
-        openai_api_base="https://openrouter.ai/api/v1",
-        openai_api_key=OPENROUTER_API_KEY,
-        temperature=0,
-    )
-
-    if resolved_model != DEFAULT_OPENROUTER_MODEL:
-        print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
+    # Create web-enabled LLM if provider supports it
+    provider_config = get_provider_config(provider)
+    if provider_config.supports_web_search:
+        llm_web = create_llm_instance(
+            provider=provider,
+            model_id=resolved_model,
+            temperature=0,
+            web_search=True,
+        )
     else:
-        print(f"✨ Using default OpenRouter model: {resolved_model}")
+        # Fall back to regular LLM if web search is not supported
+        llm_web = llm
+
+    # Display configuration
+    if provider == "openrouter":
+        if resolved_model != DEFAULT_MODEL:
+            print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
+        else:
+            print(f"✨ Using default OpenRouter model: {resolved_model}")
+    else:
+        print(f"🔧 Using provider: {provider}, model: {resolved_model}")
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
@@ -1482,20 +1499,39 @@ async def main():
             model_llm_instances = {}
             for model_config in models:
                 model_id = model_config["id"]
+                model_provider = model_config.get("provider", "openrouter")
+
+                # Validate provider credentials for each model
+                try:
+                    from llm_providers import validate_provider_credentials
+
+                    validate_provider_credentials(model_provider)
+                except ValueError as e:
+                    print(f"⚠️  Skipping model {model_id}: {e}")
+                    continue
+
+                # Create base LLM instance
                 model_llm_instances[model_id] = {
-                    "llm": ChatOpenAI(
-                        model=model_id,
-                        openai_api_base="https://openrouter.ai/api/v1",
-                        openai_api_key=OPENROUTER_API_KEY,
+                    "llm": create_llm_instance(
+                        provider=model_provider,
+                        model_id=model_id,
                         temperature=0,
                     ),
-                    "llm_web": ChatOpenAI(
-                        model=f"{model_id}:online",
-                        openai_api_base="https://openrouter.ai/api/v1",
-                        openai_api_key=OPENROUTER_API_KEY,
-                        temperature=0,
-                    ),
+                    "llm_web": None,  # Will be set below if web search is supported
                 }
+
+                # Create web-enabled LLM if provider supports it
+                provider_config = get_provider_config(model_provider)
+                if provider_config.supports_web_search:
+                    model_llm_instances[model_id]["llm_web"] = create_llm_instance(
+                        provider=model_provider,
+                        model_id=model_id,
+                        temperature=0,
+                        web_search=True,
+                    )
+                else:
+                    # Fall back to regular LLM
+                    model_llm_instances[model_id]["llm_web"] = model_llm_instances[model_id]["llm"]
 
             # Create ALL tasks at once (across all models, modes, and test cases)
             # This enables full parallelization!

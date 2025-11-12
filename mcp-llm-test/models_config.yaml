@@ -3,49 +3,87 @@
 # This file defines the LLM models to test in multi-model comparison mode.
 # Each model will be evaluated across three modes: vanilla, web, and MARRVEL-MCP.
 #
+# Provider Support:
+#   - bedrock: AWS Bedrock (uses boto3)
+#   - openai: OpenAI direct API
+#   - openrouter: OpenRouter API (uses OpenAI-compatible API)
+#   - ollama: Ollama local/remote (uses OpenAI-compatible API)
+#
 # Usage:
 #   python evaluate_mcp.py --multi-model
 #
 # The result will show a grid comparing all models across all modes.
 
 models:
-  # Anthropic Claude models
+  # OpenRouter - Anthropic Claude models
   - name: "Claude 3.5 Sonnet"
     id: "anthropic/claude-3.5-sonnet"
+    provider: "openrouter"
     enabled: true
-    description: "Anthropic Claude 3.5 Sonnet - balanced performance"
+    description: "Anthropic Claude 3.5 Sonnet via OpenRouter - balanced performance"
 
   - name: "Claude 3.5 Haiku"
     id: "anthropic/claude-3.5-haiku"
+    provider: "openrouter"
     enabled: true
-    description: "Anthropic Claude 3.5 Haiku - fast and efficient"
+    description: "Anthropic Claude 3.5 Haiku via OpenRouter - fast and efficient"
 
-  # Google models
+  # OpenRouter - Google models
   - name: "Gemini 2.5 Flash"
     id: "google/gemini-2.5-flash"
+    provider: "openrouter"
     enabled: true
-    description: "Google Gemini 2.5 Flash - default model (fast, with tool support)"
+    description: "Google Gemini 2.5 Flash via OpenRouter - default model (fast, with tool support)"
 
-
-  # Meta models
+  # OpenRouter - Meta models
   - name: "Llama 3.3 70B"
     id: "meta-llama/llama-3.3-70b-instruct"
+    provider: "openrouter"
     enabled: true
-    description: "Meta Llama 3.3 70B - open source model"
+    description: "Meta Llama 3.3 70B via OpenRouter - open source model"
 
-
-  # Meta models
+  # OpenRouter - Z.AI models
   - name: "Z.AI GLM 4 32B"
     id: "z-ai/glm-4-32b"
+    provider: "openrouter"
     enabled: true
-    description: "Meta Llama 3.3 70B - open source model"
+    description: "Z.AI GLM 4 32B via OpenRouter - open source model"
 
-  # OpenAI OSS models
+  # OpenRouter - OpenAI OSS models
   - name: "GPT-OSS 20B"
     id: "openai/gpt-oss-20b"
+    provider: "openrouter"
     enabled: true
     skip_web_search: true
-    description: "OpenAI GPT-OSS 20B - open source model (does not support web search)"
+    description: "OpenAI GPT-OSS 20B via OpenRouter - open source model (does not support web search)"
+
+  # AWS Bedrock - Anthropic Claude models
+  # Note: Bedrock model IDs use a different format
+  # - name: "Claude 3.5 Sonnet (Bedrock)"
+  #   id: "anthropic.claude-3-5-sonnet-20241022-v2:0"
+  #   provider: "bedrock"
+  #   enabled: false
+  #   description: "Anthropic Claude 3.5 Sonnet via AWS Bedrock"
+
+  # OpenAI Direct - GPT models
+  # - name: "GPT-4"
+  #   id: "gpt-4"
+  #   provider: "openai"
+  #   enabled: false
+  #   description: "OpenAI GPT-4 direct API"
+
+  # - name: "GPT-4 Turbo"
+  #   id: "gpt-4-turbo-preview"
+  #   provider: "openai"
+  #   enabled: false
+  #   description: "OpenAI GPT-4 Turbo direct API"
+
+  # Ollama - Local models
+  # - name: "Llama 2 (Ollama)"
+  #   id: "llama2"
+  #   provider: "ollama"
+  #   enabled: false
+  #   description: "Llama 2 via Ollama local server"
 
 
 
