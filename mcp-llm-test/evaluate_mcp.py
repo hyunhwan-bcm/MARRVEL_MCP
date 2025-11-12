@@ -74,7 +74,7 @@ This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
 from llm_config import get_openrouter_model, DEFAULT_OPENROUTER_MODEL
 
 # Resolve model lazily at import so tests can patch env before main() runs.
-MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash
+MODEL = "google/gemini-2.5-pro"  # Unified evaluator: always use Gemini 2.5 Pro
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
 # Cache settings
@@ -1346,7 +1346,7 @@ async def main():
     # Configure LangChain ChatOpenAI with OpenRouter
     # Re-resolve MODEL inside main to respect any env var changes that occurred
     # after module import (e.g., in CI or wrapper scripts).
-    resolved_model = get_openrouter_model()
+    resolved_model = "google/gemini-2.5-pro"  # Unified evaluator: always use Gemini 2.5 Pro
     llm = ChatOpenAI(
         model=resolved_model,
         openai_api_base="https://openrouter.ai/api/v1",
@@ -1356,16 +1356,13 @@ async def main():
 
     # Configure web-enabled LLM (with :online suffix for OpenRouter web search)
     llm_web = ChatOpenAI(
-        model=f"{resolved_model}:online",
+        model=f"google/gemini-2.5-pro:online",
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=OPENROUTER_API_KEY,
         temperature=0,
     )
 
-    if resolved_model != DEFAULT_OPENROUTER_MODEL:
-        print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
-    else:
-        print(f"✨ Using default OpenRouter model: {resolved_model}")
+    print(f"✨ Using unified evaluator: google/gemini-2.5-pro")
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
