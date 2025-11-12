@@ -14,8 +14,74 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
         body {
             background: linear-gradient(to bottom right, #f3f4f6, #e5e7eb);
         }
+        /* Tooltip container */
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+        /* Global tooltip that appears on hover */
+        #global-tooltip {
+            position: fixed;
+            z-index: 10000;
+            background-color: #1f2937;
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            max-width: 400px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease-in-out;
+            display: none;
+            word-wrap: break-word;
+        }
+        #global-tooltip.show {
+            display: block;
+            opacity: 1;
+        }
+        /* Arrow for tooltip */
+        #global-tooltip::after {
+            content: "";
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            margin-left: -6px;
+            border-width: 6px 6px 0;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
+        }
     </style>
     <script>
+        // Tooltip functionality
+        let tooltip = null;
+
+        function showTooltip(event, text) {
+            if (!tooltip) {
+                tooltip = document.getElementById('global-tooltip');
+            }
+            tooltip.textContent = text;
+            tooltip.classList.add('show');
+
+            const button = event.currentTarget;
+            const rect = button.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+
+            // Position above the button, centered
+            const left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+            const top = rect.top - tooltipRect.height - 10;
+
+            tooltip.style.left = Math.max(10, left) + 'px';
+            tooltip.style.top = Math.max(10, top) + 'px';
+        }
+
+        function hideTooltip() {
+            if (tooltip) {
+                tooltip.classList.remove('show');
+            }
+        }
+
         function openModal(id) {
             document.getElementById('modal-' + id).classList.remove('hidden');
         }
@@ -79,6 +145,9 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
     </script>
 </head>
 <body class="min-h-screen py-8 px-4">
+    <!-- Global tooltip -->
+    <div id="global-tooltip"></div>
+
     <div class="max-w-[95%] mx-auto">
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-8">
@@ -217,6 +286,8 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                             <!-- Vanilla -->
                             <td class="px-2 py-3 text-center bg-yellow-50 bg-opacity-30 border-l-2 border-gray-400">
                                 <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')"
+                                        onmouseenter="showTooltip(event, '{{ model_data.vanilla.classification | escape }}')"
+                                        onmouseleave="hideTooltip()"
                                         class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.vanilla.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.vanilla.is_yes else "NO" }}
                                 </button>
@@ -227,6 +298,8 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                 <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">N/A</span>
                                 {% else %}
                                 <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')"
+                                        onmouseenter="showTooltip(event, '{{ model_data.web.classification | escape }}')"
+                                        onmouseleave="hideTooltip()"
                                         class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.web.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.web.is_yes else "NO" }}
                                 </button>
@@ -235,6 +308,8 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                             <!-- MARRVEL -->
                             <td class="px-2 py-3 text-center bg-green-50 bg-opacity-30">
                                 <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')"
+                                        onmouseenter="showTooltip(event, '{{ model_data.tool.classification | escape }}')"
+                                        onmouseleave="hideTooltip()"
                                         class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.tool.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.tool.is_yes else "NO" }}
                                 </button>
