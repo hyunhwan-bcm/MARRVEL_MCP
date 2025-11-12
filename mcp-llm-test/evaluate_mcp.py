@@ -635,8 +635,13 @@ async def evaluate_response(actual: str, expected: str, llm_instance=None) -> st
         expected: The expected response text
         llm_instance: LLM instance to use for evaluation (if None, uses global llm)
     """
-    # Use provided instance or fall back to global for backward compatibility
-    active_llm = llm_instance if llm_instance is not None else llm
+    # Always use Gemini 2.5 Pro for evaluation, regardless of tested model
+    active_llm = ChatOpenAI(
+        model="google/gemini-2.5-pro",
+        openai_api_base="https://openrouter.ai/api/v1",
+        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        temperature=0,
+    )
 
     prompt = f"""Is the actual response consistent with the expected response?
 
