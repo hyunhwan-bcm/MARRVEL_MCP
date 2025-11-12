@@ -28,6 +28,10 @@ from llm_providers import ProviderType, infer_provider_from_model_id
 DEFAULT_MODEL = "google/gemini-2.5-flash"
 DEFAULT_PROVIDER: ProviderType = "openrouter"
 
+# Evaluation model: used for evaluating/classifying responses
+EVALUATION_MODEL = "google/gemini-2.5-pro"
+EVALUATION_PROVIDER: ProviderType = "openrouter"
+
 
 def get_openrouter_model() -> str:
     """Return the OpenRouter model id from env or the project default.
@@ -99,9 +103,55 @@ def get_default_model_config() -> Tuple[str, ProviderType]:
     return (DEFAULT_MODEL, DEFAULT_PROVIDER)
 
 
+def get_evaluation_model_config() -> Tuple[str, ProviderType]:
+    """Get the evaluation model ID and provider from environment or defaults.
+
+    This function returns the model configuration used for evaluating/classifying
+    test responses. It checks:
+    1. EVALUATION_PROVIDER and EVALUATION_MODEL environment variables
+    2. Falls back to EVALUATION_MODEL and EVALUATION_PROVIDER constants
+
+    Environment Variables:
+        EVALUATION_PROVIDER: Provider type for evaluation (bedrock, openai, openrouter, ollama)
+        EVALUATION_MODEL: Model ID for evaluation
+
+    Returns:
+        Tuple of (model_id, provider)
+
+    Examples:
+        >>> # Custom evaluation model
+        >>> os.environ["EVALUATION_PROVIDER"] = "openai"
+        >>> os.environ["EVALUATION_MODEL"] = "gpt-4o"
+        >>> get_evaluation_model_config()
+        ('gpt-4o', 'openai')
+
+        >>> # Default evaluation model
+        >>> get_evaluation_model_config()
+        ('google/gemini-2.5-pro', 'openrouter')
+    """
+    # Check for explicit evaluation configuration
+    provider_env = os.getenv("EVALUATION_PROVIDER", "").strip().lower()
+    model_env = os.getenv("EVALUATION_MODEL", "").strip()
+
+    if provider_env and model_env:
+        # Explicit provider and model specified
+        return (model_env, provider_env)  # type: ignore
+
+    # Check for model without explicit provider (try to infer)
+    if model_env:
+        inferred_provider = infer_provider_from_model_id(model_env)
+        return (model_env, inferred_provider)
+
+    # Fall back to default evaluation model
+    return (EVALUATION_MODEL, EVALUATION_PROVIDER)
+
+
 __all__ = [
     "get_openrouter_model",
     "get_default_model_config",
+    "get_evaluation_model_config",
     "DEFAULT_MODEL",
     "DEFAULT_PROVIDER",
+    "EVALUATION_MODEL",
+    "EVALUATION_PROVIDER",
 ]
