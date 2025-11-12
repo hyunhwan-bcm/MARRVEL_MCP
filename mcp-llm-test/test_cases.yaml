@@ -161,7 +161,7 @@
 
 - case:
     name: "STRING check for existing protein interaction"
-    input: "Is there an interaction between MAP2K1 and MAP3K1 in STRING?"
+    input: "Is there an interaction between MAP3K1 and HRAS in STRING?"
     expected: "Yes, there is an interaction between these two genes in STRING."
 
 - case:
