@@ -15,8 +15,8 @@
 
 - case:
     name: "MECP2 OMIM entries"
-    input: "Does MECP2 have any OMIM entries?"
-    expected: "MECP2 is linked with one OMIM match."
+    input: "Does MECP2 have an OMIM number?"
+    expected: "Yes, MECP2's OMIM number is 300005."
 
 - case:
     name: "MECP2 OMIM entries 2"

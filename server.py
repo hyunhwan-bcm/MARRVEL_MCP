@@ -1125,7 +1125,7 @@ async def get_ontology_across_diopt_orthologs(entrez_id: str, taxon_id2: int) ->
 
 @mcp.tool(
     name="get_diopt_alignment",
-    description="Get protein sequence alignment across orthologous species showing uniprot protein/functional domains and conservation patterns",
+    description="Get uniprot protein domain info and sequence alignment across orthologous species showing functional domains and conservation patterns",
     meta={"category": "ortholog", "database": "DIOPT", "version": "1.0"},
 )
 async def get_diopt_alignment(entrez_id: str) -> str:
@@ -1884,89 +1884,6 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
             {"error": f"Failed to retrieve article: {str(e)}", "pubmed_id": pubmed_id},
             indent=2,
         )
-
-
-# ============================================================================
-# ENSEMBL TOOLS
-# ============================================================================
-
-
-@mcp.tool(
-    name="get_ensembl_protein_ids_by_ensembl_gene_id",
-    description="List ensembl protein ids for a given ensembl gene id",
-    meta={
-        "category": "ensembl",
-        "database": "ensembl",
-        "from": "ENSG",
-        "to": "ENSP",
-        "version": "1.0",
-    },
-)
-async def get_ensembl_protein_ids_by_ensembl_gene_id(ensembl_gene_id: str) -> str:
-    try:
-        url = f"https://rest.ensembl.org/lookup/id/{ensembl_gene_id}?content-type=application/json;expand=1"
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data_obj = json.loads(resp.content)
-
-        protein_ids = []
-        canon_id = None
-        for transcript in data_obj["Transcript"]:
-            if transcript.get("Translation"):
-                protein_ids.append(transcript.get("Translation").get("id"))
-                if transcript["is_canonical"]:
-                    canon_id = transcript.get("Translation").get("id")
-        data = json.dumps(
-            {
-                "ensembl_gene_id": ensembl_gene_id,
-                "ensembl_protein_ids": protein_ids,
-                "ensembl_canonical_protein_id": canon_id,
-            },
-            indent=2,
-        )
-        return data
-    except Exception as e:
-        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
-
-
-@mcp.tool(
-    name="get_ensembl_gene_id_by_ensembl_protein_id",
-    description="retreive the Ensembl Gene id for the corresponding Ensembl Protein id",
-    meta={
-        "category": "ensembl",
-        "database": "ensembl",
-        "from": "ensembl protein id",
-        "to": "ensembl gene id",
-        "version": "1.0",
-    },
-)
-async def get_ensembl_gene_id_from_ensembl_protein_id(ensembl_protein_id: str) -> str:
-    try:
-        url = (
-            f"https://rest.ensembl.org/lookup/id/{ensembl_protein_id}?content-type=application/json"
-        )
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data_obj = json.loads(resp.content)
-            ensembl_transcript_id = data_obj["Parent"]
-            t_url = f"https://rest.ensembl.org/lookup/id/{ensembl_transcript_id}?content-type=application/json"
-            t_resp = await client.get(t_url)
-            t_resp.raise_for_status()
-            t_data_obj = json.loads(t_resp.content)
-
-        data = json.dumps(
-            {
-                "ensembl_protein_id": ensembl_protein_id,
-                "ensembl_transcript_id": data_obj["Parent"],
-                "ensembl_gene_ids": t_data_obj["Parent"],
-            },
-            indent=2,
-        )
-        return data
-    except Exception as e:
-        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
 
 
 # ============================================================================
