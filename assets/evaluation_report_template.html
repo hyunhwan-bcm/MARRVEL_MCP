@@ -22,20 +22,23 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
         /* Global tooltip that appears on hover */
         #global-tooltip {
             position: fixed;
-            z-index: 10000;
+            z-index: 99999;
             background-color: #1f2937;
             color: #fff;
             padding: 10px 14px;
             border-radius: 6px;
             font-size: 0.75rem;
             line-height: 1.5;
-            max-width: 400px;
+            min-width: 150px;
+            max-width: 500px;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.15s ease-in-out;
+            transition: opacity 0.2s ease-in-out;
             display: none;
             word-wrap: break-word;
+            white-space: normal;
+            overflow-wrap: break-word;
         }
         #global-tooltip.show {
             display: block;
@@ -61,19 +64,25 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
             if (!tooltip) {
                 tooltip = document.getElementById('global-tooltip');
             }
+
+            if (!tooltip) {
+                return;
+            }
+
+            // Set text content
             tooltip.textContent = text;
             tooltip.classList.add('show');
 
             const button = event.currentTarget;
             const rect = button.getBoundingClientRect();
-            const tooltipRect = tooltip.getBoundingClientRect();
 
             // Position above the button, centered
-            const left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-            const top = rect.top - tooltipRect.height - 10;
+            let left = rect.left + (rect.width / 2);
+            let top = rect.top - 10;
 
-            tooltip.style.left = Math.max(10, left) + 'px';
-            tooltip.style.top = Math.max(10, top) + 'px';
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+            tooltip.style.transform = 'translate(-50%, -100%)';
         }
 
         function hideTooltip() {
@@ -285,10 +294,7 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                             {% for model_id, model_data in result.models.items() %}
                             <!-- Vanilla -->
                             <td class="px-2 py-3 text-center bg-yellow-50 bg-opacity-30 border-l-2 border-gray-400">
-                                <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')"
-                                        onmouseenter="showTooltip(event, '{{ model_data.vanilla.classification | escape }}')"
-                                        onmouseleave="hideTooltip()"
-                                        class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.vanilla.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
+                                <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')" onmouseenter="showTooltip(event, &quot;{{ model_data.vanilla.classification | replace('\n', ' ') | replace('\r', ' ') | replace('"', '&quot;') | escape }}&quot;)" onmouseleave="hideTooltip()" class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.vanilla.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.vanilla.is_yes else "NO" }}
                                 </button>
                             </td>
@@ -297,20 +303,14 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                 {% if model_data.web.is_na %}
                                 <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">N/A</span>
                                 {% else %}
-                                <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')"
-                                        onmouseenter="showTooltip(event, '{{ model_data.web.classification | escape }}')"
-                                        onmouseleave="hideTooltip()"
-                                        class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.web.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
+                                <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" onmouseenter="showTooltip(event, &quot;{{ model_data.web.classification | replace('\n', ' ') | replace('\r', ' ') | replace('"', '&quot;') | escape }}&quot;)" onmouseleave="hideTooltip()" class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.web.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.web.is_yes else "NO" }}
                                 </button>
                                 {% endif %}
                             </td>
                             <!-- MARRVEL -->
                             <td class="px-2 py-3 text-center bg-green-50 bg-opacity-30">
-                                <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')"
-                                        onmouseenter="showTooltip(event, '{{ model_data.tool.classification | escape }}')"
-                                        onmouseleave="hideTooltip()"
-                                        class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.tool.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
+                                <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')" onmouseenter="showTooltip(event, &quot;{{ model_data.tool.classification | replace('\n', ' ') | replace('\r', ' ') | replace('"', '&quot;') | escape }}&quot;)" onmouseleave="hideTooltip()" class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.tool.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
                                     {{ "YES" if model_data.tool.is_yes else "NO" }}
                                 </button>
                             </td>
