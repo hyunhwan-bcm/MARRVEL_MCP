@@ -1919,46 +1919,45 @@ async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
             query MyQuery {{
                 stringInteractionsByEntrezId(entrezId: {entrez_id}) {{
                     combExpDb
-                    ensemblId1
-                    ensemblId2
                     database
                     experiments
+                    gene1 {{
+                    entrezId
+                    }}
+                    gene2 {{
+                    entrezId
+                    }}
                 }}
             }}
             """
         )
         data_obj = json.loads(data)
-        self_ensembl_gene_id = await get_gene_by_entrez_id(entrez_id)
-        ensembl_gene_id = json.loads(self_ensembl_gene_id)["data"]["geneByEntrezId"]["xref"][
-            "ensemblId"
-        ]
-        self_ensembl_protein_ids = await get_ensembl_protein_ids_by_ensembl_gene_id(ensembl_gene_id)
-        self_protein_ids = set(json.loads(self_ensembl_protein_ids)["ensembl_protein_ids"])
+        duplicates = set()
+
         i = 0
         while i < len(data_obj["data"]["stringInteractionsByEntrezId"]):
-            if (
-                data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"]
-                in self_protein_ids
+            if data_obj["data"]["stringInteractionsByEntrezId"][i]["gene1"][0]["entrezId"] != int(
+                entrez_id
             ):
-                data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"] = (
-                    data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId1"]
-                )
+                data_obj["data"]["stringInteractionsByEntrezId"][i]["entrezId2"] = data_obj["data"][
+                    "stringInteractionsByEntrezId"
+                ][i]["gene1"][0]["entrezId"]
             else:
-                data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"] = (
-                    data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"]
-                )
+                data_obj["data"]["stringInteractionsByEntrezId"][i]["entrezId2"] = data_obj["data"][
+                    "stringInteractionsByEntrezId"
+                ][i]["gene2"][0]["entrezId"]
             key = (
-                data_obj["data"]["stringInteractionsByEntrezId"][i]["connectedEnsemblId"]
+                str(data_obj["data"]["stringInteractionsByEntrezId"][i]["entrezId2"])
                 + ":"
                 + str(data_obj["data"]["stringInteractionsByEntrezId"][i]["database"])
             )
-            if key in self_protein_ids:
+            if key in duplicates:
                 data_obj["data"]["stringInteractionsByEntrezId"].pop(i)
             else:
-                self_protein_ids.add(key)
+                duplicates.add(key)
                 del (
-                    data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId1"],
-                    data_obj["data"]["stringInteractionsByEntrezId"][i]["ensemblId2"],
+                    data_obj["data"]["stringInteractionsByEntrezId"][i]["gene1"],
+                    data_obj["data"]["stringInteractionsByEntrezId"][i]["gene2"],
                 )
                 i += 1
 
@@ -1975,38 +1974,15 @@ async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_string_interactions_between_entrez_ids(entrez_id1: str, entrez_id2: str) -> str:
     try:
-        ensembl_gene_id_1_res = await get_gene_by_entrez_id(entrez_id1)
-        ensembl_gene_id_1 = json.loads(ensembl_gene_id_1_res)["data"]["geneByEntrezId"]["xref"][
-            "ensemblId"
-        ]
-        ensembl_protein_ids_1_res = await get_ensembl_protein_ids_by_ensembl_gene_id(
-            ensembl_gene_id_1
-        )
-        protein_id_1 = json.loads(ensembl_protein_ids_1_res)["ensembl_canonical_protein_id"]
-
-        ensembl_gene_id_2_res = await get_gene_by_entrez_id(entrez_id2)
-        ensembl_gene_id_2 = json.loads(ensembl_gene_id_2_res)["data"]["geneByEntrezId"]["xref"][
-            "ensemblId"
-        ]
-        ensembl_protein_ids_2_res = await get_ensembl_protein_ids_by_ensembl_gene_id(
-            ensembl_gene_id_2
-        )
-        protein_id_2 = json.loads(ensembl_protein_ids_2_res)["ensembl_canonical_protein_id"]
-
-        data = await fetch_marrvel_data(
-            f"""
-            query MyQuery {{
-                stringInteractionBetweenProteins(
-                    ensemblId1: "{protein_id_1}"
-                    ensemblId2: "{protein_id_2}"
-                ) {{
-                    combExpDb
-                    database
-                    experiments
-                }}
-            }}
-            """
-        )
+        data = await get_string_interactions_by_entrez_id(entrez_id1)
+        data_obj = json.loads(data)
+        i = 0
+        while i < len(data_obj["data"]["stringInteractionsByEntrezId"]):
+            if data_obj["data"]["stringInteractionsByEntrezId"][i]["entrezId2"] != int(entrez_id2):
+                data_obj["data"]["stringInteractionsByEntrezId"].pop(i)
+            else:
+                i += 1
+        data = json.dumps(data_obj, indent=2)
         return data
 
     except Exception as e:
