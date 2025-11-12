@@ -47,12 +47,13 @@ from tqdm.asyncio import tqdm as atqdm
 
 from server import create_server
 from llm_providers import create_llm_instance, get_provider_config, ProviderType
-
-
-class TokenLimitExceeded(Exception):
-    def __init__(self, token_count: int):
-        super().__init__(f"TOKEN_LIMIT_EXCEEDED: {token_count}")
-        self.token_count = token_count
+from tool_calling import convert_tool_to_langchain_format, parse_tool_result_content
+from agentic_loop import (
+    execute_agentic_loop,
+    count_tokens,
+    validate_token_count,
+    TokenLimitExceeded,
+)
 
 
 # Load environment variables from .env file
@@ -255,114 +256,6 @@ def clear_cache():
         print(f"✅ Cache cleared: {CACHE_DIR}")
 
 
-def count_tokens(text: str, model: str = "gpt-4") -> int:
-    """
-    Count the number of tokens in a text string using tiktoken.
-    Uses gpt-4 encoding as a reasonable approximation for most models.
-    """
-    try:
-        encoding = tiktoken.encoding_for_model(model)
-    except KeyError:
-        # Fallback to cl100k_base encoding if model not found
-        encoding = tiktoken.get_encoding("cl100k_base")
-    return len(encoding.encode(text))
-
-
-def validate_token_count(text: str, max_tokens: int = MAX_TOKENS) -> Tuple[bool, int]:
-    """
-    Validate that text doesn't exceed maximum token count.
-    Returns (is_valid, token_count)
-    """
-    token_count = count_tokens(text)
-    return token_count <= max_tokens, token_count
-
-
-def parse_tool_result_content(content: Any) -> Any:
-    """
-    Parse tool result content to extract actual data.
-
-    Tool results often come in the format:
-    "toolNameOutput(result='<JSON_STRING>')"
-
-    This function attempts to extract and parse the nested JSON for better display.
-    Converts JSON strings to objects so that escape sequences like \n and \\
-    are properly handled when rendered.
-
-    Handles multiple layers of escaping from cached data.
-    """
-    # If content is not a string, return as-is (already parsed)
-    if not isinstance(content, str):
-        return content
-
-    original_content = content
-
-    # Strip outer whitespace
-    content = content.strip()
-
-    # If wrapped in quotes, try to unwrap one layer by parsing as JSON string
-    if content.startswith('"') and content.endswith('"'):
-        try:
-            content = json.loads(content)
-            if not isinstance(content, str):
-                # Successfully parsed to object, return it
-                return content
-        except json.JSONDecodeError:
-            pass
-
-    # Try to match the pattern: SomeOutput(result='<JSON>')
-    match = re.search(r"Output\(result='(.+)'\)\s*$", content, re.DOTALL)
-    if match:
-        json_str = match.group(1)
-        try:
-            # Try to parse as JSON directly - json.loads handles escape sequences
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            # If direct parsing fails, try manual unescaping for non-standard formats
-            # Handle: \\n -> \n, \\" -> ", \\' -> ', but preserve \\\\ -> \\
-            # Do \\\\ first to avoid conflicts
-            unescaped = json_str.replace("\\\\", "\x00")  # Temp placeholder for \\
-            unescaped = unescaped.replace("\\n", "\n")
-            unescaped = unescaped.replace('\\"', '"')
-            unescaped = unescaped.replace("\\'", "'")
-            unescaped = unescaped.replace("\\t", "\t")
-            unescaped = unescaped.replace("\\r", "\r")
-            unescaped = unescaped.replace("\x00", "\\")  # Restore single backslash
-            try:
-                # Try parsing the manually unescaped version
-                return json.loads(unescaped)
-            except json.JSONDecodeError:
-                # Return the unescaped string if parsing still fails
-                return unescaped
-
-    # If content looks like JSON (starts with { or [), try to parse it
-    if content.startswith("{") or content.startswith("["):
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError:
-            # If parsing fails, return as-is
-            pass
-
-    # Return as-is if we can't parse it
-    return original_content
-
-
-def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
-    """Converts a FastMCP tool to the LangChain/OpenAI tool format."""
-    tool_dict = tool.model_dump(exclude_none=True)
-
-    # Get the input schema which contains the parameters
-    input_schema = tool_dict.get("inputSchema", {})
-
-    return {
-        "type": "function",
-        "function": {
-            "name": tool_dict.get("name"),
-            "description": tool_dict.get("description"),
-            "parameters": input_schema,
-        },
-    }
-
-
 async def get_langchain_response(
     mcp_client: Client,
     user_input: str,
@@ -494,135 +387,17 @@ When answering:
     conversation.append({"role": "system", "content": messages[0].content})
     conversation.append({"role": "user", "content": user_input})
 
-    # Helper function to ensure tool call has unique ID
-    def ensure_tool_call_id(tool_call: Dict[str, Any]) -> Dict[str, Any]:
-        """Ensure tool call has a unique ID, adding one if needed."""
-        if "id" not in tool_call or not tool_call["id"]:
-            # Create a new dict with the ID added
-            return {**tool_call, "id": f"call_{uuid.uuid4().hex[:12]}"}
-        return tool_call
+    # Execute agentic loop with tool calling
+    final_content, tool_history, conversation, tokens_total = await execute_agentic_loop(
+        mcp_client=mcp_client,
+        llm_with_tools=llm_with_tools,
+        messages=messages,
+        conversation=conversation,
+        tool_history=tool_history,
+        max_tokens=MAX_TOKENS,
+        max_iterations=10,
+    )
 
-    # Agentic loop for tool calling
-    max_iterations = 10
-    for iteration in range(max_iterations):
-        # Invoke LLM with current messages
-        response = await llm_with_tools.ainvoke(messages)
-        messages.append(response)
-
-        # Check if there are tool calls
-        if response.tool_calls:
-            # Ensure all tool calls have unique IDs
-            tool_calls_with_ids = [ensure_tool_call_id(tc) for tc in response.tool_calls]
-
-            # Store assistant message with tool calls
-            assistant_msg = {
-                "role": "assistant",
-                "content": response.content or "",
-                "tool_calls": [
-                    {
-                        "id": tc["id"],
-                        "type": "function",
-                        "function": {
-                            "name": tc["name"],
-                            "arguments": json.dumps(tc["args"]),
-                        },
-                    }
-                    for tc in tool_calls_with_ids
-                ],
-            }
-            conversation.append(assistant_msg)
-
-            # Execute each tool call
-            for tool_call in tool_calls_with_ids:
-                function_name = tool_call["name"]
-                function_args = tool_call["args"]
-                tool_call_id = tool_call["id"]
-
-                tool_history.append({"name": function_name, "args": function_args})
-
-                try:
-                    # Call the MCP tool
-                    tool_result = await mcp_client.call_tool(function_name, function_args)
-
-                    # Serialize tool result to JSON string
-                    if isinstance(tool_result.data, str):
-                        content = tool_result.data
-                    else:
-                        content = json.dumps(tool_result.data, default=str)
-
-                    # Validate token count for tool result (regardless of original type)
-                    is_valid, token_count = validate_token_count(content)
-                    if not is_valid:
-                        # Stop evaluation immediately and signal token exceed
-                        raise TokenLimitExceeded(token_count)
-
-                    # Create LangChain ToolMessage
-                    tool_message = ToolMessage(
-                        content=content,
-                        tool_call_id=tool_call_id,
-                        name=function_name,
-                    )
-                    messages.append(tool_message)
-
-                    # Store in conversation history with parsed content for better JSON display
-                    parsed_content = parse_tool_result_content(content)
-                    conversation.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call_id,
-                            "name": function_name,
-                            "content": parsed_content,
-                        }
-                    )
-                except TokenLimitExceeded:
-                    # Re-raise TokenLimitExceeded to stop evaluation immediately
-                    raise
-                except Exception as e:
-                    # Handle tool execution error (but not TokenLimitExceeded)
-                    error_content = json.dumps({"error": str(e)})
-                    tool_message = ToolMessage(
-                        content=error_content,
-                        tool_call_id=tool_call_id,
-                        name=function_name,
-                    )
-                    messages.append(tool_message)
-
-                    # Store parsed error content in conversation
-                    conversation.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call_id,
-                            "name": function_name,
-                            "content": {"error": str(e)},
-                        }
-                    )
-        else:
-            # No more tool calls - we have the final response
-            final_content = response.content if hasattr(response, "content") else str(response)
-            conversation.append({"role": "assistant", "content": final_content})
-            # Compute total tokens used based on conversation contents
-            try:
-                conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
-                tokens_total = count_tokens(conv_text)
-            except Exception:
-                tokens_total = 0
-            return final_content, tool_history, conversation, tokens_total, {}
-
-    # If we hit max iterations without getting a final response, return the last message
-    # Note: messages should never be empty here as we start with 2 messages and append responses
-    if len(messages) > 2:  # More than just system and user messages
-        last_msg = messages[-1]
-        final_content = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
-    else:
-        final_content = "No response generated after max iterations"
-
-    # Always append to conversation for consistency
-    conversation.append({"role": "assistant", "content": final_content})
-    try:
-        conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
-        tokens_total = count_tokens(conv_text)
-    except Exception:
-        tokens_total = 0
     return final_content, tool_history, conversation, tokens_total, {}
 
 
