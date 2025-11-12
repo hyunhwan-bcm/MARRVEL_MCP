@@ -57,24 +57,20 @@ class TokenLimitExceeded(Exception):
 # Load environment variables from .env file
 load_dotenv()
 
-"""NOTE: Model selection
+"""NOTE: Unified Evaluator
 
-The evaluation harness now supports selecting an OpenRouter model at runtime
-via the environment variable `OPENROUTER_MODEL`. If it is not set, we fall
-back to the latest Gemini 2.5 Flash model (NOT any deprecated 1.5 version).
+The evaluation harness uses a unified evaluator model (Gemini 2.5 Pro) for
+all evaluation runs. This ensures consistent evaluation results regardless of
+which model is being tested.
 
-Examples:
-    export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
-    export OPENROUTER_MODEL="google/gemini-2.5-pro"
-    python evaluate_mcp.py
+The evaluator is the LLM that judges whether test responses are correct.
+It is separate from the model being tested (which can vary in multi-model mode).
 
-This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
+Unified evaluator model: google/gemini-2.5-pro
 """
 
-from llm_config import get_openrouter_model, DEFAULT_OPENROUTER_MODEL
-
-# Resolve model lazily at import so tests can patch env before main() runs.
-MODEL = "google/gemini-2.5-pro"  # Unified evaluator: always use Gemini 2.5 Pro
+# Unified evaluator: always use Gemini 2.5 Pro for evaluation consistency
+EVALUATOR_MODEL = "google/gemini-2.5-pro"
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
 # Cache settings
@@ -84,6 +80,7 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 # Global variables for LLM (initialized in main after arg parsing)
 llm = None
 llm_web = None  # LLM with web search enabled (:online suffix)
+llm_evaluator = None  # Dedicated evaluator LLM (always Gemini 2.5 Pro)
 OPENROUTER_API_KEY = None
 
 
@@ -633,10 +630,11 @@ async def evaluate_response(actual: str, expected: str, llm_instance=None) -> st
     Args:
         actual: The actual response text
         expected: The expected response text
-        llm_instance: LLM instance to use for evaluation (if None, uses global llm)
+        llm_instance: LLM instance to use for evaluation (DEPRECATED: always uses global llm_evaluator for consistency)
     """
-    # Use provided instance or fall back to global for backward compatibility
-    active_llm = llm_instance if llm_instance is not None else llm
+    # Always use the dedicated evaluator (Gemini 2.5 Pro) for consistent evaluation
+    # This ensures all evaluations use the same model regardless of what model is being tested
+    active_llm = llm_evaluator
 
     prompt = f"""Is the actual response consistent with the expected response?
 
@@ -1330,7 +1328,7 @@ async def main():
     """
     Main function to run the evaluation concurrently.
     """
-    global llm, llm_web, OPENROUTER_API_KEY
+    global llm, llm_web, llm_evaluator, OPENROUTER_API_KEY
 
     # Parse command-line arguments
     args = parse_arguments()
@@ -1343,12 +1341,17 @@ async def main():
             "Please set it in a .env file or export it as an environment variable."
         )
 
-    # Configure LangChain ChatOpenAI with OpenRouter
-    # Re-resolve MODEL inside main to respect any env var changes that occurred
-    # after module import (e.g., in CI or wrapper scripts).
-    resolved_model = "google/gemini-2.5-pro"  # Unified evaluator: always use Gemini 2.5 Pro
+    # Configure dedicated evaluator LLM (always Gemini 2.5 Pro for consistency)
+    llm_evaluator = ChatOpenAI(
+        model=EVALUATOR_MODEL,
+        openai_api_base="https://openrouter.ai/api/v1",
+        openai_api_key=OPENROUTER_API_KEY,
+        temperature=0,
+    )
+
+    # Configure default LLM for testing (also Gemini 2.5 Pro for single-model mode)
     llm = ChatOpenAI(
-        model=resolved_model,
+        model=EVALUATOR_MODEL,
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=OPENROUTER_API_KEY,
         temperature=0,
@@ -1356,16 +1359,16 @@ async def main():
 
     # Configure web-enabled LLM (with :online suffix for OpenRouter web search)
     llm_web = ChatOpenAI(
-        model=f"google/gemini-2.5-pro:online",
+        model=f"{EVALUATOR_MODEL}:online",
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=OPENROUTER_API_KEY,
         temperature=0,
     )
 
-    print(f"✨ Using unified evaluator: google/gemini-2.5-pro")
+    print(f"✨ Using unified evaluator: {EVALUATOR_MODEL}")
 
     if args.with_web:
-        print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
+        print(f"🌐 Web search enabled for comparison (model: {EVALUATOR_MODEL}:online)")
         print(
             f"⚠️  Note: Not all models support web search. Check OpenRouter docs for compatibility."
         )

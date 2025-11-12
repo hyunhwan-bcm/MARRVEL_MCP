@@ -36,11 +36,12 @@ def test_openrouter_model_env_override():
             os.environ["OPENROUTER_MODEL"] = original
 
 
-def test_evaluate_mcp_module_resolves_override(tmp_path):
-    """Loading evaluate_mcp as a module should respect OPENROUTER_MODEL at import time."""
+def test_evaluate_mcp_unified_evaluator(tmp_path):
+    """Evaluator model should always be Gemini 2.5 Pro, regardless of environment variables."""
     from importlib.machinery import SourceFileLoader
     from importlib.util import spec_from_loader, module_from_spec
 
+    # Try to override with a different model
     override = "openai/gpt-4o"
     original = os.environ.get("OPENROUTER_MODEL")
     os.environ["OPENROUTER_MODEL"] = override
@@ -50,7 +51,13 @@ def test_evaluate_mcp_module_resolves_override(tmp_path):
         spec = spec_from_loader(loader.name, loader)
         module = module_from_spec(spec)
         loader.exec_module(module)
-        assert getattr(module, "MODEL") == override
+
+        # The evaluator model should ALWAYS be Gemini 2.5 Pro, regardless of env var
+        expected_evaluator = "google/gemini-2.5-pro"
+        assert getattr(module, "EVALUATOR_MODEL") == expected_evaluator, (
+            f"Expected EVALUATOR_MODEL to always be {expected_evaluator}, "
+            f"got {getattr(module, 'EVALUATOR_MODEL')}"
+        )
     finally:
         if original is None:
             os.environ.pop("OPENROUTER_MODEL", None)
