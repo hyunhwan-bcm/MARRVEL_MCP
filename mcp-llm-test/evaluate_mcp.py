@@ -363,7 +363,12 @@ def convert_tool_to_langchain_format(tool: Any) -> Dict[str, Any]:
 
 
 async def get_langchain_response(
-    mcp_client: Client, user_input: str, vanilla_mode: bool = False, web_mode: bool = False
+    mcp_client: Client,
+    user_input: str,
+    vanilla_mode: bool = False,
+    web_mode: bool = False,
+    llm_instance=None,
+    llm_web_instance=None,
 ) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int, Dict[str, Any]]:
     """
     Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
@@ -373,9 +378,15 @@ async def get_langchain_response(
         user_input: User question/prompt
         vanilla_mode: If True, LLM responds without tool calling capabilities
         web_mode: If True, LLM responds with web search enabled (no tool calling)
+        llm_instance: LLM instance to use (if None, uses global llm)
+        llm_web_instance: Web-enabled LLM instance to use (if None, uses global llm_web)
 
     Returns: (final_response, tool_history, full_conversation, tokens_used, metadata)
     """
+    # Use provided instances or fall back to globals for backward compatibility
+    active_llm_base = llm_instance if llm_instance is not None else llm
+    active_llm_web = llm_web_instance if llm_web_instance is not None else llm_web
+
     # Initialize LangChain messages
     if vanilla_mode:
         system_message = """You are an expert genetics research assistant. Answer questions about genes, variants, and genetic data with confidence and precision.
@@ -415,7 +426,7 @@ When answering:
         conversation.append({"role": "user", "content": user_input})
 
         # Use web-enabled LLM for web mode, regular LLM for vanilla mode
-        active_llm = llm_web if web_mode else llm
+        active_llm = active_llm_web if web_mode else active_llm_base
 
         # Get direct response without tool calling
         try:
@@ -476,7 +487,7 @@ When answering:
     available_tools = [convert_tool_to_langchain_format(tool) for tool in mcp_tools_list]
 
     # Bind tools to LLM
-    llm_with_tools = llm.bind_tools(available_tools)
+    llm_with_tools = active_llm_base.bind_tools(available_tools)
 
     # Store initial messages in conversation history
     conversation.append({"role": "system", "content": messages[0].content})
@@ -614,11 +625,19 @@ When answering:
     return final_content, tool_history, conversation, tokens_total, {}
 
 
-async def evaluate_response(actual: str, expected: str) -> str:
+async def evaluate_response(actual: str, expected: str, llm_instance=None) -> str:
     """
     Evaluate the response using LangChain and return the classification text.
     Be flexible - if the actual response contains the expected information plus additional details, consider it acceptable.
+
+    Args:
+        actual: The actual response text
+        expected: The expected response text
+        llm_instance: LLM instance to use for evaluation (if None, uses global llm)
     """
+    # Use provided instance or fall back to global for backward compatibility
+    active_llm = llm_instance if llm_instance is not None else llm
+
     prompt = f"""Is the actual response consistent with the expected response?
 
 Consider the response as acceptable (answer 'yes') if:
@@ -642,7 +661,7 @@ Actual: {actual}"""
         return f"no - Evaluation skipped: Input token count ({token_count:,}) exceeds maximum allowed ({MAX_TOKENS:,}). The response or context is excessively long. Please reduce the input size."
 
     messages = [HumanMessage(content=prompt)]
-    response = await llm.ainvoke(messages)
+    response = await active_llm.ainvoke(messages)
     return response.content
 
 
@@ -655,6 +674,8 @@ async def run_test_case(
     web_mode: bool = False,
     model_id: str | None = None,
     pbar=None,
+    llm_instance=None,
+    llm_web_instance=None,
 ) -> Dict[str, Any]:
     """
     Runs a single test case and returns the results for the table.
@@ -668,6 +689,8 @@ async def run_test_case(
         web_mode: If True, run with web search enabled (default: False)
         model_id: Model identifier for model-specific cache (default: None)
         pbar: Optional tqdm progress bar to update
+        llm_instance: LLM instance to use (if None, uses global llm)
+        llm_web_instance: Web-enabled LLM instance to use (if None, uses global llm_web)
     """
     async with semaphore:
         name = test_case["case"]["name"]
@@ -705,9 +728,11 @@ async def run_test_case(
 
         try:
             langchain_response, tool_history, full_conversation, tokens_used, metadata = (
-                await get_langchain_response(mcp_client, user_input, vanilla_mode, web_mode)
+                await get_langchain_response(
+                    mcp_client, user_input, vanilla_mode, web_mode, llm_instance, llm_web_instance
+                )
             )
-            classification = await evaluate_response(langchain_response, expected)
+            classification = await evaluate_response(langchain_response, expected, llm_instance)
             result = {
                 "question": user_input,
                 "expected": expected,
@@ -1452,127 +1477,226 @@ async def main():
         all_models_results = {}
 
         async with mcp_client:
+            # Create all LLM instances upfront for each model
+            print(f"\n🚀 Creating LLM instances for all models...")
+            model_llm_instances = {}
+            for model_config in models:
+                model_id = model_config["id"]
+                model_llm_instances[model_id] = {
+                    "llm": ChatOpenAI(
+                        model=model_id,
+                        openai_api_base="https://openrouter.ai/api/v1",
+                        openai_api_key=OPENROUTER_API_KEY,
+                        temperature=0,
+                    ),
+                    "llm_web": ChatOpenAI(
+                        model=f"{model_id}:online",
+                        openai_api_base="https://openrouter.ai/api/v1",
+                        openai_api_key=OPENROUTER_API_KEY,
+                        temperature=0,
+                    ),
+                }
+
+            # Create ALL tasks at once (across all models, modes, and test cases)
+            # This enables full parallelization!
+            print(f"\n⚡ Creating task list for concurrent execution...")
+            all_tasks = []
+            task_metadata = []  # Track which task belongs to which model/mode/test
+
             for model_config in models:
                 model_name = model_config["name"]
                 model_id = model_config["id"]
                 skip_web_search = model_config.get("skip_web_search", False)
+                model_llm = model_llm_instances[model_id]["llm"]
+                model_llm_web = model_llm_instances[model_id]["llm_web"]
 
-                print(f"\n{'='*80}")
-                print(f"🤖 Testing model: {model_name} ({model_id})")
-                if skip_web_search:
-                    print(f"   ⚠️  Web search not supported for this model")
-                print(f"{'='*80}")
-
-                # Create LLM instances for this model
-                model_llm = ChatOpenAI(
-                    model=model_id,
-                    openai_api_base="https://openrouter.ai/api/v1",
-                    openai_api_key=OPENROUTER_API_KEY,
-                    temperature=0,
-                )
-                model_llm_web = ChatOpenAI(
-                    model=f"{model_id}:online",
-                    openai_api_base="https://openrouter.ai/api/v1",
-                    openai_api_key=OPENROUTER_API_KEY,
-                    temperature=0,
-                )
-
-                # Temporarily swap global llm instances
-                original_llm = llm
-                original_llm_web = llm_web
-                llm = model_llm
-                llm_web = model_llm_web
-
-                try:
-                    # Run vanilla mode tests
-                    print(f"\n🍦 Running VANILLA mode for {model_name}...")
-                    pbar_vanilla = atqdm(
-                        total=len(test_cases), desc=f"{model_name} Vanilla", unit="test"
+                # Vanilla mode tasks
+                for i, test_case in enumerate(test_cases):
+                    task = run_test_case(
+                        semaphore,
+                        mcp_client,
+                        test_case,
+                        use_cache=use_cache,
+                        vanilla_mode=True,
+                        web_mode=False,
+                        model_id=model_id,
+                        pbar=None,
+                        llm_instance=model_llm,
+                        llm_web_instance=model_llm_web,
+                    )
+                    all_tasks.append(task)
+                    task_metadata.append(
+                        {
+                            "model_id": model_id,
+                            "model_name": model_name,
+                            "mode": "vanilla",
+                            "test_index": i,
+                        }
                     )
 
-                    vanilla_tasks = [
-                        run_test_case(
-                            semaphore,
-                            mcp_client,
-                            test_case,
-                            use_cache=use_cache,
-                            vanilla_mode=True,
-                            model_id=model_id,
-                            pbar=pbar_vanilla,
-                        )
-                        for test_case in test_cases
-                    ]
-                    vanilla_results = await asyncio.gather(*vanilla_tasks)
-                    pbar_vanilla.close()
-
-                    # Run web search mode tests (skip if not supported)
-                    if skip_web_search:
-                        print(f"\n⏭️  Skipping WEB SEARCH mode for {model_name} (not supported)")
-                        web_results = [
+                # Web mode tasks (or N/A placeholders if not supported)
+                if skip_web_search:
+                    # Don't create tasks, we'll fill in N/A results later
+                    for i in enumerate(test_cases):
+                        task_metadata.append(
                             {
-                                "status": "N/A",
-                                "reason": "Web search not supported by this model",
-                                "response": "N/A",
-                                "classification": "N/A",
-                                "tokens_used": 0,
-                                "tool_calls": [],
-                                "conversation": [],
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "web",
+                                "test_index": i[0],
+                                "skip": True,
                             }
-                            for _ in test_cases
-                        ]
-                    else:
-                        print(f"\n🌐 Running WEB SEARCH mode for {model_name}...")
-                        pbar_web = atqdm(
-                            total=len(test_cases), desc=f"{model_name} Web", unit="test"
                         )
-
-                        web_tasks = [
-                            run_test_case(
-                                semaphore,
-                                mcp_client,
-                                test_case,
-                                use_cache=use_cache,
-                                web_mode=True,
-                                model_id=model_id,
-                                pbar=pbar_web,
-                            )
-                            for test_case in test_cases
-                        ]
-                        web_results = await asyncio.gather(*web_tasks)
-                        pbar_web.close()
-
-                    # Run tool mode tests
-                    print(f"\n🔧 Running MARRVEL-MCP mode for {model_name}...")
-                    pbar_tool = atqdm(total=len(test_cases), desc=f"{model_name} Tool", unit="test")
-
-                    tool_tasks = [
-                        run_test_case(
+                else:
+                    for i, test_case in enumerate(test_cases):
+                        task = run_test_case(
                             semaphore,
                             mcp_client,
                             test_case,
                             use_cache=use_cache,
                             vanilla_mode=False,
+                            web_mode=True,
                             model_id=model_id,
-                            pbar=pbar_tool,
+                            pbar=None,
+                            llm_instance=model_llm,
+                            llm_web_instance=model_llm_web,
                         )
-                        for test_case in test_cases
-                    ]
-                    tool_results = await asyncio.gather(*tool_tasks)
-                    pbar_tool.close()
+                        all_tasks.append(task)
+                        task_metadata.append(
+                            {
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "web",
+                                "test_index": i,
+                            }
+                        )
 
-                    # Store results for this model
+                # Tool mode tasks
+                for i, test_case in enumerate(test_cases):
+                    task = run_test_case(
+                        semaphore,
+                        mcp_client,
+                        test_case,
+                        use_cache=use_cache,
+                        vanilla_mode=False,
+                        web_mode=False,
+                        model_id=model_id,
+                        pbar=None,
+                        llm_instance=model_llm,
+                        llm_web_instance=model_llm_web,
+                    )
+                    all_tasks.append(task)
+                    task_metadata.append(
+                        {
+                            "model_id": model_id,
+                            "model_name": model_name,
+                            "mode": "tool",
+                            "test_index": i,
+                        }
+                    )
+
+            # Execute ALL tasks concurrently!
+            print(
+                f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})..."
+            )
+            print(f"   This will run ALL models × modes × tests in parallel!")
+            pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
+
+            # Run all tasks concurrently using gather, which preserves order
+            # We'll update the progress bar as tasks complete using a callback
+            async def run_task_with_progress(task):
+                result = await task
+                pbar_global.update(1)
+                return result
+
+            # Wrap all tasks with progress tracking
+            tasks_with_progress = [run_task_with_progress(task) for task in all_tasks]
+
+            # Execute all tasks concurrently and get results in order
+            task_results = await asyncio.gather(*tasks_with_progress)
+            pbar_global.close()
+
+            # Map results back to their metadata indices (only non-skipped tasks have results)
+            results_map = {}
+            task_idx = 0
+            for metadata_idx, meta in enumerate(task_metadata):
+                if not meta.get("skip", False):
+                    results_map[metadata_idx] = task_results[task_idx]
+                    task_idx += 1
+
+            # Reorganize results back into the expected structure
+            print(f"\n📊 Organizing results...")
+            result_index = 0
+            for model_config in models:
+                model_name = model_config["name"]
+                model_id = model_config["id"]
+                skip_web_search = model_config.get("skip_web_search", False)
+
+                if model_id not in all_models_results:
                     all_models_results[model_id] = {
                         "name": model_name,
                         "id": model_id,
-                        "vanilla": vanilla_results,
-                        "web": web_results,
-                        "tool": tool_results,
+                        "vanilla": [],
+                        "web": [],
+                        "tool": [],
                     }
 
-                finally:
-                    # Restore original llm instances
-                    llm = original_llm
-                    llm_web = original_llm_web
+                # Collect results for this model (they're in order: vanilla, web, tool)
+                # Vanilla results
+                vanilla_results = []
+                for i in range(len(test_cases)):
+                    # Find the corresponding result
+                    for idx, meta in enumerate(task_metadata):
+                        if (
+                            meta["model_id"] == model_id
+                            and meta["mode"] == "vanilla"
+                            and meta["test_index"] == i
+                            and not meta.get("skip", False)
+                        ):
+                            vanilla_results.append(results_map[idx])
+                            break
+                all_models_results[model_id]["vanilla"] = vanilla_results
+
+                # Web results
+                if skip_web_search:
+                    web_results = [
+                        {
+                            "status": "N/A",
+                            "reason": "Web search not supported by this model",
+                            "response": "N/A",
+                            "classification": "N/A",
+                            "tokens_used": 0,
+                            "tool_calls": [],
+                            "conversation": [],
+                        }
+                        for _ in test_cases
+                    ]
+                else:
+                    web_results = []
+                    for i in range(len(test_cases)):
+                        for idx, meta in enumerate(task_metadata):
+                            if (
+                                meta["model_id"] == model_id
+                                and meta["mode"] == "web"
+                                and meta["test_index"] == i
+                                and not meta.get("skip", False)
+                            ):
+                                web_results.append(results_map[idx])
+                                break
+                all_models_results[model_id]["web"] = web_results
+
+                # Tool results
+                tool_results = []
+                for i in range(len(test_cases)):
+                    for idx, meta in enumerate(task_metadata):
+                        if (
+                            meta["model_id"] == model_id
+                            and meta["mode"] == "tool"
+                            and meta["test_index"] == i
+                        ):
+                            tool_results.append(results_map[idx])
+                            break
+                all_models_results[model_id]["tool"] = tool_results
 
         # Combine results into multi-model format
         combined_results = []

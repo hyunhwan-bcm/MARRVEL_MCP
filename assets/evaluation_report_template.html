@@ -283,7 +283,6 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
                                         Copy JSON
                                     </button>
-                                    {% endif %}
                                     <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
