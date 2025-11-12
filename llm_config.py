@@ -25,7 +25,7 @@ from llm_providers import ProviderType, infer_provider_from_model_id
 
 
 # Default model: latest Gemini 2.5 variant with reliable tool support
-DEFAULT_OPENROUTER_MODEL = "google/gemini-2.5-flash"
+DEFAULT_MODEL = "google/gemini-2.5-flash"
 DEFAULT_PROVIDER: ProviderType = "openrouter"
 
 
@@ -36,13 +36,13 @@ def get_openrouter_model() -> str:
 
     Priority:
     1) OPENROUTER_MODEL env var if set and non-empty
-    2) DEFAULT_OPENROUTER_MODEL (Gemini 2.5 Flash)
+    2) DEFAULT_MODEL (Gemini 2.5 Flash)
 
     Returns:
         Model ID string (e.g., "google/gemini-2.5-flash")
     """
     model = os.getenv("OPENROUTER_MODEL", "").strip()
-    return model if model else DEFAULT_OPENROUTER_MODEL
+    return model if model else DEFAULT_MODEL
 
 
 def get_default_model_config() -> Tuple[str, ProviderType]:
@@ -96,12 +96,12 @@ def get_default_model_config() -> Tuple[str, ProviderType]:
         return (model_env, inferred_provider)
 
     # Fall back to default
-    return (DEFAULT_OPENROUTER_MODEL, DEFAULT_PROVIDER)
+    return (DEFAULT_MODEL, DEFAULT_PROVIDER)
 
 
 __all__ = [
     "get_openrouter_model",
     "get_default_model_config",
-    "DEFAULT_OPENROUTER_MODEL",
+    "DEFAULT_MODEL",
     "DEFAULT_PROVIDER",
 ]
