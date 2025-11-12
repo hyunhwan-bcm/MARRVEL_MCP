@@ -1,0 +1,62 @@
+# Multi-Model Testing Configuration
+#
+# This file defines the LLM models to test in multi-model comparison mode.
+# Each model will be evaluated across three modes: vanilla, web, and MARRVEL-MCP.
+#
+# Usage:
+#   python evaluate_mcp.py --multi-model
+#
+# The result will show a grid comparing all models across all modes.
+
+models:
+  # Anthropic Claude models
+  - name: "Claude 3.5 Sonnet"
+    id: "anthropic/claude-3.5-sonnet"
+    enabled: true
+    description: "Anthropic Claude 3.5 Sonnet - balanced performance"
+
+  - name: "Claude 3.5 Haiku"
+    id: "anthropic/claude-3.5-haiku"
+    enabled: true
+    description: "Anthropic Claude 3.5 Haiku - fast and efficient"
+
+  # Google models
+  - name: "Gemini 2.5 Flash"
+    id: "google/gemini-2.5-flash"
+    enabled: true
+    description: "Google Gemini 2.5 Flash - default model (fast, with tool support)"
+
+
+  # Meta models
+  - name: "Llama 3.3 70B"
+    id: "meta-llama/llama-3.3-70b-instruct"
+    enabled: true
+    description: "Meta Llama 3.3 70B - open source model"
+
+
+  # Meta models
+  - name: "Z.AI GLM 4 32B"
+    id: "z-ai/glm-4-32b"
+    enabled: true
+    description: "Meta Llama 3.3 70B - open source model"
+
+  # OpenAI OSS models
+  - name: "GPT-OSS 20B"
+    id: "openai/gpt-oss-20b"
+    enabled: true
+    skip_web_search: true
+    description: "OpenAI GPT-OSS 20B - open source model (does not support web search)"
+
+
+
+
+# Configuration options
+config:
+  # Only test models where enabled: true
+  only_enabled: true
+
+  # Timeout per model test (seconds)
+  timeout: 300
+
+  # Whether to cache results per model
+  use_cache: true

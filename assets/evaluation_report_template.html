@@ -19,6 +19,9 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
         function openModal(id) {
             document.getElementById('modal-' + id).classList.remove('hidden');
         }
+        function showModal(fullId) {
+            document.getElementById(fullId).classList.remove('hidden');
+        }
         function closeModal(id) {
             document.getElementById('modal-' + id).classList.add('hidden');
         }
@@ -83,7 +86,38 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                 <p class="text-blue-100 mt-2">MCP Test Case Evaluation Summary</p>
 
                 <!-- Success Rate Summary -->
-                {% if tri_mode %}
+                {% if multi_model %}
+                <div class="mt-6 bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
+                    <p class="text-blue-100 text-sm font-medium mb-3">🎯 Multi-Model Comparison: {{ models_stats|length }} Models × 3 Modes</p>
+                    <div class="grid gap-4" style="grid-template-columns: repeat({{ models_stats|length }}, minmax(200px, 1fr));">
+                        {% for model_id, stats in models_stats.items() %}
+                        <div class="border-r border-blue-300 border-opacity-30 pr-4 last:border-r-0">
+                            <p class="text-white text-sm font-semibold mb-2">{{ stats.name }}</p>
+                            <div class="space-y-2">
+                                <div>
+                                    <p class="text-blue-100 text-xs">🍦 Vanilla: {{ "%.1f"|format(stats.vanilla_rate) }}%</p>
+                                    <div class="mt-1 w-full bg-blue-900 bg-opacity-30 rounded-full h-1.5">
+                                        <div class="bg-yellow-400 h-1.5 rounded-full" style="width: {{ stats.vanilla_rate }}%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-blue-100 text-xs">🌐 Web: {{ "%.1f"|format(stats.web_rate) }}%</p>
+                                    <div class="mt-1 w-full bg-blue-900 bg-opacity-30 rounded-full h-1.5">
+                                        <div class="bg-blue-400 h-1.5 rounded-full" style="width: {{ stats.web_rate }}%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-blue-100 text-xs">🔧 MARRVEL: {{ "%.1f"|format(stats.tool_rate) }}%</p>
+                                    <div class="mt-1 w-full bg-blue-900 bg-opacity-30 rounded-full h-1.5">
+                                        <div class="bg-green-400 h-1.5 rounded-full" style="width: {{ stats.tool_rate }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% elif tri_mode %}
                 <div class="mt-6 bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
                     <p class="text-blue-100 text-sm font-medium mb-3">3-Way Comparison: Vanilla vs Web Search vs MARRVEL-MCP</p>
                     <div class="grid grid-cols-3 gap-4">
@@ -155,7 +189,130 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full">
-                    {% if tri_mode %}
+                    {% if multi_model %}
+                    <thead class="bg-gray-50 border-b-2 border-gray-300">
+                        <!-- Model names row -->
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" rowspan="2">Question</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" rowspan="2">Expected</th>
+                            {% for model_id, stats in models_stats.items() %}
+                            <th class="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider border-l-2 border-gray-400" colspan="3">{{ stats.name }}</th>
+                            {% endfor %}
+                        </tr>
+                        <!-- Mode names row -->
+                        <tr>
+                            {% for model_id, stats in models_stats.items() %}
+                            <th class="px-2 py-2 text-center text-xs font-semibold text-yellow-700 bg-yellow-50 border-l-2 border-gray-400">🍦 Vanilla</th>
+                            <th class="px-2 py-2 text-center text-xs font-semibold text-blue-700 bg-blue-50">🌐 Web</th>
+                            <th class="px-2 py-2 text-center text-xs font-semibold text-green-700 bg-green-50">🔧 MARRVEL</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        {% for result in results %}
+                        <tr class="hover:bg-gray-50 border-b border-gray-200">
+                            <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ result.question }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ result.expected }}</td>
+                            {% for model_id, model_data in result.models.items() %}
+                            <!-- Vanilla -->
+                            <td class="px-2 py-3 text-center bg-yellow-50 bg-opacity-30 border-l-2 border-gray-400">
+                                <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')"
+                                        class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.vanilla.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
+                                    {{ "YES" if model_data.vanilla.is_yes else "NO" }}
+                                </button>
+                            </td>
+                            <!-- Web -->
+                            <td class="px-2 py-3 text-center bg-blue-50 bg-opacity-30">
+                                {% if model_data.web.is_na %}
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">N/A</span>
+                                {% else %}
+                                <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')"
+                                        class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.web.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
+                                    {{ "YES" if model_data.web.is_yes else "NO" }}
+                                </button>
+                                {% endif %}
+                            </td>
+                            <!-- MARRVEL -->
+                            <td class="px-2 py-3 text-center bg-green-50 bg-opacity-30">
+                                <button onclick="showModal('modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')"
+                                        class="px-3 py-1 rounded-full text-xs font-semibold {% if model_data.tool.is_yes %}bg-green-100 text-green-800 hover:bg-green-200{% else %}bg-red-100 text-red-800 hover:bg-red-200{% endif %} transition-colors">
+                                    {{ "YES" if model_data.tool.is_yes else "NO" }}
+                                </button>
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        <!-- Modals for multi-model mode -->
+                        {% for model_id, model_data in result.models.items() %}
+                        <div id="modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')">
+                            <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white" onclick="event.stopPropagation()">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">{{ model_data.name }} - 🍦 Vanilla Mode</h3>
+                                    <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                                </div>
+                                <div class="max-h-96 overflow-y-auto">
+                                    <pre id="json-content-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ model_data.vanilla.conversation | tojson_pretty }}</pre>
+                                </div>
+                                <div class="mt-4 flex justify-end gap-2">
+                                    <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                        Copy JSON
+                                    </button>
+                                    <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')">
+                            <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white" onclick="event.stopPropagation()">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">{{ model_data.name }} - 🌐 Web Search Mode</h3>
+                                    <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                                </div>
+                                {% if model_data.web.is_na %}
+                                <div class="p-4 bg-gray-100 rounded text-center">
+                                    <p class="text-lg font-semibold text-gray-700">N/A</p>
+                                    <p class="text-gray-600 mt-2">{{ model_data.web.na_reason }}</p>
+                                </div>
+                                {% else %}
+                                <div class="max-h-96 overflow-y-auto">
+                                    <pre id="json-content-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ model_data.web.conversation | tojson_pretty }}</pre>
+                                </div>
+                                {% endif %}
+                                <div class="mt-4 flex justify-end gap-2">
+                                    <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                        Copy JSON
+                                    </button>
+                                    <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="modal-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')">
+                            <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white" onclick="event.stopPropagation()">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">{{ model_data.name }} - 🔧 MARRVEL-MCP Mode</h3>
+                                    <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                                </div>
+                                <div class="max-h-96 overflow-y-auto">
+                                    <pre id="json-content-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ model_data.tool.conversation | tojson_pretty }}</pre>
+                                </div>
+                                <div class="mt-4 flex justify-end gap-2">
+                                    <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                        Copy JSON
+                                    </button>
+                                    <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                    {% elif tri_mode %}
                     <thead class="bg-gray-50 border-b-2 border-gray-300">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Mode</th>
