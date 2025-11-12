@@ -11,8 +11,8 @@ def test_default_openrouter_model_fallback():
         # Reload to ensure no cached value interferes
         importlib.reload(llm_config)
         assert (
-            llm_config.get_openrouter_model() == llm_config.DEFAULT_OPENROUTER_MODEL
-        ), "Expected fallback to DEFAULT_OPENROUTER_MODEL when env var missing"
+            llm_config.get_openrouter_model() == llm_config.DEFAULT_MODEL
+        ), "Expected fallback to DEFAULT_MODEL when env var missing"
     finally:
         if original is not None:
             os.environ["OPENROUTER_MODEL"] = original

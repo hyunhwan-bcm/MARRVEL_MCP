@@ -72,7 +72,7 @@ Examples:
 This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
 """
 
-from llm_config import get_openrouter_model, get_default_model_config, DEFAULT_OPENROUTER_MODEL
+from llm_config import get_openrouter_model, get_default_model_config, DEFAULT_MODEL
 
 # Resolve model lazily at import so tests can patch env before main() runs.
 MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash (backward compat)
@@ -1377,7 +1377,7 @@ async def main():
 
     # Display configuration
     if provider == "openrouter":
-        if resolved_model != DEFAULT_OPENROUTER_MODEL:
+        if resolved_model != DEFAULT_MODEL:
             print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
         else:
             print(f"✨ Using default OpenRouter model: {resolved_model}")

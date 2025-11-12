@@ -51,7 +51,7 @@ def get_default_model_config() -> Tuple[str, ProviderType]:
     This is the new provider-aware configuration function. It checks:
     1. LLM_PROVIDER and LLM_MODEL environment variables (explicit provider)
     2. OPENROUTER_MODEL environment variable (backward compatibility)
-    3. Falls back to DEFAULT_OPENROUTER_MODEL and DEFAULT_PROVIDER
+    3. Falls back to DEFAULT_MODEL and DEFAULT_PROVIDER
 
     Environment Variables:
         LLM_PROVIDER: Provider type (bedrock, openai, openrouter, ollama)
