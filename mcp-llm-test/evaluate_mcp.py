@@ -1604,24 +1604,67 @@ async def main():
 
             # Run all tasks concurrently using gather, which preserves order
             # We'll update the progress bar as tasks complete using a callback
+            # Add timeout to prevent hanging tasks
             async def run_task_with_progress(task):
-                result = await task
-                pbar_global.update(1)
-                return result
+                try:
+                    # Set a timeout of 5 minutes per task
+                    result = await asyncio.wait_for(task, timeout=300)
+                    pbar_global.update(1)
+                    return result
+                except asyncio.TimeoutError:
+                    pbar_global.update(1)
+                    error_msg = "Task timed out after 5 minutes"
+                    print(f"⏱️  {error_msg}")
+                    return Exception(error_msg)
+                except Exception as e:
+                    pbar_global.update(1)
+                    print(f"❌ Task failed: {e}")
+                    return e
 
             # Wrap all tasks with progress tracking
             tasks_with_progress = [run_task_with_progress(task) for task in all_tasks]
 
             # Execute all tasks concurrently and get results in order
-            task_results = await asyncio.gather(*tasks_with_progress)
+            # Use return_exceptions=True to prevent one failed task from blocking all others
+            task_results = await asyncio.gather(*tasks_with_progress, return_exceptions=True)
             pbar_global.close()
 
+            # Check for any exceptions in results and log them
+            exception_count = 0
+            for idx, result in enumerate(task_results):
+                if isinstance(result, Exception):
+                    exception_count += 1
+                    print(f"⚠️  Task {idx} failed with exception: {result}")
+
+            if exception_count > 0:
+                print(
+                    f"\n⚠️  Warning: {exception_count} task(s) failed with exceptions but execution continued."
+                )
+
             # Map results back to their metadata indices (only non-skipped tasks have results)
+            # Replace exceptions with error result objects
             results_map = {}
             task_idx = 0
             for metadata_idx, meta in enumerate(task_metadata):
                 if not meta.get("skip", False):
-                    results_map[metadata_idx] = task_results[task_idx]
+                    result = task_results[task_idx]
+
+                    # If the task failed with an exception, create an error result
+                    if isinstance(result, Exception):
+                        result = {
+                            "status": "ERROR",
+                            "reason": f"Task failed with exception: {str(result)}",
+                            "response": f"ERROR: {str(result)}",
+                            "classification": "ERROR",
+                            "tokens_used": 0,
+                            "tool_calls": [],
+                            "conversation": [
+                                {"role": "system", "content": "Error occurred during execution"},
+                                {"role": "assistant", "content": f"ERROR: {str(result)}"},
+                            ],
+                        }
+
+                    results_map[metadata_idx] = result
                     task_idx += 1
 
             # Reorganize results back into the expected structure
