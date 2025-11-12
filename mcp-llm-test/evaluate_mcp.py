@@ -69,9 +69,19 @@ It is separate from the model being tested (which can vary in multi-model mode).
 Unified evaluator model: google/gemini-2.5-pro
 """
 
-# Unified evaluator: always use Gemini 2.5 Pro for evaluation consistency
-EVALUATOR_MODEL = "google/gemini-2.5-pro"
+from llm_config import (
+    get_openrouter_model,
+    get_evaluator_model,
+    DEFAULT_OPENROUTER_MODEL,
+    DEFAULT_EVALUATOR_MODEL,
+)
+
+# Resolve model lazily at import so tests can patch env before main() runs.
+MODEL = "google/gemini-2.5-pro"  # Unified evaluator: always use Gemini 2.5 Pro (deprecated, use EVALUATOR_MODEL)
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
+
+# Evaluator model configuration - can be overridden via EVALUATOR_MODEL env var
+EVALUATOR_MODEL = get_evaluator_model()
 
 # Cache settings
 CACHE_DIR = Path.home() / ".cache" / "marrvel-mcp" / "evaluations"
@@ -632,9 +642,15 @@ async def evaluate_response(actual: str, expected: str, llm_instance=None) -> st
         expected: The expected response text
         llm_instance: LLM instance to use for evaluation (DEPRECATED: always uses global llm_evaluator for consistency)
     """
-    # Always use the dedicated evaluator (Gemini 2.5 Pro) for consistent evaluation
-    # This ensures all evaluations use the same model regardless of what model is being tested
-    active_llm = llm_evaluator
+    # Always use the configured evaluator model (defaults to Gemini 2.5 Pro)
+    # This ensures consistent evaluation regardless of which model is being tested
+    evaluator_model = get_evaluator_model()
+    active_llm = ChatOpenAI(
+        model=evaluator_model,
+        openai_api_base="https://openrouter.ai/api/v1",
+        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        temperature=0,
+    )
 
     prompt = f"""Is the actual response consistent with the expected response?
 
@@ -1341,15 +1357,10 @@ async def main():
             "Please set it in a .env file or export it as an environment variable."
         )
 
-    # Configure dedicated evaluator LLM (always Gemini 2.5 Pro for consistency)
-    llm_evaluator = ChatOpenAI(
-        model=EVALUATOR_MODEL,
-        openai_api_base="https://openrouter.ai/api/v1",
-        openai_api_key=OPENROUTER_API_KEY,
-        temperature=0,
-    )
-
-    # Configure default LLM for testing (also Gemini 2.5 Pro for single-model mode)
+    # Configure LangChain ChatOpenAI with OpenRouter
+    # Re-resolve MODEL inside main to respect any env var changes that occurred
+    # after module import (e.g., in CI or wrapper scripts).
+    resolved_model = get_openrouter_model()  # Model for testing (configurable)
     llm = ChatOpenAI(
         model=EVALUATOR_MODEL,
         openai_api_base="https://openrouter.ai/api/v1",
@@ -1359,13 +1370,16 @@ async def main():
 
     # Configure web-enabled LLM (with :online suffix for OpenRouter web search)
     llm_web = ChatOpenAI(
-        model=f"{EVALUATOR_MODEL}:online",
+        model=f"{resolved_model}:online",
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=OPENROUTER_API_KEY,
         temperature=0,
     )
 
-    print(f"✨ Using unified evaluator: {EVALUATOR_MODEL}")
+    # Get evaluator model configuration
+    evaluator_model = get_evaluator_model()
+    print(f"✨ Using evaluator model: {evaluator_model}")
+    print(f"📝 Using tested model: {resolved_model}")
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {EVALUATOR_MODEL}:online)")

@@ -42,25 +42,35 @@ export OPENROUTER_API_KEY="your_key_here"
 
 Get your API key from [OpenRouter](https://openrouter.ai/).
 
-### (Optional) Choose a specific OpenRouter model
+### (Optional) Choose specific OpenRouter models
 
-By default, the evaluator uses Google Gemini 2.5 Flash via OpenRouter, which has reliable tool calling support:
+The evaluation system uses two separate models:
 
-- Default: `google/gemini-2.5-flash`
+1. **Tested Model** - The model being evaluated for tool calling and response quality
+   - Default: `google/gemini-2.5-flash`
+   - Configure via: `OPENROUTER_MODEL` environment variable
 
-You can override this at runtime using the `OPENROUTER_MODEL` environment variable:
+2. **Evaluator Model** - The model used to judge and classify responses for consistency
+   - Default: `google/gemini-2.5-pro`
+   - Configure via: `EVALUATOR_MODEL` environment variable
+
+This separation ensures consistent evaluation across different tested models.
 
 ```bash
-# Examples
-export OPENROUTER_MODEL="google/gemini-2.5-pro"
+# Test Claude with Gemini Pro as evaluator (default evaluator)
 export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
-export OPENROUTER_MODEL="openai/gpt-4o"
+python evaluate_mcp.py
 
-# Run the evaluator
+# Test GPT-4o with Claude as evaluator
+export OPENROUTER_MODEL="openai/gpt-4o"
+export EVALUATOR_MODEL="anthropic/claude-3.5-sonnet"
+python evaluate_mcp.py
+
+# Use defaults (Gemini Flash tested, Gemini Pro evaluates)
 python evaluate_mcp.py
 ```
 
-If `OPENROUTER_MODEL` is not set, the tool will continue to use the default `google/gemini-2.5-flash`.
+If these environment variables are not set, the tool uses the defaults listed above.
 
 ## Quick Start
 

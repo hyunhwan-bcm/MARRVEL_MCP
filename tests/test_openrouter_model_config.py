@@ -36,15 +36,57 @@ def test_openrouter_model_env_override():
             os.environ["OPENROUTER_MODEL"] = original
 
 
-def test_evaluate_mcp_unified_evaluator(tmp_path):
-    """Evaluator model should always be Gemini 2.5 Pro, regardless of environment variables."""
+def test_default_evaluator_model_fallback():
+    """When EVALUATOR_MODEL is unset, fallback to Gemini 2.5 Pro."""
+    original = os.environ.pop("EVALUATOR_MODEL", None)
+    try:
+        # Reload to ensure no cached value interferes
+        importlib.reload(llm_config)
+        assert (
+            llm_config.get_evaluator_model() == llm_config.DEFAULT_EVALUATOR_MODEL
+        ), "Expected fallback to DEFAULT_EVALUATOR_MODEL when env var missing"
+        assert (
+            llm_config.get_evaluator_model() == "google/gemini-2.5-pro"
+        ), "Expected evaluator to default to Gemini 2.5 Pro"
+    finally:
+        if original is not None:
+            os.environ["EVALUATOR_MODEL"] = original
+
+
+def test_evaluator_model_env_override():
+    """Environment variable should override the default evaluator model."""
+    override = "anthropic/claude-3.5-sonnet"
+    original = os.environ.get("EVALUATOR_MODEL")
+    os.environ["EVALUATOR_MODEL"] = override
+    try:
+        importlib.reload(llm_config)
+        assert (
+            llm_config.get_evaluator_model() == override
+        ), "Expected evaluator env override to take precedence"
+    finally:
+        # Restore original state
+        if original is None:
+            os.environ.pop("EVALUATOR_MODEL", None)
+        else:
+            os.environ["EVALUATOR_MODEL"] = original
+
+
+def test_evaluate_mcp_module_resolves_evaluator_model(tmp_path):
+    """Loading evaluate_mcp as a module should use EVALUATOR_MODEL for evaluation, not OPENROUTER_MODEL."""
     from importlib.machinery import SourceFileLoader
     from importlib.util import spec_from_loader, module_from_spec
 
-    # Try to override with a different model
-    override = "openai/gpt-4o"
-    original = os.environ.get("OPENROUTER_MODEL")
-    os.environ["OPENROUTER_MODEL"] = override
+    test_override = "openai/gpt-4o"
+    evaluator_override = "anthropic/claude-3.5-sonnet"
+
+    original_test = os.environ.get("OPENROUTER_MODEL")
+    original_eval = os.environ.get("EVALUATOR_MODEL")
+
+    # Set OPENROUTER_MODEL for tested model
+    os.environ["OPENROUTER_MODEL"] = test_override
+    # Set EVALUATOR_MODEL for evaluation
+    os.environ["EVALUATOR_MODEL"] = evaluator_override
+
     try:
         eval_path = os.path.abspath("mcp-llm-test/evaluate_mcp.py")
         loader = SourceFileLoader("evaluate_mcp_for_test", eval_path)
@@ -52,14 +94,21 @@ def test_evaluate_mcp_unified_evaluator(tmp_path):
         module = module_from_spec(spec)
         loader.exec_module(module)
 
-        # The evaluator model should ALWAYS be Gemini 2.5 Pro, regardless of env var
-        expected_evaluator = "google/gemini-2.5-pro"
-        assert getattr(module, "EVALUATOR_MODEL") == expected_evaluator, (
-            f"Expected EVALUATOR_MODEL to always be {expected_evaluator}, "
-            f"got {getattr(module, 'EVALUATOR_MODEL')}"
-        )
+        # EVALUATOR_MODEL should be used for evaluation
+        assert (
+            getattr(module, "EVALUATOR_MODEL") == evaluator_override
+        ), "Expected EVALUATOR_MODEL to match environment variable"
+
+        # MODEL is deprecated but should still be set to default evaluator model
+        assert (
+            getattr(module, "MODEL") == "google/gemini-2.5-pro"
+        ), "Expected MODEL to remain as hardcoded evaluator (deprecated)"
     finally:
-        if original is None:
+        if original_test is None:
             os.environ.pop("OPENROUTER_MODEL", None)
         else:
-            os.environ["OPENROUTER_MODEL"] = original
+            os.environ["OPENROUTER_MODEL"] = original_test
+        if original_eval is None:
+            os.environ.pop("EVALUATOR_MODEL", None)
+        else:
+            os.environ["EVALUATOR_MODEL"] = original_eval
