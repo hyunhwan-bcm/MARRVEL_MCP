@@ -16,7 +16,7 @@ import sys
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from llm_config import get_openrouter_model
+from llm_config import get_default_model
 
 load_dotenv()
 
@@ -31,7 +31,7 @@ async def test_web_search():
         return
 
     # Get model
-    model = get_openrouter_model()
+    model = get_default_model()
     print(f"Testing model: {model}")
     print(f"Testing web search with: {model}:online\n")
 

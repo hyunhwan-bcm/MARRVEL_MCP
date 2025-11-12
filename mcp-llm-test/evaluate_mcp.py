@@ -72,10 +72,10 @@ Examples:
 This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
 """
 
-from llm_config import get_openrouter_model, get_default_model_config, DEFAULT_OPENROUTER_MODEL
+from llm_config import get_default_model, get_default_model_config, DEFAULT_OPENROUTER_MODEL
 
 # Resolve model lazily at import so tests can patch env before main() runs.
-MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash (backward compat)
+MODEL = get_default_model()  # default is google/gemini-2.5-flash (backward compat)
 MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
 
 # Cache settings
@@ -1504,6 +1504,7 @@ async def main():
                 # Validate provider credentials for each model
                 try:
                     from llm_providers import validate_provider_credentials
+
                     validate_provider_credentials(model_provider)
                 except ValueError as e:
                     print(f"⚠️  Skipping model {model_id}: {e}")
