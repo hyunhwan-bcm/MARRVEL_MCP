@@ -98,3 +98,11 @@ config:
 
   # Whether to cache results per model
   use_cache: true
+
+  # Evaluator model configuration (used for grading/classifying test responses)
+  # This model evaluates all test responses for consistent comparison across models
+  # If not specified, falls back to environment variables EVALUATION_MODEL and EVALUATION_PROVIDER
+  # or defaults to google/gemini-2.5-pro via openrouter
+  evaluator:
+    provider: "openrouter"
+    model: "google/gemini-2.5-pro"
