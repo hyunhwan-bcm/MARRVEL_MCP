@@ -509,7 +509,8 @@ async def run_test_case(
                     mcp_client, user_input, vanilla_mode, web_mode, llm_instance, llm_web_instance
                 )
             )
-            classification = await evaluate_response(langchain_response, expected, llm_instance)
+            # Use the global evaluator LLM (not the model being tested) for consistent evaluation
+            classification = await evaluate_response(langchain_response, expected)
             result = {
                 "question": user_input,
                 "expected": expected,
