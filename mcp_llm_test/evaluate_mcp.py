@@ -305,7 +305,7 @@ When answering:
 - Cite specific sources when available
 - Structure your response to conclude with a direct answer to the question asked"""
     else:
-        system_message = "You are a helpful genetics research assistant. You have access to tools that can query genetic databases and provide accurate information. Always use the available tools to answer questions about genes, variants, and genetic data. Do not make up or guess information - use the tools to get accurate data."
+        system_message = "You are a helpful genetics research assistant. You have access to tools that can query genetic databases and provide accurate information. Always use the available tools to answer questions about genes, variants, and genetic data. Do not use pubmed tools unless pubmed is mentioned in the question. Do not make up or guess information - use the tools to get accurate data."
 
     messages = [
         SystemMessage(content=system_message),
@@ -1083,7 +1083,7 @@ Cache Behavior:
     parser.add_argument(
         "--concurrency",
         type=int,
-        default=2 if os.getenv("LLM_PROVIDER", default="") == "bedrock" else 4,
+        default=2 if os.getenv("LLM_PROVIDER", default="").lower() == "bedrock" else 4,
         metavar="N",
         help="Maximum number of concurrent test executions (default: 4). Increase for faster execution if API rate limits allow.",
     )
