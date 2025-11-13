@@ -1,7 +1,7 @@
 import os
 import importlib
 
-import llm_config
+from config import llm_config
 
 
 def test_default_openrouter_model_fallback():
@@ -45,7 +45,7 @@ def test_evaluate_mcp_module_resolves_override(tmp_path):
     original = os.environ.get("OPENROUTER_MODEL")
     os.environ["OPENROUTER_MODEL"] = override
     try:
-        eval_path = os.path.abspath("mcp-llm-test/evaluate_mcp.py")
+        eval_path = os.path.abspath("mcp_llm_test/evaluate_mcp.py")
         loader = SourceFileLoader("evaluate_mcp_for_test", eval_path)
         spec = spec_from_loader(loader.name, loader)
         module = module_from_spec(spec)

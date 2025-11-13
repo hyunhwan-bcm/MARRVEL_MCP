@@ -31,7 +31,7 @@ Environment Variables:
 - LLM_MODEL: Model ID when using explicit provider selection
 
 Usage:
-    from llm_providers import create_llm_instance, get_provider_config
+    from config.llm_providers import create_llm_instance, get_provider_config
 
     # Create an LLM instance for OpenRouter
     llm = create_llm_instance(

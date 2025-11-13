@@ -17,7 +17,7 @@ import pytest
 os.environ["OPENROUTER_API_KEY"] = "dummy_key_for_testing"
 
 # Add project root to path to import evaluate_mcp
-sys.path.insert(0, str(Path(__file__).parent.parent / "mcp-llm-test"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "mcp_llm_test"))
 
 from evaluate_mcp import parse_subset
 
