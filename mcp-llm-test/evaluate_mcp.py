@@ -1294,7 +1294,7 @@ Cache Behavior:
     parser.add_argument(
         "--concurrency",
         type=int,
-        default=4,
+        default=2 if os.getenv("LLM_PROVIDER").lower() == "bedrock" else 4,
         metavar="N",
         help="Maximum number of concurrent test executions (default: 4). Increase for faster execution if API rate limits allow.",
     )

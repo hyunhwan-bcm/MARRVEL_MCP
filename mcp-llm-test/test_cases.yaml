@@ -1,6 +1,6 @@
 - case:
     name: "Gene for NM_001045477.4:c.187C>T"
-    input: "What gene is primarily associated with the variant NM_001045477.4:c.187C>T?"
+    input: "What genes are associated with the variant NM_001045477.4:c.187C>T?"
     expected: "The genes associated includes NUTM2G."
 
 - case:
