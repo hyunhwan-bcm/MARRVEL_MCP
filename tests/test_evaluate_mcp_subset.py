@@ -16,7 +16,7 @@ import yaml
 os.environ["OPENROUTER_API_KEY"] = "dummy_key_for_testing"
 
 # Add project root to path to import evaluate_mcp
-sys.path.insert(0, str(Path(__file__).parent.parent / "mcp-llm-test"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "mcp_llm_test"))
 
 
 def test_subset_argument_filters_test_cases():
@@ -24,7 +24,7 @@ def test_subset_argument_filters_test_cases():
     from evaluate_mcp import parse_subset
 
     # Load actual test cases to get the count
-    test_cases_path = Path(__file__).parent.parent / "mcp-llm-test" / "test_cases.yaml"
+    test_cases_path = Path(__file__).parent.parent / "mcp_llm_test" / "test_cases.yaml"
     with open(test_cases_path, "r") as f:
         test_cases = yaml.safe_load(f)
 
@@ -50,7 +50,7 @@ def test_subset_with_invalid_index_fails():
     from evaluate_mcp import parse_subset
 
     # Load actual test cases to get the count
-    test_cases_path = Path(__file__).parent.parent / "mcp-llm-test" / "test_cases.yaml"
+    test_cases_path = Path(__file__).parent.parent / "mcp_llm_test" / "test_cases.yaml"
     with open(test_cases_path, "r") as f:
         test_cases = yaml.safe_load(f)
 
@@ -67,7 +67,7 @@ def test_subset_with_invalid_index_fails():
 
 def test_load_test_cases_file_exists():
     """Verify that the test_cases.yaml file exists and can be loaded."""
-    test_cases_path = Path(__file__).parent.parent / "mcp-llm-test" / "test_cases.yaml"
+    test_cases_path = Path(__file__).parent.parent / "mcp_llm_test" / "test_cases.yaml"
     assert test_cases_path.exists(), f"Test cases file not found at {test_cases_path}"
 
     with open(test_cases_path, "r") as f:

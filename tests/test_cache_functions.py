@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-# Add mcp-llm-test to the path
-sys.path.insert(0, str(Path(__file__).parent.parent / "mcp-llm-test"))
+# Add mcp_llm_test to the path
+sys.path.insert(0, str(Path(__file__).parent.parent / "mcp_llm_test"))
 
 from evaluate_mcp import (
     CACHE_DIR,
