@@ -9,7 +9,10 @@ and responses in the LangChain-based MCP evaluation framework. It manages:
 - Error handling for tool execution
 """
 
+import asyncio
 import json
+import logging
+import random
 from typing import Any, Dict, List, Tuple
 
 from fastmcp.client import Client
@@ -29,6 +32,83 @@ class TokenLimitExceeded(Exception):
     def __init__(self, token_count: int):
         super().__init__(f"TOKEN_LIMIT_EXCEEDED: {token_count}")
         self.token_count = token_count
+
+
+async def invoke_with_throttle_retry(
+    llm_instance,
+    messages,
+    max_retries: int = 8,
+    initial_delay: float = 2.0,
+    max_delay: float = 60.0,
+    add_initial_jitter: bool = False,
+):
+    """
+    Invoke LLM with exponential backoff for throttling exceptions.
+
+    This wrapper handles both botocore ThrottlingException (from AWS Bedrock)
+    and general rate limiting errors with exponential backoff and jitter.
+
+    Args:
+        llm_instance: LangChain LLM instance to invoke
+        messages: Messages to send to the LLM
+        max_retries: Maximum number of retry attempts (default: 8)
+        initial_delay: Initial delay in seconds before first retry (default: 2.0)
+        max_delay: Maximum delay between retries in seconds (default: 60.0)
+        add_initial_jitter: If True, add 0-1s random delay before first request.
+                           If None/False, auto-detect Bedrock and add jitter for it.
+
+    Returns:
+        LLM response
+
+    Raises:
+        Last exception if all retries fail
+    """
+    # Auto-detect Bedrock and add initial jitter to spread out concurrent requests
+    is_bedrock = "ChatBedrock" in str(type(llm_instance))
+    if add_initial_jitter or (is_bedrock and add_initial_jitter is not False):
+        initial_jitter = random.uniform(0, 1.0)
+        await asyncio.sleep(initial_jitter)
+
+    delay = initial_delay
+    last_exception = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            return await llm_instance.ainvoke(messages)
+        except Exception as e:
+            last_exception = e
+
+            # Check if it's a throttling exception (from botocore/AWS Bedrock)
+            is_throttling = False
+            error_name = type(e).__name__
+            error_msg = str(e).lower()
+
+            if "throttling" in error_name.lower() or "throttling" in error_msg:
+                is_throttling = True
+            elif "rate" in error_msg and "limit" in error_msg:
+                is_throttling = True
+            elif "too many" in error_msg:
+                is_throttling = True
+
+            # Only retry on throttling/rate limit errors
+            if is_throttling and attempt < max_retries:
+                # Add jitter to avoid thundering herd (10-30% of delay)
+                jitter = delay * random.uniform(0.1, 0.3)
+                sleep_time = min(delay + jitter, max_delay)
+
+                logging.warning(
+                    f"Throttling detected ({error_name}), retrying in {sleep_time:.2f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                await asyncio.sleep(sleep_time)
+                delay = min(delay * 2, max_delay)  # Exponential backoff with cap
+                continue
+
+            # For non-throttling errors or exhausted retries, raise immediately
+            raise
+
+    # If we get here, we exhausted all retries
+    raise last_exception
 
 
 def count_tokens(text: str, model: str = "gpt-4") -> int:
@@ -104,8 +184,8 @@ async def execute_agentic_loop(
         TokenLimitExceeded: If tool result exceeds max_tokens
     """
     for iteration in range(max_iterations):
-        # Invoke LLM with current messages
-        response = await llm_with_tools.ainvoke(messages)
+        # Invoke LLM with current messages (with throttle retry and auto-jitter for Bedrock)
+        response = await invoke_with_throttle_retry(llm_with_tools, messages)
         messages.append(response)
 
         # Check if there are tool calls
