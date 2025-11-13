@@ -1292,17 +1292,8 @@ async def main():
         temperature=0,
     )
 
-    # Display configuration
-    if provider == "openrouter":
-        if resolved_model != DEFAULT_MODEL:
-            print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
-        else:
-            print(f"✨ Using default OpenRouter model: {resolved_model}")
-    else:
-        print(f"🔧 Using provider: {provider}, model: {resolved_model}")
-
-    # Display evaluator configuration
-    print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
+    # Display configuration - provider-agnostic messaging
+    print(f"🔧 Model: {provider} / {resolved_model}")
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
@@ -1402,7 +1393,6 @@ async def main():
             ):
                 yaml_provider = yaml_evaluator_config["provider"]
                 yaml_model = yaml_evaluator_config["model"]
-                print(f"🔄 Overriding evaluator from YAML config: {yaml_provider} / {yaml_model}")
 
                 # Validate and create new evaluator instance
                 try:
@@ -1418,7 +1408,7 @@ async def main():
                         model_id=yaml_model,
                         temperature=0,
                     )
-                    print(f"✅ Evaluator updated: {yaml_provider} / {yaml_model}")
+                    print(f"📊 Evaluator: {yaml_provider} / {yaml_model}")
                 except Exception as e:
                     print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
                     print(
@@ -1766,6 +1756,7 @@ async def main():
 
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
     elif args.with_web:
+        print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
         print(
             f"🚀 Running {len(test_cases)} test case(s) with THREE modes: vanilla, web search, and MARRVEL-MCP"
         )
@@ -1854,6 +1845,7 @@ async def main():
 
     # Handle --with-vanilla mode: run both vanilla and tool modes
     elif args.with_vanilla:
+        print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
         print(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
         print(f"   Concurrency: {args.concurrency}")
         print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
@@ -1921,6 +1913,7 @@ async def main():
 
     else:
         # Normal mode: run with tools only
+        print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
         print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
         print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
 
