@@ -5,10 +5,38 @@ This module centralizes environment-driven configuration for the model
 used across different providers (OpenRouter, OpenAI, Bedrock, Ollama).
 It maintains backward compatibility with the original OpenRouter-only setup.
 
+All providers except Bedrock use the OpenAI API standard, making it easy to
+work with OpenAI-compatible services like Ollama, LM Studio, and others.
+
 Contract:
 - Input: environment variables (OPENROUTER_MODEL, LLM_PROVIDER, etc.)
 - Output: model id and provider configuration
 - Fallback: defaults to Gemini 2.5 Flash via OpenRouter
+
+Environment Variables for Provider Configuration:
+- LLM_PROVIDER: Provider type (bedrock, openai, openrouter, ollama, lm-studio)
+- LLM_MODEL: Model ID for the specified provider
+- OPENROUTER_MODEL: OpenRouter model ID (legacy, for backward compatibility)
+
+Environment Variables for API Access:
+- {PROVIDER}_API_KEY: API key (e.g., OPENAI_API_KEY, OLLAMA_API_KEY, LM_STUDIO_API_KEY)
+- {PROVIDER}_API_BASE: Override default base URL (e.g., OPENAI_API_BASE, OLLAMA_API_BASE, LM_STUDIO_API_BASE)
+
+Examples:
+    # Use Ollama locally
+    export LLM_PROVIDER=ollama
+    export LLM_MODEL=llama2
+    # OLLAMA_API_BASE defaults to http://localhost:11434/v1
+
+    # Use LM Studio
+    export LLM_PROVIDER=lm-studio
+    export LLM_MODEL=local-model
+    # LM_STUDIO_API_BASE defaults to http://localhost:1234/v1
+
+    # Use remote Ollama instance
+    export LLM_PROVIDER=ollama
+    export LLM_MODEL=llama2
+    export OLLAMA_API_BASE=http://remote-server:11434/v1
 
 Migration Notes:
 - Original `get_openrouter_model()` function is preserved for backward compatibility
