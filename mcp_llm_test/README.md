@@ -573,12 +573,12 @@ jobs:
           LLM_PROVIDER: openrouter
           LLM_MODEL: google/gemini-2.5-flash
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          
+
           # Alternative: Use OpenAI
           # LLM_PROVIDER: openai
           # LLM_MODEL: gpt-4
           # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          
+
           # Alternative: Use AWS Bedrock
           # LLM_PROVIDER: bedrock
           # LLM_MODEL: anthropic.claude-3-sonnet-20240229-v1:0
