@@ -64,24 +64,18 @@ For comprehensive examples and test cases, see: [test_cases.yaml](mcp-llm-test/t
 
 ## Features
 
-- **42 MCP Tools** for genetics research
+MARRVEL-MCP supports **various MCP Tools** for genetics research including:
+
 - Gene queries (by symbol, ID, or position)
 - Variant analysis (dbNSFP, ClinVar, gnomAD)
 - Disease associations (OMIM, HPO)
 - Ortholog information (DIOPT)
 - Expression data (GTEx)
-- Drug targets (Pharos)
-- Literature search (PubMed, PMC):
-  - Search PubMed by keyword
-  - Get abstracts from PMC articles
-  - Extract full text from open-access PMC articles
-  - Extract tables with captions (markdown format)
-  - Extract figure captions
-  - Support for both PMID and PMCID
+- Literature search (PubMed, PMC)
 
 ## LLM Provider Configuration
 
-MARRVEL-MCP supports multiple LLM providers through a unified OpenAI API-compatible interface. This makes it easy to use with various services including OpenRouter, OpenAI, Ollama, and LM Studio.
+MARRVEL-MCP supports multiple LLM providers through a unified OpenAI API-compatible interface. This makes it easy to use with various services including [AWS Bedrock](https://aws.amazon.com/bedrock/), [OpenRouter](https://openrouter.ai/), [OpenAI](https://openai.com/api/), [Ollama](https://ollama.com/), and [LM Studio](https://lmstudio.ai/).
 
 ### Supported Providers
 
@@ -176,11 +170,9 @@ export OPENROUTER_API_KEY=your_key
 
 ## Documentation
 
-- **[API Reference](./API_DOCUMENTATION.md)** - Complete tool documentation
-- **[MCP LLM Evaluation](mcp-llm-test/README.md)** - CLI tool for testing MCP with LangChain
-- **[Architecture](docs/ARCHITECTURE.md)** - Technical details
+<!--- **[API Reference](./API_DOCUMENTATION.md)** - Complete tool documentation-->
+- **[MCP LLM Evaluation](mcp_llm_test/README.md)** - CLI tool for testing MCP with LangChain
 - **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines
-- **[OpenAI Integration](examples/openai/README.md)** - Using with OpenAI
 
 ## Development
 
