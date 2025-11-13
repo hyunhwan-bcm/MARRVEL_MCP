@@ -10,7 +10,7 @@
 
 - case:
     name: "NUTM2G OMIM entries"
-    input: "Does NUTM2G have any OMIM entries or associated Mendelian phenotypes?"
+    input: "Does NUTM2G have any entries in OMIM database?"
     expected: "NUTM2G has no OMIM match and no known Mendelian phenotypes."
 
 - case:
