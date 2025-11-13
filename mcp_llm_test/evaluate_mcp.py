@@ -567,6 +567,8 @@ def generate_html_report(
     dual_mode: bool = False,
     tri_mode: bool = False,
     multi_model: bool = False,
+    evaluator_model: str | None = None,
+    evaluator_provider: str | None = None,
 ) -> str:
     """Generate HTML report with modal popups, reordered columns, and success rate summary.
 
@@ -575,6 +577,8 @@ def generate_html_report(
         dual_mode: If True, results contain both vanilla and tool mode responses
         tri_mode: If True, results contain vanilla, web, and tool mode responses
         multi_model: If True, results contain multiple models across all three modes
+        evaluator_model: Model ID used for evaluation/grading
+        evaluator_provider: Provider used for evaluation model
 
     Returns:
         Path to generated HTML file
@@ -600,6 +604,7 @@ def generate_html_report(
                 if model_id not in models_stats:
                     models_stats[model_id] = {
                         "name": model_data["name"],
+                        "provider": model_data.get("provider", "unknown"),
                         "vanilla_success": 0,
                         "web_success": 0,
                         "tool_success": 0,
@@ -924,6 +929,8 @@ def generate_html_report(
             models_stats=models_stats,
             total_tests=total_tests,
             results=enriched_results,
+            evaluator_model=evaluator_model,
+            evaluator_provider=evaluator_provider,
         )
     elif tri_mode:
         html_content = template.render(
@@ -936,6 +943,8 @@ def generate_html_report(
             successful_tool=successful_tool,
             total_tests=total_tests,
             results=enriched_results,
+            evaluator_model=evaluator_model,
+            evaluator_provider=evaluator_provider,
         )
     elif dual_mode:
         html_content = template.render(
@@ -946,6 +955,8 @@ def generate_html_report(
             successful_tool=successful_tool,
             total_tests=total_tests,
             results=enriched_results,
+            evaluator_model=evaluator_model,
+            evaluator_provider=evaluator_provider,
         )
     else:
         html_content = template.render(
@@ -954,6 +965,8 @@ def generate_html_report(
             successful_tests=successful_tests,
             total_tests=total_tests,
             results=enriched_results,
+            evaluator_model=evaluator_model,
+            evaluator_provider=evaluator_provider,
         )
 
     temp_html.write(html_content)
@@ -1485,12 +1498,14 @@ async def main():
             for model_config in models:
                 model_name = model_config["name"]
                 model_id = model_config["id"]
+                model_provider = model_config.get("provider", "openrouter")
                 skip_web_search = model_config.get("skip_web_search", False)
 
                 if model_id not in all_models_results:
                     all_models_results[model_id] = {
                         "name": model_name,
                         "id": model_id,
+                        "provider": model_provider,
                         "vanilla": [],
                         "web": [],
                         "tool": [],
@@ -1564,6 +1579,7 @@ async def main():
             for model_id, model_data in all_models_results.items():
                 test_result["models"][model_id] = {
                     "name": model_data["name"],
+                    "provider": model_data["provider"],
                     "vanilla": model_data["vanilla"][i],
                     "web": model_data["web"][i],
                     "tool": model_data["tool"][i],
@@ -1572,7 +1588,12 @@ async def main():
 
         # Generate HTML report with multi-model comparison
         try:
-            html_path = generate_html_report(combined_results, multi_model=True)
+            html_path = generate_html_report(
+                combined_results,
+                multi_model=True,
+                evaluator_model=resolved_model,
+                evaluator_provider=provider,
+            )
             open_in_browser(html_path)
         except Exception as e:
             print(f"--- Error generating HTML or opening browser: {e} ---")
@@ -1658,7 +1679,12 @@ async def main():
 
         # Generate HTML report with 3-way comparison
         try:
-            html_path = generate_html_report(combined_results, tri_mode=True)
+            html_path = generate_html_report(
+                combined_results,
+                tri_mode=True,
+                evaluator_model=resolved_model,
+                evaluator_provider=provider,
+            )
             open_in_browser(html_path)
         except Exception as e:
             print(f"--- Error generating HTML or opening browser: {e} ---")
@@ -1720,7 +1746,12 @@ async def main():
 
         # Generate HTML report with dual-mode results
         try:
-            html_path = generate_html_report(combined_results, dual_mode=True)
+            html_path = generate_html_report(
+                combined_results,
+                dual_mode=True,
+                evaluator_model=resolved_model,
+                evaluator_provider=provider,
+            )
             open_in_browser(html_path)
         except Exception as e:
             print(f"--- Error generating HTML or opening browser: {e} ---")
@@ -1759,7 +1790,11 @@ async def main():
 
         # Generate HTML report and open in browser
         try:
-            html_path = generate_html_report(ordered_results)
+            html_path = generate_html_report(
+                ordered_results,
+                evaluator_model=resolved_model,
+                evaluator_provider=provider,
+            )
             open_in_browser(html_path)
         except Exception as e:
             print(f"--- Error generating HTML or opening browser: {e} ---")
