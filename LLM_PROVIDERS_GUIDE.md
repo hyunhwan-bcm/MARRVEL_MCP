@@ -230,7 +230,7 @@ Factory function to create LLM instances for any provider.
 
 **Example:**
 ```python
-from llm_providers import create_llm_instance
+from config.llm_providers import create_llm_instance
 
 # Create OpenRouter instance
 llm = create_llm_instance(
@@ -407,7 +407,7 @@ The framework maintains **100% backward compatibility**. Existing code will cont
 #### Before (OpenRouter-only)
 
 ```python
-from llm_config import get_openrouter_model
+from config.llm_config import get_openrouter_model
 from langchain_openai import ChatOpenAI
 import os
 
@@ -423,8 +423,8 @@ llm = ChatOpenAI(
 #### After (Multi-provider)
 
 ```python
-from llm_config import get_default_model_config
-from llm_providers import create_llm_instance
+from config.llm_config import get_default_model_config
+from config.llm_providers import create_llm_instance
 
 model_id, provider = get_default_model_config()
 llm = create_llm_instance(
@@ -437,8 +437,8 @@ llm = create_llm_instance(
 #### Or Keep Using Legacy API (Still Works!)
 
 ```python
-from llm_config import get_openrouter_model
-from llm_providers import create_llm_instance
+from config.llm_config import get_openrouter_model
+from config.llm_providers import create_llm_instance
 
 model = get_openrouter_model()
 llm = create_llm_instance(

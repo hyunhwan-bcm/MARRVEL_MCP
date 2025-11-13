@@ -46,7 +46,7 @@ import tiktoken
 from tqdm.asyncio import tqdm as atqdm
 
 from marrvel_mcp.server import create_server
-from llm_providers import create_llm_instance, get_provider_config, ProviderType
+from config.llm_providers import create_llm_instance, get_provider_config, ProviderType
 from marrvel_mcp import (
     convert_tool_to_langchain_format,
     parse_tool_result_content,
@@ -74,7 +74,7 @@ Examples:
 This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
 """
 
-from llm_config import get_openrouter_model, get_default_model_config, DEFAULT_MODEL
+from config.llm_config import get_openrouter_model, get_default_model_config, DEFAULT_MODEL
 
 # Resolve model lazily at import so tests can patch env before main() runs.
 MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash (backward compat)
@@ -1136,7 +1136,7 @@ async def main():
     resolved_model, provider = get_default_model_config()
 
     # Validate provider credentials before proceeding
-    from llm_providers import validate_provider_credentials
+    from config.llm_providers import validate_provider_credentials
 
     try:
         validate_provider_credentials(provider)
@@ -1292,7 +1292,7 @@ async def main():
 
                 # Validate provider credentials for each model
                 try:
-                    from llm_providers import validate_provider_credentials
+                    from config.llm_providers import validate_provider_credentials
 
                     validate_provider_credentials(model_provider)
                 except ValueError as e:
