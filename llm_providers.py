@@ -78,7 +78,7 @@ class ProviderConfig:
     """Configuration for an LLM provider.
 
     Attributes:
-        name: Provider name (bedrock, openai, openrouter, ollama)
+        name: Provider name (bedrock, openai, openrouter, ollama, lm-studio)
         api_base: Default API base URL (None for Bedrock and default OpenAI)
         api_base_env: Environment variable name for overriding API base URL
         api_key_env: Environment variable name for API key
