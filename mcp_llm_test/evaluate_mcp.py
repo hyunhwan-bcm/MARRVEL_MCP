@@ -1292,14 +1292,8 @@ async def main():
         temperature=0,
     )
 
-    # Display configuration
-    if provider == "openrouter":
-        if resolved_model != DEFAULT_MODEL:
-            print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
-        else:
-            print(f"✨ Using default OpenRouter model: {resolved_model}")
-    else:
-        print(f"🔧 Using provider: {provider}, model: {resolved_model}")
+    # Display configuration - provider-agnostic messaging
+    print(f"🔧 Model: {provider} / {resolved_model}")
 
     # Display evaluator configuration
     print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
