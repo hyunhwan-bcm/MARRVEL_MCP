@@ -1,6 +1,6 @@
 # MCP LLM Evaluation Tool
 
-A comprehensive evaluation framework for testing MARRVEL-MCP tools using LangChain and OpenRouter. This tool evaluates the accuracy and reliability of MCP tools by running test cases and comparing actual responses against expected outcomes.
+A comprehensive evaluation framework for testing MARRVEL-MCP tools using LangChain with multiple LLM providers. This tool evaluates the accuracy and reliability of MCP tools by running test cases and comparing actual responses against expected outcomes.
 
 ## Table of Contents
 
@@ -13,12 +13,13 @@ A comprehensive evaluation framework for testing MARRVEL-MCP tools using LangCha
 - [Best Practices](#best-practices)
 - [Test Cases](#test-cases)
 - [Output and Reports](#output-and-reports)
+- [Provider-Specific Features](#provider-specific-features)
 
 ## Overview
 
 The `evaluate_mcp.py` script provides:
 - **Automated Testing**: Run test cases defined in `test_cases.yaml`
-- **LLM-based Evaluation**: Uses LangChain with OpenRouter for intelligent tool calling
+- **Multi-Provider Support**: Uses LangChain with various LLM providers (OpenRouter, OpenAI, Bedrock, Ollama, LM Studio)
 - **Caching**: Smart caching system to avoid redundant API calls
 - **HTML Reports**: Beautiful HTML reports with conversation history
 - **Flexible Execution**: Run all tests, specific subsets, or force fresh evaluations
@@ -31,41 +32,86 @@ cd MARRVEL_MCP
 pip install -r requirements.txt
 ```
 
-2. Set up your OpenRouter API key:
-```bash
-# Create a .env file in the project root
-echo "OPENROUTER_API_KEY=your_key_here" > .env
+2. Configure your LLM provider:
 
-# Or export as environment variable
-export OPENROUTER_API_KEY="your_key_here"
+The evaluation tool supports multiple LLM providers. Choose one based on your needs:
+
+### Provider Configuration
+
+All providers use a consistent environment variable pattern:
+- `LLM_PROVIDER`: Provider type (openrouter, openai, bedrock, ollama, lm-studio)
+- `LLM_MODEL`: Model ID for the specified provider
+- `{PROVIDER}_API_KEY`: API key for authentication (if required)
+- `{PROVIDER}_API_BASE`: Override the default API base URL (optional)
+
+### Quick Setup Examples
+
+#### OpenRouter (Default)
+Access 100+ models through a single API:
+```bash
+export LLM_PROVIDER=openrouter
+export LLM_MODEL=google/gemini-2.5-flash
+export OPENROUTER_API_KEY=your_key_here
 ```
 
 Get your API key from [OpenRouter](https://openrouter.ai/).
 
-### (Optional) Choose a specific OpenRouter model
-
-By default, the evaluator uses Google Gemini 2.5 Flash via OpenRouter, which has reliable tool calling support:
-
-- Default: `google/gemini-2.5-flash`
-
-You can override this at runtime using the `OPENROUTER_MODEL` environment variable:
-
+#### OpenAI
+Use OpenAI's official models:
 ```bash
-# Examples
-export OPENROUTER_MODEL="google/gemini-2.5-pro"
-export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
-export OPENROUTER_MODEL="openai/gpt-4o"
-
-# Run the evaluator
-python evaluate_mcp.py
+export LLM_PROVIDER=openai
+export LLM_MODEL=gpt-4
+export OPENAI_API_KEY=your_key_here
 ```
 
-If `OPENROUTER_MODEL` is not set, the tool will continue to use the default `google/gemini-2.5-flash`.
+#### Ollama (Local)
+Run LLMs locally:
+```bash
+# Install Ollama from https://ollama.ai
+ollama pull llama2
+
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2
+# OLLAMA_API_BASE defaults to http://localhost:11434/v1
+```
+
+#### LM Studio (Local)
+Use LM Studio for local inference:
+```bash
+# Start LM Studio with local server enabled
+export LLM_PROVIDER=lm-studio
+export LLM_MODEL=local-model
+# LM_STUDIO_API_BASE defaults to http://localhost:1234/v1
+```
+
+#### AWS Bedrock
+Use AWS-managed foundation models:
+```bash
+export LLM_PROVIDER=bedrock
+export LLM_MODEL=anthropic.claude-3-sonnet-20240229-v1:0
+export AWS_REGION=us-east-1
+# AWS credentials from ~/.aws/credentials or environment
+```
+
+### Backward Compatibility
+
+For backward compatibility, you can still use `OPENROUTER_MODEL` without specifying `LLM_PROVIDER`:
+```bash
+export OPENROUTER_API_KEY=your_key_here
+export OPENROUTER_MODEL=google/gemini-2.5-flash
+```
+
+This will automatically use OpenRouter as the provider.
+
+### Detailed Provider Guide
+
+For comprehensive provider documentation including features, limitations, and advanced configuration, see:
+- [LLM Providers Guide](../LLM_PROVIDERS_GUIDE.md) - Complete guide for all supported providers
 
 ## Quick Start
 
 ```bash
-cd mcp-llm-test
+cd mcp_llm_test
 
 # Run all test cases (fresh evaluation, results cached automatically)
 python evaluate_mcp.py
@@ -73,9 +119,11 @@ python evaluate_mcp.py
 # Use cached results (re-run only failed tests)
 python evaluate_mcp.py --cache
 
-# Run specific test cases by index
-python evaluate_mcp.py --subset "1-5"
+# Run specific test cases by name
+python evaluate_mcp.py --subset "Gene for NM_001045477.4:c.187C>T"
 ```
+
+**Note:** Make sure you have configured your LLM provider first (see [Installation](#installation)).
 
 ## Command-Line Interface
 
@@ -429,12 +477,26 @@ During execution, the console shows:
 
 ## Troubleshooting
 
-### Issue: "OPENROUTER_API_KEY not found"
+### Issue: API key not found
 
-**Solution:**
+**Solution:** Configure your chosen provider's API key
 ```bash
-echo "OPENROUTER_API_KEY=your_key_here" > .env
+# For OpenRouter
+export OPENROUTER_API_KEY=your_key_here
+
+# For OpenAI
+export OPENAI_API_KEY=your_key_here
+
+# For Ollama (usually no API key needed)
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2
+
+# For LM Studio (usually no API key needed)
+export LLM_PROVIDER=lm-studio
+export LLM_MODEL=local-model
 ```
+
+See the [Installation](#installation) section for detailed provider setup instructions.
 
 ### Issue: Want to use cached results
 
@@ -507,11 +569,24 @@ jobs:
 
       - name: Run MCP evaluation
         env:
+          # Use OpenRouter by default
+          LLM_PROVIDER: openrouter
+          LLM_MODEL: google/gemini-2.5-flash
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-               # Optional: pin a specific model for CI
-               # OPENROUTER_MODEL: "google/gemini-2.5-flash"
+          
+          # Alternative: Use OpenAI
+          # LLM_PROVIDER: openai
+          # LLM_MODEL: gpt-4
+          # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          
+          # Alternative: Use AWS Bedrock
+          # LLM_PROVIDER: bedrock
+          # LLM_MODEL: anthropic.claude-3-sonnet-20240229-v1:0
+          # AWS_REGION: us-east-1
+          # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          cd mcp-llm-test
+          cd mcp_llm_test
           python evaluate_mcp.py
 
       - name: Upload report
@@ -521,10 +596,57 @@ jobs:
           path: /tmp/evaluation_results_*.html
 ```
 
+## Provider-Specific Features
+
+### Web Search Support (OpenRouter)
+
+OpenRouter supports web search by appending the `:online` suffix to model IDs:
+
+```bash
+export LLM_PROVIDER=openrouter
+export LLM_MODEL=google/gemini-2.5-flash
+export OPENROUTER_API_KEY=your_key_here
+
+# The evaluator automatically adds :online for web-enabled tests
+python evaluate_mcp.py --web
+```
+
+### Local Inference (Ollama, LM Studio)
+
+For local development without API costs:
+
+```bash
+# Ollama - great for development
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2
+python evaluate_mcp.py
+
+# LM Studio - good for GUI-based model management
+export LLM_PROVIDER=lm-studio
+export LLM_MODEL=your-local-model
+python evaluate_mcp.py
+```
+
+### Cloud Providers (OpenAI, Bedrock)
+
+For production-grade inference with enterprise features:
+
+```bash
+# OpenAI - latest GPT models
+export LLM_PROVIDER=openai
+export LLM_MODEL=gpt-4
+export OPENAI_API_KEY=your_key
+
+# AWS Bedrock - integrated with AWS ecosystem
+export LLM_PROVIDER=bedrock
+export LLM_MODEL=anthropic.claude-3-sonnet-20240229-v1:0
+export AWS_REGION=us-east-1
+```
+
 ## Related Documentation
 
 - [Main README](../README.md) - Project overview and setup
-- [API Documentation](../API_DOCUMENTATION.md) - MCP tool reference
+- [LLM Providers Guide](../LLM_PROVIDERS_GUIDE.md) - Comprehensive guide for all supported LLM providers
 - [Test Suite Documentation](../tests/README.md) - Unit and integration tests
 
 ## Support
