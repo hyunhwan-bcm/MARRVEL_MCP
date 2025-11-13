@@ -117,9 +117,7 @@ async def execute_agentic_loop(
             assistant_msg = {
                 "role": "assistant",
                 "content": response.content or "",
-                "tool_calls": [
-                    format_tool_call_for_conversation(tc) for tc in tool_calls_with_ids
-                ],
+                "tool_calls": [format_tool_call_for_conversation(tc) for tc in tool_calls_with_ids],
             }
             conversation.append(assistant_msg)
 
