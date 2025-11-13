@@ -296,6 +296,8 @@ def create_llm_instance(
     if provider == "bedrock":
         try:
             from langchain_aws import ChatBedrock
+            import boto3
+            from botocore.config import Config
         except ImportError:
             raise ImportError(
                 "langchain_aws is required for Bedrock support. "
@@ -305,10 +307,30 @@ def create_llm_instance(
         # Bedrock-specific configuration
         region = kwargs.pop("region_name", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
 
+        # Configure boto3 client with retry and connection pool settings
+        # This helps handle ThrottlingException and connection pool limits
+        boto_config = Config(
+            region_name=region,
+            retries={
+                "max_attempts": 10,  # Increased from default 4
+                "mode": "adaptive",  # Adaptive retry mode for better throttling handling
+            },
+            max_pool_connections=10,  # Match AWS Bedrock's connection limit
+            connect_timeout=60,  # Longer timeout for throttled requests
+            read_timeout=60,
+        )
+
+        # Create boto3 client with custom config
+        bedrock_client = boto3.client(
+            "bedrock-runtime",
+            region_name=region,
+            config=boto_config,
+        )
+
         return ChatBedrock(
             model_id=effective_model_id,
             model_kwargs={"temperature": temperature, **kwargs.get("model_kwargs", {})},
-            region_name=region,
+            client=bedrock_client,
             **{k: v for k, v in kwargs.items() if k != "model_kwargs"},
         )
 

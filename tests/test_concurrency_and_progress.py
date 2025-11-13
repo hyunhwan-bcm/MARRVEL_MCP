@@ -29,7 +29,7 @@ def test_concurrency_argument_parsing():
     # Test default concurrency
     with patch("sys.argv", ["evaluate_mcp.py"]):
         args = parse_arguments()
-        assert args.concurrency == 4, "Default concurrency should be 4"
+        assert args.concurrency == 1, "Default concurrency should be 1"
 
     # Test custom concurrency
     with patch("sys.argv", ["evaluate_mcp.py", "--concurrency", "8"]):
