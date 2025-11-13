@@ -74,7 +74,12 @@ Examples:
 This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
 """
 
-from config.llm_config import get_openrouter_model, get_default_model_config, DEFAULT_MODEL
+from config.llm_config import (
+    get_openrouter_model,
+    get_default_model_config,
+    get_evaluation_model_config,
+    DEFAULT_MODEL,
+)
 
 # Resolve model lazily at import so tests can patch env before main() runs.
 MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash (backward compat)
@@ -87,6 +92,9 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 # Global variables for LLM (initialized in main after arg parsing)
 llm = None
 llm_web = None  # LLM with web search enabled (:online suffix)
+llm_evaluator = (
+    None  # LLM used for evaluating/grading responses (separate from models being tested)
+)
 OPENROUTER_API_KEY = None
 
 
@@ -410,10 +418,11 @@ async def evaluate_response(actual: str, expected: str, llm_instance=None) -> st
     Args:
         actual: The actual response text
         expected: The expected response text
-        llm_instance: LLM instance to use for evaluation (if None, uses global llm)
+        llm_instance: DEPRECATED - kept for backward compatibility, ignored
     """
-    # Use provided instance or fall back to global for backward compatibility
-    active_llm = llm_instance if llm_instance is not None else llm
+    # Always use the dedicated evaluator LLM for consistent evaluation
+    # The llm_instance parameter is kept for backward compatibility but ignored
+    active_llm = llm_evaluator
 
     prompt = f"""Is the actual response consistent with the expected response?
 
@@ -982,7 +991,9 @@ def open_in_browser(html_path: str):
     print(f"--- Opened {html_path} in browser ---")
 
 
-def load_models_config(config_path: Path | None = None) -> List[Dict[str, Any]]:
+def load_models_config(
+    config_path: Path | None = None,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """Load models configuration from YAML file.
 
     Args:
@@ -990,7 +1001,9 @@ def load_models_config(config_path: Path | None = None) -> List[Dict[str, Any]]:
                      If None, uses default models_config.yaml in mcp-llm-test directory.
 
     Returns:
-        List of enabled model configurations
+        Tuple of (enabled_models, evaluator_config)
+        - enabled_models: List of enabled model configurations
+        - evaluator_config: Dict with 'provider' and 'model' keys for evaluator, or empty dict
     """
     if config_path is None:
         config_path = Path(__file__).parent / "models_config.yaml"
@@ -1011,7 +1024,10 @@ def load_models_config(config_path: Path | None = None) -> List[Dict[str, Any]]:
         if not enabled_models:
             raise ValueError("No enabled models found in configuration file")
 
-        return enabled_models
+        # Extract evaluator configuration if present
+        evaluator_config = config.get("evaluator", {})
+
+        return enabled_models, evaluator_config
     except Exception as e:
         raise ValueError(f"Failed to load models configuration: {e}")
 
@@ -1121,7 +1137,7 @@ async def main():
     """
     Main function to run the evaluation concurrently.
     """
-    global llm, llm_web, OPENROUTER_API_KEY
+    global llm, llm_web, llm_evaluator, OPENROUTER_API_KEY
 
     # Parse command-line arguments
     args = parse_arguments()
@@ -1136,11 +1152,21 @@ async def main():
     # after module import (e.g., in CI or wrapper scripts).
     resolved_model, provider = get_default_model_config()
 
+    # Configure evaluator LLM (separate from models being tested)
+    evaluator_model, evaluator_provider = get_evaluation_model_config()
+
     # Validate provider credentials before proceeding
     from config.llm_providers import validate_provider_credentials
 
     try:
         validate_provider_credentials(provider)
+    except ValueError as e:
+        print(f"❌ Error: {e}")
+        return
+
+    # Validate evaluator provider credentials
+    try:
+        validate_provider_credentials(evaluator_provider)
     except ValueError as e:
         print(f"❌ Error: {e}")
         return
@@ -1165,6 +1191,13 @@ async def main():
         # Fall back to regular LLM if web search is not supported
         llm_web = llm
 
+    # Create dedicated evaluator LLM instance for consistent evaluation
+    llm_evaluator = create_llm_instance(
+        provider=evaluator_provider,
+        model_id=evaluator_model,
+        temperature=0,
+    )
+
     # Display configuration
     if provider == "openrouter":
         if resolved_model != DEFAULT_MODEL:
@@ -1173,6 +1206,9 @@ async def main():
             print(f"✨ Using default OpenRouter model: {resolved_model}")
     else:
         print(f"🔧 Using provider: {provider}, model: {resolved_model}")
+
+    # Display evaluator configuration
+    print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
@@ -1262,7 +1298,39 @@ async def main():
         # Load models configuration
         try:
             models_config_path = Path(args.models_config) if args.models_config else None
-            models = load_models_config(models_config_path)
+            models, yaml_evaluator_config = load_models_config(models_config_path)
+
+            # Override evaluator configuration from YAML if provided
+            if (
+                yaml_evaluator_config
+                and "provider" in yaml_evaluator_config
+                and "model" in yaml_evaluator_config
+            ):
+                yaml_provider = yaml_evaluator_config["provider"]
+                yaml_model = yaml_evaluator_config["model"]
+                print(f"🔄 Overriding evaluator from YAML config: {yaml_provider} / {yaml_model}")
+
+                # Validate and create new evaluator instance
+                try:
+                    from config.llm_providers import validate_provider_credentials
+
+                    validate_provider_credentials(yaml_provider)
+
+                    # Update global evaluator variables
+                    evaluator_model = yaml_model
+                    evaluator_provider = yaml_provider
+                    llm_evaluator = create_llm_instance(
+                        provider=yaml_provider,
+                        model_id=yaml_model,
+                        temperature=0,
+                    )
+                    print(f"✅ Evaluator updated: {yaml_provider} / {yaml_model}")
+                except Exception as e:
+                    print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
+                    print(
+                        f"   Continuing with environment/default evaluator: {evaluator_provider} / {evaluator_model}"
+                    )
+
             print(f"🎯 Multi-Model Testing Mode")
             print(f"   Models to test: {len(models)}")
             for model in models:
@@ -1592,8 +1660,8 @@ async def main():
             html_path = generate_html_report(
                 combined_results,
                 multi_model=True,
-                evaluator_model=resolved_model,
-                evaluator_provider=provider,
+                evaluator_model=evaluator_model,
+                evaluator_provider=evaluator_provider,
             )
             open_in_browser(html_path)
         except Exception as e:
@@ -1683,8 +1751,8 @@ async def main():
             html_path = generate_html_report(
                 combined_results,
                 tri_mode=True,
-                evaluator_model=resolved_model,
-                evaluator_provider=provider,
+                evaluator_model=evaluator_model,
+                evaluator_provider=evaluator_provider,
             )
             open_in_browser(html_path)
         except Exception as e:
@@ -1750,8 +1818,8 @@ async def main():
             html_path = generate_html_report(
                 combined_results,
                 dual_mode=True,
-                evaluator_model=resolved_model,
-                evaluator_provider=provider,
+                evaluator_model=evaluator_model,
+                evaluator_provider=evaluator_provider,
             )
             open_in_browser(html_path)
         except Exception as e:
@@ -1793,8 +1861,8 @@ async def main():
         try:
             html_path = generate_html_report(
                 ordered_results,
-                evaluator_model=resolved_model,
-                evaluator_provider=provider,
+                evaluator_model=evaluator_model,
+                evaluator_provider=evaluator_provider,
             )
             open_in_browser(html_path)
         except Exception as e:
