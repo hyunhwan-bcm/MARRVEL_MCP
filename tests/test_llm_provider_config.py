@@ -1,6 +1,5 @@
 """Tests for LLM provider configuration and API base URL overrides."""
 
-import os
 import pytest
 from llm_providers import (
     get_api_base,
