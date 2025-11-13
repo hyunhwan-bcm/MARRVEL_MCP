@@ -115,6 +115,16 @@
     expected: "No approved drugs or active ligands were found for NUTM2G."
 
 - case:
+    name: "Geno2MP by entrez id"
+    input: "Are there any Geno2MP entries for the HTT gene?"
+    expeted: "tbd"
+
+- case:
+    name: "OMIM by disease name"
+    input: "Which genes are associated with huntington's disease?"
+    expected: "tbd"
+
+- case:
     name: "UniProt ID and name"
     input: "What is the UniProt ID and protein name associated with NUTM2G?"
     expected: "UniProt ID Q5VZR2, and the protein name is NUT family member 2G."
