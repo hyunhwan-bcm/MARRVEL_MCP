@@ -2,27 +2,55 @@
 LLM Provider Abstraction for Multi-Provider Testing Framework
 
 This module provides a unified interface for creating LLM instances across
-different providers: Bedrock (AWS), OpenAI, OpenRouter, and Ollama.
+different providers: Bedrock (AWS), OpenAI, OpenRouter, Ollama, and LM Studio.
 
 Design:
 - All providers except Bedrock use the OpenAI API (via langchain_openai.ChatOpenAI)
 - Bedrock uses AWS Boto3 (via langchain_aws.ChatBedrock)
 - Provider-specific configuration is handled through a common interface
 - Supports environment-based and explicit configuration
+- API base URLs can be overridden via environment variables for flexibility
 
 Supported Providers:
 1. bedrock: AWS Bedrock (uses boto3, langchain_aws)
 2. openai: OpenAI direct API (uses langchain_openai)
+   - Can be used with any OpenAI API-compatible service
+   - Override base URL with OPENAI_API_BASE environment variable
 3. openrouter: OpenRouter API (uses langchain_openai with custom base URL)
+   - Override base URL with OPENROUTER_API_BASE environment variable
 4. ollama: Ollama local/remote API (uses langchain_openai with custom base URL)
+   - Override base URL with OLLAMA_API_BASE environment variable
+5. lm-studio: LM Studio local API (uses langchain_openai with custom base URL)
+   - Default endpoint: http://localhost:1234/v1
+   - Override base URL with LM_STUDIO_API_BASE environment variable
+
+Environment Variables:
+- {PROVIDER}_API_KEY: API key for the provider (OPENAI_API_KEY, OPENROUTER_API_KEY, etc.)
+- {PROVIDER}_API_BASE: Override the default API base URL for the provider
+- LLM_PROVIDER: Explicit provider selection (bedrock, openai, openrouter, ollama, lm-studio)
+- LLM_MODEL: Model ID when using explicit provider selection
 
 Usage:
     from llm_providers import create_llm_instance, get_provider_config
 
-    # Create an LLM instance for a specific provider
+    # Create an LLM instance for OpenRouter
     llm = create_llm_instance(
         provider="openrouter",
         model_id="google/gemini-2.5-flash",
+        temperature=0,
+    )
+
+    # Use Ollama (local or remote)
+    llm = create_llm_instance(
+        provider="ollama",
+        model_id="llama2",
+        temperature=0,
+    )
+
+    # Use LM Studio (dedicated provider)
+    llm = create_llm_instance(
+        provider="lm-studio",
+        model_id="local-model",
         temperature=0,
     )
 
@@ -42,7 +70,7 @@ from langchain_openai import ChatOpenAI
 # from langchain_aws import ChatBedrock
 
 
-ProviderType = Literal["bedrock", "openai", "openrouter", "ollama"]
+ProviderType = Literal["bedrock", "openai", "openrouter", "ollama", "lm-studio"]
 
 
 @dataclass
@@ -51,7 +79,8 @@ class ProviderConfig:
 
     Attributes:
         name: Provider name (bedrock, openai, openrouter, ollama)
-        api_base: API base URL (None for Bedrock and default OpenAI)
+        api_base: Default API base URL (None for Bedrock and default OpenAI)
+        api_base_env: Environment variable name for overriding API base URL
         api_key_env: Environment variable name for API key
         supports_web_search: Whether the provider supports web search
         web_search_suffix: Suffix to append to model ID for web search (e.g., ":online")
@@ -60,6 +89,7 @@ class ProviderConfig:
 
     name: ProviderType
     api_base: str | None
+    api_base_env: str | None
     api_key_env: str
     supports_web_search: bool = False
     web_search_suffix: str = ""
@@ -71,6 +101,7 @@ PROVIDER_CONFIGS: Dict[ProviderType, ProviderConfig] = {
     "bedrock": ProviderConfig(
         name="bedrock",
         api_base=None,  # Uses AWS SDK
+        api_base_env=None,
         api_key_env="AWS_ACCESS_KEY_ID",  # Bedrock uses AWS credentials
         supports_web_search=False,
         use_openai_api=False,
@@ -78,12 +109,14 @@ PROVIDER_CONFIGS: Dict[ProviderType, ProviderConfig] = {
     "openai": ProviderConfig(
         name="openai",
         api_base=None,  # Uses default OpenAI endpoint
+        api_base_env="OPENAI_API_BASE",  # Can override base URL for OpenAI-compatible services
         api_key_env="OPENAI_API_KEY",
         supports_web_search=False,
     ),
     "openrouter": ProviderConfig(
         name="openrouter",
         api_base="https://openrouter.ai/api/v1",
+        api_base_env="OPENROUTER_API_BASE",  # Can override for testing/proxies
         api_key_env="OPENROUTER_API_KEY",
         supports_web_search=True,
         web_search_suffix=":online",
@@ -91,7 +124,15 @@ PROVIDER_CONFIGS: Dict[ProviderType, ProviderConfig] = {
     "ollama": ProviderConfig(
         name="ollama",
         api_base="http://localhost:11434/v1",  # Default Ollama endpoint
+        api_base_env="OLLAMA_API_BASE",  # Can override for remote Ollama instances
         api_key_env="OLLAMA_API_KEY",  # Optional, Ollama doesn't require auth by default
+        supports_web_search=False,
+    ),
+    "lm-studio": ProviderConfig(
+        name="lm-studio",
+        api_base="http://localhost:1234/v1",  # Default LM Studio endpoint
+        api_base_env="LM_STUDIO_API_BASE",  # Can override for custom ports
+        api_key_env="LM_STUDIO_API_KEY",  # LM Studio accepts any key
         supports_web_search=False,
     ),
 }
@@ -117,6 +158,27 @@ def get_provider_config(provider: ProviderType) -> ProviderConfig:
     return PROVIDER_CONFIGS[provider]
 
 
+def get_api_base(provider: ProviderType) -> str | None:
+    """Get API base URL for a provider, checking environment variable override first.
+
+    Args:
+        provider: Provider type
+
+    Returns:
+        API base URL from environment or default configuration, or None if not applicable
+    """
+    config = get_provider_config(provider)
+
+    # Check for environment variable override
+    if config.api_base_env:
+        env_base = os.getenv(config.api_base_env, "").strip()
+        if env_base:
+            return env_base
+
+    # Return default from config
+    return config.api_base
+
+
 def get_api_key(provider: ProviderType) -> str | None:
     """Get API key for a provider from environment variables.
 
@@ -129,9 +191,12 @@ def get_api_key(provider: ProviderType) -> str | None:
     config = get_provider_config(provider)
     api_key = os.getenv(config.api_key_env, "").strip()
 
-    # Ollama doesn't require an API key by default
+    # Ollama and LM Studio don't require API keys by default
     if provider == "ollama" and not api_key:
         return "ollama"  # Dummy key for compatibility
+
+    if provider == "lm-studio" and not api_key:
+        return "lm-studio"  # Dummy key for compatibility
 
     return api_key if api_key else None
 
@@ -150,8 +215,8 @@ def validate_provider_credentials(provider: ProviderType) -> bool:
     """
     config = get_provider_config(provider)
 
-    # Ollama doesn't require credentials
-    if provider == "ollama":
+    # Ollama and LM Studio don't require credentials
+    if provider in ("ollama", "lm-studio"):
         return True
 
     # Bedrock requires AWS credentials
@@ -250,6 +315,7 @@ def create_llm_instance(
     # All other providers use OpenAI API
     if config.use_openai_api:
         api_key = get_api_key(provider)
+        api_base = get_api_base(provider)
 
         # Build kwargs for ChatOpenAI
         openai_kwargs: Dict[str, Any] = {
@@ -258,13 +324,12 @@ def create_llm_instance(
             **kwargs,
         }
 
-        # Add API key
-        if provider == "openai":
-            openai_kwargs["openai_api_key"] = api_key
-        else:
-            # OpenRouter and Ollama use custom base URL
-            openai_kwargs["openai_api_key"] = api_key
-            openai_kwargs["openai_api_base"] = config.api_base
+        # Add API key and base URL
+        openai_kwargs["openai_api_key"] = api_key
+
+        # Set base URL if provider uses a custom endpoint or if overridden via env
+        if api_base:
+            openai_kwargs["openai_api_base"] = api_base
 
         return ChatOpenAI(**openai_kwargs)
 
@@ -314,6 +379,7 @@ __all__ = [
     "ProviderConfig",
     "PROVIDER_CONFIGS",
     "get_provider_config",
+    "get_api_base",
     "get_api_key",
     "validate_provider_credentials",
     "create_llm_instance",

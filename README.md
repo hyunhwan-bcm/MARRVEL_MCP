@@ -79,6 +79,101 @@ For comprehensive examples and test cases, see: [test_cases.yaml](mcp-llm-test/t
   - Extract figure captions
   - Support for both PMID and PMCID
 
+## LLM Provider Configuration
+
+MARRVEL-MCP supports multiple LLM providers through a unified OpenAI API-compatible interface. This makes it easy to use with various services including OpenRouter, OpenAI, Ollama, and LM Studio.
+
+### Supported Providers
+
+All providers use the same environment variable pattern for easy configuration:
+- `{PROVIDER}_API_KEY`: API key for authentication
+- `{PROVIDER}_API_BASE`: Override the default API base URL (optional)
+
+#### 1. Ollama (Local LLMs)
+
+Run LLMs locally with Ollama:
+
+```bash
+# Install and start Ollama
+# Visit https://ollama.ai for installation instructions
+
+# Pull a model
+ollama pull llama2
+
+# Configure MARRVEL-MCP
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2
+# OLLAMA_API_BASE defaults to http://localhost:11434/v1
+```
+
+For remote Ollama instances:
+```bash
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2
+export OLLAMA_API_BASE=http://remote-server:11434/v1
+```
+
+#### 2. LM Studio
+
+Run models locally with LM Studio:
+
+```bash
+# Start LM Studio and enable the local server
+# Default endpoint: http://localhost:1234/v1
+
+export LLM_PROVIDER=lm-studio
+export LLM_MODEL=local-model  # Use the model name from LM Studio
+# LM_STUDIO_API_BASE defaults to http://localhost:1234/v1
+```
+
+For custom ports:
+
+```bash
+export LLM_PROVIDER=lm-studio
+export LLM_MODEL=local-model
+export LM_STUDIO_API_BASE=http://localhost:5678/v1
+```
+
+#### 3. OpenRouter
+
+Access multiple model providers through OpenRouter:
+
+```bash
+export LLM_PROVIDER=openrouter
+export LLM_MODEL=google/gemini-2.5-flash
+export OPENROUTER_API_KEY=your_openrouter_key
+```
+
+#### 4. OpenAI Direct
+
+Use OpenAI's official API:
+
+```bash
+export LLM_PROVIDER=openai
+export LLM_MODEL=gpt-4
+export OPENAI_API_KEY=your_openai_key
+```
+
+#### 5. Other OpenAI-Compatible Services
+
+Any service compatible with the OpenAI API can be used via the `openai` provider:
+
+```bash
+export LLM_PROVIDER=openai
+export LLM_MODEL=your-model-name
+export OPENAI_API_BASE=https://your-service.com/v1
+export OPENAI_API_KEY=your-api-key
+```
+
+### Legacy Configuration
+
+For backward compatibility, you can still use the original OpenRouter-only configuration:
+
+```bash
+export OPENROUTER_MODEL=google/gemini-2.5-flash
+export OPENROUTER_API_KEY=your_key
+```
+
 ## Documentation
 
 - **[API Reference](./API_DOCUMENTATION.md)** - Complete tool documentation

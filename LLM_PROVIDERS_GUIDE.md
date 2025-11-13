@@ -48,6 +48,9 @@ The LLM testing framework has been generalized to support multiple LLM providers
 **Environment Variables:**
 ```bash
 OPENROUTER_API_KEY=your_api_key_here
+
+# Optional: Override API base URL (for proxies or testing)
+OPENROUTER_API_BASE=https://openrouter.ai/api/v1  # Default
 ```
 
 **Example Model IDs:**
@@ -69,12 +72,25 @@ OPENROUTER_API_KEY=your_api_key_here
 **Environment Variables:**
 ```bash
 OPENAI_API_KEY=your_api_key_here
+# Optional: Override base URL for OpenAI-compatible services (LM Studio, etc.)
+OPENAI_API_BASE=https://api.openai.com/v1  # Default
 ```
 
 **Example Model IDs:**
 - `gpt-4`
 - `gpt-4-turbo-preview`
 - `gpt-3.5-turbo`
+
+**OpenAI-Compatible Services:**
+The OpenAI provider can be used with any OpenAI API-compatible service by setting `OPENAI_API_BASE`:
+
+```bash
+# Generic OpenAI-compatible service
+export OPENAI_API_BASE=https://your-service.com/v1
+export OPENAI_API_KEY=your_key
+```
+
+**Note:** For LM Studio, use the dedicated `lm-studio` provider (see below) for simpler configuration.
 
 ### 3. AWS Bedrock
 
@@ -115,6 +131,9 @@ AWS_DEFAULT_REGION=us-east-1  # Optional, defaults to us-east-1
 ```bash
 # Optional - Ollama doesn't require authentication by default
 OLLAMA_API_KEY=optional_key  # Only if your Ollama instance requires auth
+
+# Optional: Override API base URL for remote Ollama instances
+OLLAMA_API_BASE=http://localhost:11434/v1  # Default
 ```
 
 **Example Model IDs:**
@@ -123,6 +142,65 @@ OLLAMA_API_KEY=optional_key  # Only if your Ollama instance requires auth
 - `codellama`
 
 **Default Endpoint:** `http://localhost:11434/v1`
+
+**Remote Ollama:**
+To use a remote Ollama instance, set the base URL:
+
+```bash
+export OLLAMA_API_BASE=http://remote-server:11434/v1
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2
+```
+
+### 5. LM Studio
+
+**Description:** Run LLMs locally with LM Studio's user-friendly interface
+
+**API Compatibility:** OpenAI-compatible
+
+**Features:**
+- Local model execution with GUI
+- Easy model management
+- Privacy and control
+- No API costs
+
+**Environment Variables:**
+```bash
+# Optional - LM Studio doesn't require authentication by default
+LM_STUDIO_API_KEY=optional_key  # Only if configured in LM Studio
+
+# Optional: Override API base URL for custom ports
+LM_STUDIO_API_BASE=http://localhost:1234/v1  # Default
+```
+
+**Example Model IDs:**
+- `local-model`  # Use the model name shown in LM Studio
+- `mistral-7b-instruct`
+- `llama-2-7b-chat`
+
+**Default Endpoint:** `http://localhost:1234/v1`
+
+**Custom Port Configuration:**
+If you change LM Studio's server port, update the base URL:
+
+```bash
+export LM_STUDIO_API_BASE=http://localhost:5678/v1
+export LLM_PROVIDER=lm-studio
+export LLM_MODEL=local-model
+```
+
+**Usage Example:**
+```bash
+# Start LM Studio and enable the local server
+# Load a model in LM Studio
+
+# Configure the provider
+export LLM_PROVIDER=lm-studio
+export LLM_MODEL=local-model  # Match the name in LM Studio
+
+# Run your application
+python evaluate_mcp.py
+```
 
 ## Architecture
 
@@ -190,12 +268,22 @@ Automatically infer the provider from model ID format.
 
 ### Environment-Based Configuration
 
+All providers support a consistent environment variable pattern:
+- `{PROVIDER}_API_KEY`: API key for authentication
+- `{PROVIDER}_API_BASE`: Override the default API base URL (optional)
+
+This makes it easy to use OpenAI API-compatible services. Dedicated providers are available for Ollama and LM Studio for simplified configuration.
+
 #### Option 1: Explicit Provider Configuration (Recommended)
 
 ```bash
 # Set provider and model explicitly
 export LLM_PROVIDER=openai
 export LLM_MODEL=gpt-4
+export OPENAI_API_KEY=your_key
+
+# Optional: Override base URL for custom endpoints
+export OPENAI_API_BASE=http://localhost:1234/v1  # For LM Studio, etc.
 ```
 
 #### Option 2: Legacy OpenRouter Configuration (Backward Compatible)
@@ -277,6 +365,11 @@ python evaluate_mcp.py
 # Use Ollama local model
 export LLM_PROVIDER=ollama
 export LLM_MODEL=llama2
+python evaluate_mcp.py
+
+# Use LM Studio local model
+export LLM_PROVIDER=lm-studio
+export LLM_MODEL=local-model
 python evaluate_mcp.py
 ```
 
