@@ -101,9 +101,9 @@ OPENROUTER_API_KEY = None
 async def invoke_with_throttle_retry(
     llm_instance,
     messages,
-    max_retries: int = 8,
+    max_retries: int = 5,
     initial_delay: float = 2.0,
-    max_delay: float = 60.0,
+    max_delay: float = 30.0,
     add_initial_jitter: bool = False,
 ):
     """
@@ -115,9 +115,9 @@ async def invoke_with_throttle_retry(
     Args:
         llm_instance: LangChain LLM instance to invoke
         messages: Messages to send to the LLM
-        max_retries: Maximum number of retry attempts (default: 8)
+        max_retries: Maximum number of retry attempts (default: 5)
         initial_delay: Initial delay in seconds before first retry (default: 2.0)
-        max_delay: Maximum delay between retries in seconds (default: 60.0)
+        max_delay: Maximum delay between retries in seconds (default: 30.0)
         add_initial_jitter: If True, add 0-1s random delay before first request.
                            If None/False, auto-detect Bedrock and add jitter for it.
 
@@ -148,13 +148,24 @@ async def invoke_with_throttle_retry(
             # Check if it's a throttling exception (from botocore/AWS Bedrock)
             is_throttling = False
             error_name = type(e).__name__
-            error_msg = str(e).lower()
+            error_msg = str(e)
+            error_msg_lower = error_msg.lower()
 
-            if "throttling" in error_name.lower() or "throttling" in error_msg:
+            # Debug logging to see what error we got
+            logging.debug(
+                f"LLM invocation failed (attempt {attempt + 1}/{max_retries + 1}): "
+                f"{error_name}: {error_msg[:200]}"
+            )
+
+            # Check for throttling/rate limit indicators
+            if "throttling" in error_name.lower() or "throttling" in error_msg_lower:
                 is_throttling = True
-            elif "rate" in error_msg and "limit" in error_msg:
+            elif "rate" in error_msg_lower and "limit" in error_msg_lower:
                 is_throttling = True
-            elif "too many" in error_msg:
+            elif "too many" in error_msg_lower:
+                is_throttling = True
+            elif "reached max retries" in error_msg_lower:
+                # Boto3 exhausted its retries - we should retry at application level
                 is_throttling = True
 
             # Only retry on throttling/rate limit errors
@@ -164,14 +175,15 @@ async def invoke_with_throttle_retry(
                 sleep_time = min(delay + jitter, max_delay)
 
                 logging.warning(
-                    f"Throttling detected ({error_name}), retrying in {sleep_time:.2f}s "
-                    f"(attempt {attempt + 1}/{max_retries})"
+                    f"🔄 Throttling detected ({error_name}), retrying in {sleep_time:.2f}s "
+                    f"(attempt {attempt + 1}/{max_retries + 1})"
                 )
                 await asyncio.sleep(sleep_time)
                 delay = min(delay * 2, max_delay)  # Exponential backoff with cap
                 continue
 
             # For non-throttling errors or exhausted retries, raise immediately
+            logging.debug(f"Non-throttling error or exhausted retries, raising: {error_name}")
             raise
 
     # If we get here, we exhausted all retries
