@@ -18,23 +18,20 @@ References:
 - LangChain with OpenRouter: https://openrouter.ai/docs/community/lang-chain
 - Tool calling: https://docs.langchain.com/oss/python/langchain/overview
 - Evaluation: https://docs.langchain.com/oss/python/langchain/overview
-
-This script has been refactored into modular components in the evaluation_modules package:
-- cache: Cache management for test results
-- llm_retry: LLM invocation with exponential backoff retry logic  
-- evaluation: Core evaluation logic for test responses
-- test_execution: Test case execution orchestration
-- reporting: HTML report generation and browser integration
-- config_loader: Configuration file loading
-- cli: Command-line interface argument parsing
 """
 
+import argparse
 import asyncio
 import json
-import logging
 import os
+import pickle
+import re
 import sys
+import tempfile
+import uuid
+import webbrowser
 from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
 # Add project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -42,51 +39,78 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import yaml
 from dotenv import load_dotenv
 from fastmcp.client import Client
+from jinja2 import Environment, FileSystemLoader
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+import tiktoken
 from tqdm.asyncio import tqdm as atqdm
 
 from marrvel_mcp.server import create_server
-from config.llm_providers import create_llm_instance, get_provider_config, validate_provider_credentials
-from config.llm_config import get_default_model_config, get_evaluation_model_config
-from marrvel_mcp import TokenLimitExceeded
-
-# Import all evaluation modules
-from evaluation_modules import (
-    # Cache management
-    clear_cache,
-    # Evaluation
-    get_langchain_response,
-    # Test execution
-    run_test_case,
-    # Reporting
-    generate_html_report,
-    open_in_browser,
-    # Config loading
-    load_models_config,
-    load_evaluator_config_from_yaml,
-    # CLI
-    parse_arguments,
-    parse_subset,
+from config.llm_providers import create_llm_instance, get_provider_config, ProviderType
+from marrvel_mcp import (
+    convert_tool_to_langchain_format,
+    parse_tool_result_content,
+    execute_agentic_loop,
+    count_tokens,
+    validate_token_count,
+    TokenLimitExceeded,
 )
+
 
 # Load environment variables from .env file
 load_dotenv()
+
+"""NOTE: Model selection
+
+The evaluation harness now supports selecting an OpenRouter model at runtime
+via the environment variable `OPENROUTER_MODEL`. If it is not set, we fall
+back to the latest Gemini 2.5 Flash model (NOT any deprecated 1.5 version).
+
+Examples:
+    export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
+    export OPENROUTER_MODEL="google/gemini-2.5-pro"
+    python evaluate_mcp.py
+
+This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
+"""
+
+from config.llm_config import (
+    get_openrouter_model,
+    get_default_model_config,
+    get_evaluation_model_config,
+    DEFAULT_MODEL,
+)
+
+# Resolve model lazily at import so tests can patch env before main() runs.
+MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash (backward compat)
+MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
+
+# Cache settings
+CACHE_DIR = Path.home() / ".cache" / "marrvel-mcp" / "evaluations"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    parser.add_argument(
+        "--models-config",
+        type=str,
+        metavar="PATH",
+        help="Path to models configuration YAML file for --multi-model mode. Defaults to mcp-llm-test/models_config.yaml",
+    )
+
+    return parser.parse_args()
 
 
 async def main():
     """
     Main function to run the evaluation concurrently.
-    
-    This orchestrator coordinates:
-    1. Argument parsing and configuration loading
-    2. LLM instance creation (tested models and evaluator)
-    3. Test case loading and filtering
-    4. Concurrent test execution across different modes
-    5. HTML report generation
     """
+    global llm, llm_web, llm_evaluator, OPENROUTER_API_KEY
+
     # Parse command-line arguments
     args = parse_arguments()
 
     # Configure logging based on --debug-timing flag or DEBUG environment variable
+    import logging
+
     debug_enabled = args.debug_timing or os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
     verbose_enabled = args.verbose
 
@@ -100,6 +124,11 @@ async def main():
         print("📢 Verbose mode enabled - showing detailed error messages")
     else:
         logging.basicConfig(level=logging.WARNING)
+
+    # Configure API keys (after argument parsing so --help works)
+    # Note: Provider-specific credential validation is done later
+    # This preserves backward compatibility for OpenRouter-only usage
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
     # Configure LLM with provider abstraction
     # Re-resolve model config inside main to respect any env var changes that occurred
@@ -129,6 +158,8 @@ async def main():
         yaml_model = yaml_evaluator_config["model"]
 
         # Validate YAML evaluator provider before applying
+        from config.llm_providers import validate_provider_credentials
+
         try:
             validate_provider_credentials(yaml_provider)
 
@@ -144,6 +175,9 @@ async def main():
             )
 
     # Validate provider credentials before proceeding
+    if "validate_provider_credentials" not in dir():
+        from config.llm_providers import validate_provider_credentials
+
     try:
         validate_provider_credentials(provider)
     except ValueError as e:
@@ -214,9 +248,7 @@ async def main():
         async with mcp_client:
             try:
                 response, tool_history, conversation, tokens_used, metadata = (
-                    await get_langchain_response(
-                        mcp_client, args.prompt, llm_instance=llm, llm_web_instance=llm_web
-                    )
+                    await get_langchain_response(mcp_client, args.prompt)
                 )
 
                 # Output as JSON
@@ -234,7 +266,7 @@ async def main():
                 print("\n" + "=" * 80)
 
             except TokenLimitExceeded as e:
-                print(f"❌ Token limit exceeded: {e.token_count:,} > {100_000:,}")
+                print(f"❌ Token limit exceeded: {e.token_count:,} > {MAX_TOKENS:,}")
                 print("   Please reduce the complexity of your question or context.")
             except Exception as e:
                 print(f"❌ Error processing prompt: {e}")
@@ -272,14 +304,6 @@ async def main():
     # Determine whether to use cache
     use_cache = args.cache
 
-    # Handle --multi-model mode: test multiple models across all three modes
-    if args.multi_model:
-        # Note: Multi-model mode logic is extensive (~530 lines) and kept in main
-        # for now to avoid excessive abstraction. Future refactoring could extract
-        # this to a separate module if needed.
-        print("⚠️  Multi-model mode is not yet fully refactored.")
-        print("   Please use the original evaluate_mcp_backup.py for this mode.")
-        print("   Or run without --multi-model to test the refactored code.")
     # Handle --multi-model mode: test multiple models across all three modes
     if args.multi_model:
         # Load models configuration
@@ -813,17 +837,6 @@ async def main():
 
             traceback.print_exc()
 
-
-    # Handle --multi-model mode: test multiple models across all three modes
-    if args.multi_model:
-        # Note: Multi-model mode logic is extensive (~530 lines) and kept in main
-        # for now to avoid excessive abstraction. Future refactoring could extract
-        # this to a separate module if needed.
-        print("⚠️  Multi-model mode is not yet fully refactored.")
-        print("   Please use the original evaluate_mcp_backup.py for this mode.")
-        print("   Or run without --multi-model to test the refactored code.")
-        return
-
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
     elif args.with_web:
         print(
@@ -842,12 +855,9 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
-                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=True,
                     pbar=pbar_vanilla,
-                    llm_instance=llm,
-                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -863,12 +873,9 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
-                    llm_evaluator,
                     use_cache=use_cache,
                     web_mode=True,
                     pbar=pbar_web,
-                    llm_instance=llm,
-                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -884,12 +891,9 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
-                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=False,
                     pbar=pbar_tool,
-                    llm_instance=llm,
-                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -937,12 +941,9 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
-                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=True,
                     pbar=pbar_vanilla,
-                    llm_instance=llm,
-                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -958,12 +959,9 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
-                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=False,
                     pbar=pbar_tool,
-                    llm_instance=llm,
-                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -1008,12 +1006,9 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
-                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=False,
                     pbar=pbar,
-                    llm_instance=llm,
-                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]

@@ -18,7 +18,7 @@ import pytest
 # Add mcp_llm_test to the path
 sys.path.insert(0, str(Path(__file__).parent.parent / "mcp_llm_test"))
 
-from evaluate_mcp import (
+from evaluation_modules import (
     CACHE_DIR,
     clear_cache,
     get_cache_path,
@@ -33,10 +33,10 @@ def temp_cache_dir(monkeypatch, tmp_path):
     test_cache_dir = tmp_path / "test_cache"
     test_cache_dir.mkdir(parents=True, exist_ok=True)
 
-    # Monkeypatch the CACHE_DIR in the module
-    import evaluate_mcp
+    # Monkeypatch the CACHE_DIR in the cache module
+    import evaluation_modules.cache as cache_module
 
-    monkeypatch.setattr(evaluate_mcp, "CACHE_DIR", test_cache_dir)
+    monkeypatch.setattr(cache_module, "CACHE_DIR", test_cache_dir)
 
     yield test_cache_dir
 

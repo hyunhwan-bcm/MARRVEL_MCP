@@ -17,7 +17,7 @@ os.environ["OPENROUTER_API_KEY"] = "dummy_key_for_testing"
 # Add project root to path to import evaluate_mcp
 sys.path.insert(0, str(Path(__file__).parent.parent / "mcp_llm_test"))
 
-from evaluate_mcp import generate_html_report
+from evaluation_modules import generate_html_report
 
 
 def test_html_template_exists():
