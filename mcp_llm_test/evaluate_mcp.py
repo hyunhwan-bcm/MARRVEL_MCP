@@ -129,6 +129,7 @@ async def invoke_with_throttle_retry(
     """
     import logging
     import random
+    import time
 
     # Auto-detect Bedrock and add initial jitter to spread out concurrent requests
     is_bedrock = "ChatBedrock" in str(type(llm_instance))
@@ -141,7 +142,39 @@ async def invoke_with_throttle_retry(
 
     for attempt in range(max_retries + 1):
         try:
-            return await llm_instance.ainvoke(messages)
+            # Add timing to help debug slow API calls
+            start_time = time.time()
+
+            # Log request details in debug mode
+            logging.debug(f"Starting LLM API call (attempt {attempt + 1}/{max_retries + 1})...")
+            logging.debug(f"LLM instance type: {type(llm_instance).__name__}")
+            logging.debug(f"Number of messages: {len(messages)}")
+            for i, msg in enumerate(messages):
+                msg_type = type(msg).__name__
+                content_preview = (
+                    str(msg.content)[:200] if hasattr(msg, "content") else str(msg)[:200]
+                )
+                logging.debug(f"  Message {i} ({msg_type}): {content_preview}...")
+
+            result = await llm_instance.ainvoke(messages)
+
+            elapsed = time.time() - start_time
+
+            # Log response details in debug mode
+            logging.debug(f"LLM API call completed in {elapsed:.2f}s")
+            logging.debug(f"Response type: {type(result).__name__}")
+            if hasattr(result, "content"):
+                logging.debug(f"Response content preview: {str(result.content)[:200]}...")
+            else:
+                logging.debug(f"Response: {str(result)[:200]}...")
+
+            # Log response metadata if available
+            if hasattr(result, "response_metadata"):
+                logging.debug(f"Response metadata: {result.response_metadata}")
+            if hasattr(result, "usage_metadata"):
+                logging.debug(f"Usage metadata: {result.usage_metadata}")
+
+            return result
         except Exception as e:
             last_exception = e
 
@@ -183,10 +216,19 @@ async def invoke_with_throttle_retry(
                 continue
 
             # For non-throttling errors or exhausted retries, raise immediately
-            logging.debug(f"Non-throttling error or exhausted retries, raising: {error_name}")
+            # Log at warning level (not just debug) so users see the error
+            if attempt >= max_retries:
+                logging.warning(
+                    f"⚠️  LLM API call failed after {max_retries + 1} attempts: {error_name}: {error_msg[:200]}"
+                )
+            else:
+                logging.debug(f"Non-throttling error or exhausted retries, raising: {error_name}")
             raise
 
     # If we get here, we exhausted all retries
+    logging.warning(
+        f"⚠️  LLM API call exhausted all {max_retries + 1} retries. Last error: {type(last_exception).__name__}: {str(last_exception)[:200]}"
+    )
     raise last_exception
 
 
@@ -512,6 +554,8 @@ async def evaluate_response(actual: str, expected: str, llm_instance=None) -> st
         expected: The expected response text
         llm_instance: DEPRECATED - kept for backward compatibility, ignored
     """
+    import logging
+
     # Always use the dedicated evaluator LLM for consistent evaluation
     # The llm_instance parameter is kept for backward compatibility but ignored
     active_llm = llm_evaluator
@@ -533,14 +577,39 @@ Answer with 'yes' or 'no' followed by a brief reason.
 Expected: {expected}
 Actual: {actual}"""
 
+    # Log evaluator input in debug mode
+    logging.debug("=" * 80)
+    logging.debug("🔍 EVALUATOR INPUT:")
+    logging.debug(
+        f"   Expected answer: {expected[:200]}..."
+        if len(expected) > 200
+        else f"   Expected answer: {expected}"
+    )
+    logging.debug(
+        f"   Actual response: {actual[:200]}..."
+        if len(actual) > 200
+        else f"   Actual response: {actual}"
+    )
+    logging.debug(f"   Full prompt length: {len(prompt)} chars")
+
     # Validate token count before making API call
     is_valid, token_count = validate_token_count(prompt)
     if not is_valid:
-        return f"no - Evaluation skipped: Input token count ({token_count:,}) exceeds maximum allowed ({MAX_TOKENS:,}). The response or context is excessively long. Please reduce the input size."
+        error_msg = f"no - Evaluation skipped: Input token count ({token_count:,}) exceeds maximum allowed ({MAX_TOKENS:,}). The response or context is excessively long. Please reduce the input size."
+        logging.debug(f"   ❌ Token limit exceeded: {error_msg}")
+        logging.debug("=" * 80)
+        return error_msg
 
     messages = [HumanMessage(content=prompt)]
+
+    logging.debug(f"   Calling evaluator LLM ({type(active_llm).__name__})...")
     response = await invoke_with_throttle_retry(active_llm, messages)
-    return response.content
+
+    classification = response.content
+    logging.debug(f"   ✅ Evaluator classification: {classification}")
+    logging.debug("=" * 80)
+
+    return classification
 
 
 async def run_test_case(
@@ -604,12 +673,51 @@ async def run_test_case(
             mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
             pbar.set_postfix_str(f"Running ({mode_label}): {name[:40]}...")
 
+        # Log test execution details in debug mode
+        mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
+        import logging
+
+        logging.debug("=" * 80)
+        logging.debug(f"🧪 TEST EXECUTION:")
+        logging.debug(f"   Test: {name}")
+        logging.debug(f"   Mode: {mode_label.upper()}")
+        if vanilla_mode:
+            logging.debug("   ⚠️  VANILLA MODE: No tools will be called (baseline test)")
+        elif web_mode:
+            logging.debug("   🌐 WEB MODE: Web search enabled via :online suffix")
+        else:
+            logging.debug("   🔧 TOOL MODE: MARRVEL-MCP tools available")
+        logging.debug(
+            f"   Question: {user_input[:150]}..."
+            if len(user_input) > 150
+            else f"   Question: {user_input}"
+        )
+        logging.debug(
+            f"   Expected: {expected[:150]}..."
+            if len(expected) > 150
+            else f"   Expected: {expected}"
+        )
+
         try:
             langchain_response, tool_history, full_conversation, tokens_used, metadata = (
                 await get_langchain_response(
                     mcp_client, user_input, vanilla_mode, web_mode, llm_instance, llm_web_instance
                 )
             )
+
+            # Log response details in debug mode
+            logging.debug(f"   Response received: {len(langchain_response)} chars")
+            logging.debug(f"   Tool calls made: {len(tool_history)}")
+            if tool_history:
+                logging.debug(
+                    f"   Tools used: {', '.join(set(tc.get('name', 'unknown') for tc in tool_history))}"
+                )
+            else:
+                if not vanilla_mode and not web_mode:
+                    logging.debug(
+                        "   ⚠️  No tools were called in TOOL mode - LLM may have answered without tools"
+                    )
+            logging.debug("=" * 80)
             # Use the global evaluator LLM (not the model being tested) for consistent evaluation
             classification = await evaluate_response(langchain_response, expected)
             result = {
@@ -648,13 +756,38 @@ async def run_test_case(
             # Don't cache failures
             return result
         except Exception as e:
+            # Always log errors, not just when pbar exists
+            import traceback
+            import logging
+
+            error_details = f"❌ Error in {name}: {e}"
+
             if pbar:
-                pbar.write(f"❌ Error in {name}: {e}")
+                pbar.write(error_details)
+            else:
+                # In multi-model mode without pbar, print directly
+                print(error_details)
+
+            # Show error type and first part of message even in normal mode
+            error_type = type(e).__name__
+            error_msg = str(e)
+            print(f"   Error type: {error_type}")
+            print(f"   Error message: {error_msg[:500]}")
+
+            # Show full traceback in debug mode
+            logging.debug(f"Full traceback for {name}:")
+            logging.debug(traceback.format_exc())
+
+            # In verbose mode, show more context
+            logging.info(f"Test case: {name}")
+            logging.info(f"Question: {user_input[:200]}")
+            logging.info(f"Full error: {error_msg}")
+
             result = {
                 "question": user_input,
                 "expected": expected,
                 "response": "**No response generated due to error.**",
-                "classification": f"**Error:** {e}",
+                "classification": f"**Error:** {str(e)[:200]}",  # Truncate long errors
                 "tool_calls": [],
                 "conversation": [],
             }
@@ -1185,6 +1318,20 @@ Examples:
   python evaluate_mcp.py --multi-model
   python evaluate_mcp.py --multi-model --models-config custom_models.yaml
 
+  # Increase timeout for slow models or complex queries
+  python evaluate_mcp.py --timeout 1200  # 20 minutes per test
+  python evaluate_mcp.py --multi-model --timeout 900 --concurrency 2
+
+  # Debug timeout issues (shows API call timing)
+  python evaluate_mcp.py --debug-timing --timeout 1200
+
+  # Show detailed error messages when tests fail
+  python evaluate_mcp.py --verbose --multi-model
+  python evaluate_mcp.py -v --multi-model  # short form
+
+  # Or use DEBUG environment variable
+  DEBUG=1 python evaluate_mcp.py --multi-model
+
 Cache Behavior:
   Results are always cached at: {cache_dir}
 
@@ -1232,6 +1379,30 @@ Cache Behavior:
     )
 
     parser.add_argument(
+        "--timeout",
+        type=int,
+        default=600,
+        metavar="SECONDS",
+        help="Timeout per test case in seconds (default: 600 = 10 minutes). "
+        "Increase this if you have complex queries or slow models that need more time.",
+    )
+
+    parser.add_argument(
+        "--debug-timing",
+        action="store_true",
+        help="Enable debug logging to show API call timing and help diagnose timeout issues. "
+        "Can also use DEBUG=1 environment variable.",
+    )
+
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show detailed error messages and test execution information. "
+        "Useful for troubleshooting when tests are failing.",
+    )
+
+    parser.add_argument(
         "--with-vanilla",
         action="store_true",
         help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",
@@ -1267,6 +1438,23 @@ async def main():
 
     # Parse command-line arguments
     args = parse_arguments()
+
+    # Configure logging based on --debug-timing flag or DEBUG environment variable
+    import logging
+
+    debug_enabled = args.debug_timing or os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
+    verbose_enabled = args.verbose
+
+    if debug_enabled:
+        logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+        print("🐛 Debug logging enabled - showing detailed timing and diagnostic information")
+        if os.getenv("DEBUG"):
+            print("   (via DEBUG environment variable)")
+    elif verbose_enabled:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+        print("📢 Verbose mode enabled - showing detailed error messages")
+    else:
+        logging.basicConfig(level=logging.WARNING)
 
     # Configure API keys (after argument parsing so --help works)
     # Note: Provider-specific credential validation is done later
@@ -1468,6 +1656,7 @@ async def main():
                 f"   Total evaluations: {len(models)} models × 3 modes × {len(test_cases)} tests = {len(models) * 3 * len(test_cases)}"
             )
             print(f"   Concurrency: {args.concurrency}")
+            print(f"   Timeout per test: {args.timeout} seconds ({args.timeout // 60} minutes)")
             print(
                 f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}"
             )
@@ -1630,46 +1819,199 @@ async def main():
                         }
                     )
 
-            # Execute ALL tasks concurrently!
-            print(
-                f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})..."
-            )
-            print(f"   This will run ALL models × modes × tests in parallel!")
-            pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
+            # Track test results for progress bar
+            test_stats = {"yes": 0, "no": 0, "failed": 0}
 
-            # Run all tasks concurrently using gather, which preserves order
-            # We'll update the progress bar as tasks complete using a callback
-            # Add timeout to prevent hanging tasks
-            async def run_task_with_progress(task):
-                try:
-                    # Set a timeout of 5 minutes per task
-                    result = await asyncio.wait_for(task, timeout=300)
-                    pbar_global.update(1)
-                    return result
-                except asyncio.TimeoutError:
-                    pbar_global.update(1)
-                    error_msg = "Task timed out after 5 minutes"
-                    print(f"⏱️  {error_msg}")
-                    return Exception(error_msg)
-                except Exception as e:
-                    pbar_global.update(1)
-                    print(f"❌ Task failed: {e}")
-                    return e
+            # For concurrency=1, use simple sequential execution to make debugging easier
+            if args.concurrency == 1:
+                # Filter out skipped tests - only include metadata entries that have actual tasks
+                active_metadata = [meta for meta in task_metadata if not meta.get("skip", False)]
 
-            # Wrap all tasks with progress tracking
-            tasks_with_progress = [run_task_with_progress(task) for task in all_tasks]
+                print(
+                    f"\n🔍 Running {len(all_tasks)} tests SEQUENTIALLY (concurrency=1 for easier debugging)..."
+                )
+                print("   Errors will be shown immediately as they occur.")
+                if len(active_metadata) != len(all_tasks):
+                    print(
+                        f"   ⚠️  Note: {len(task_metadata) - len(active_metadata)} tests skipped (skip_vanilla or skip_web_search)"
+                    )
 
-            # Execute all tasks concurrently and get results in order
-            # Use return_exceptions=True to prevent one failed task from blocking all others
-            task_results = await asyncio.gather(*tasks_with_progress, return_exceptions=True)
-            pbar_global.close()
+                task_results = []
+                for idx, (task, meta) in enumerate(zip(all_tasks, active_metadata)):
+                    model_name = meta.get("model_name", "Unknown")
+                    mode = meta.get("mode", "Unknown")
+                    test_idx = meta.get("test_index", 0)
+                    test_name = (
+                        test_cases[test_idx]["case"]["name"]
+                        if test_idx < len(test_cases)
+                        else "Unknown"
+                    )
+
+                    print(
+                        f"\n[{idx+1}/{len(all_tasks)}] {model_name} / {mode.upper()} / {test_name}"
+                    )
+
+                    try:
+                        # Run task with timeout
+                        result = await asyncio.wait_for(task, timeout=args.timeout)
+
+                        # Track stats and show detailed output
+                        if isinstance(result, dict) and "classification" in result:
+                            # Show model's actual response
+                            response = result.get("response", "")
+                            if response:
+                                response_preview = (
+                                    response[:300] + "..." if len(response) > 300 else response
+                                )
+                                print(f"   📝 Model response: {response_preview}")
+
+                            # Show tool calls if any
+                            tool_calls = result.get("tool_calls", [])
+                            if tool_calls:
+                                tool_names = [tc.get("name", "unknown") for tc in tool_calls]
+                                print(
+                                    f"   🔧 Tools called: {', '.join(tool_names)} ({len(tool_calls)} calls)"
+                                )
+                            elif mode == "tool":
+                                print(f"   ⚠️  No tools called in TOOL mode")
+
+                            # Show classification
+                            classification = result.get("classification", "").lower()
+                            if classification.startswith("yes"):
+                                test_stats["yes"] += 1
+                                print(f"   ✅ EVALUATOR: PASSED")
+                            elif classification.startswith("no"):
+                                test_stats["no"] += 1
+                                print(f"   ❌ EVALUATOR: FAILED - {classification}")
+                            else:
+                                test_stats["failed"] += 1
+                                print(f"   ⚠️  EVALUATOR: ERROR - {classification}")
+                        elif isinstance(result, Exception):
+                            test_stats["failed"] += 1
+                            print(f"   ⚠ EXCEPTION: {result}")
+
+                        task_results.append(result)
+
+                    except asyncio.TimeoutError:
+                        test_stats["failed"] += 1
+                        error_msg = f"⏱️  TIMEOUT after {args.timeout}s"
+                        print(f"   {error_msg}")
+                        task_results.append(
+                            Exception(f"Task timed out after {args.timeout} seconds")
+                        )
+
+                    except Exception as e:
+                        test_stats["failed"] += 1
+                        print(f"   ⚠ EXCEPTION: {e}")
+                        task_results.append(e)
+
+                # Print summary
+                print(f"\n📊 Sequential Execution Complete:")
+                print(f"   ✓ Passed: {test_stats['yes']}")
+                print(f"   ✗ Failed: {test_stats['no']}")
+                print(f"   ⚠ Errors/Timeouts: {test_stats['failed']}")
+
+            else:
+                # Filter out skipped tests - only include metadata entries that have actual tasks
+                active_metadata = [meta for meta in task_metadata if not meta.get("skip", False)]
+
+                # Execute ALL tasks concurrently!
+                print(
+                    f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})..."
+                )
+                print(f"   This will run ALL models × modes × tests in parallel!")
+                if len(active_metadata) != len(all_tasks):
+                    print(
+                        f"   ⚠️  Note: {len(task_metadata) - len(active_metadata)} tests skipped (skip_vanilla or skip_web_search)"
+                    )
+                pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
+
+                def update_progress_bar():
+                    """Update progress bar with current test statistics."""
+                    pbar_global.set_postfix_str(
+                        f"✓ {test_stats['yes']} | ✗ {test_stats['no']} | ⚠ {test_stats['failed']}"
+                    )
+
+                # Run all tasks concurrently using gather, which preserves order
+                # We'll update the progress bar as tasks complete using a callback
+                # Add timeout to prevent hanging tasks
+                async def run_task_with_progress(task, metadata):
+                    try:
+                        # Set a timeout per task (configurable via --timeout)
+                        result = await asyncio.wait_for(task, timeout=args.timeout)
+
+                        # Track success/failure based on classification
+                        if isinstance(result, dict) and "classification" in result:
+                            classification = result.get("classification", "").lower()
+                            if classification.startswith("yes"):
+                                test_stats["yes"] += 1
+                            elif classification.startswith("no"):
+                                test_stats["no"] += 1
+                            else:
+                                test_stats["failed"] += 1
+                        elif isinstance(result, Exception):
+                            test_stats["failed"] += 1
+
+                        pbar_global.update(1)
+                        update_progress_bar()
+                        return result
+                    except asyncio.TimeoutError:
+                        test_stats["failed"] += 1
+                        pbar_global.update(1)
+                        update_progress_bar()
+
+                        # Provide detailed information about which task timed out
+                        model_name = metadata.get("model_name", "Unknown")
+                        mode = metadata.get("mode", "Unknown")
+                        test_idx = metadata.get("test_index", "?")
+                        test_name = (
+                            test_cases[test_idx]["case"]["name"]
+                            if test_idx < len(test_cases)
+                            else "Unknown"
+                        )
+                        error_msg = (
+                            f"⏱️  TIMEOUT after {args.timeout}s ({args.timeout // 60}min): "
+                            f"{model_name} / {mode} / Test #{test_idx + 1}: {test_name[:50]}"
+                        )
+                        print(error_msg)
+                        print(
+                            f"    💡 This usually means the API is slow or the query is complex. "
+                            f"Try: --timeout {args.timeout * 2}"
+                        )
+                        return Exception(f"Task timed out after {args.timeout} seconds")
+                    except Exception as e:
+                        test_stats["failed"] += 1
+                        pbar_global.update(1)
+                        update_progress_bar()
+                        print(f"❌ Task failed: {e}")
+                        return e
+
+                # Wrap all tasks with progress tracking and metadata
+                # Only zip with active_metadata (skipped tests filtered out)
+                tasks_with_progress = [
+                    run_task_with_progress(task, meta)
+                    for task, meta in zip(all_tasks, active_metadata)
+                ]
+
+                # Execute all tasks concurrently and get results in order
+                # Use return_exceptions=True to prevent one failed task from blocking all others
+                task_results = await asyncio.gather(*tasks_with_progress, return_exceptions=True)
+                pbar_global.close()
+
+                # Print summary statistics
+                print(f"\n📊 Test Summary:")
+                print(f"   ✓ Passed: {test_stats['yes']}")
+                print(f"   ✗ Failed: {test_stats['no']}")
+                print(f"   ⚠ Errors/Timeouts: {test_stats['failed']}")
+                print(f"   Total: {len(all_tasks)}")
 
             # Check for any exceptions in results and log them
             exception_count = 0
             for idx, result in enumerate(task_results):
                 if isinstance(result, Exception):
                     exception_count += 1
-                    print(f"⚠️  Task {idx} failed with exception: {result}")
+                    if debug_enabled:
+                        print(f"⚠️  Task {idx} failed with exception: {result}")
 
             if exception_count > 0:
                 print(
