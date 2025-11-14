@@ -34,6 +34,11 @@
     expected: "CADD phred score is 8.103."
 
 - case:
+    name: "AlphaMissesense"
+    input: "What is the AlphaMisssense prediction for the variant Chr9:96931892 C>T?"
+    expected: "The AlphaMissense prediction for this variant is likely benign"
+
+- case:
     name: "REVEL prediction"
     input: "Tell me about the variant NM_001045477.4:c.187C>T. According to REVEL, how is this variant classified?"
     expected: "REVEL predicts it with a score of 0.027."
@@ -42,7 +47,6 @@
     name: "PolyPhen-2 prediction"
     input: "According to PolyPhen-2, how is NM_001045477.4:c.187C>T predicted?"
     expected: "PolyPhen-2 HumDiv and HumVar both classify it as 'Benign'."
-
 
 - case:
     name: "ClinVar records for NUTM2G"
@@ -100,6 +104,11 @@
     expected: "The rat ortholog is Nutm2f."
 
 - case:
+    name: "DIOPT ortholog fly"
+    input: "What is the gene symbol for the DIOPT ortholog of NUTM2G in fly?"
+    expected: "There is no clear ortholog of NUTM2G in fly."
+
+- case:
     name: "Highest GTEx expression"
     input: "Which tissue expresses NUTM2G the most according to GTEx?"
     expected: "Highest expression is observed in the testis."
@@ -115,14 +124,44 @@
     expected: "No approved drugs or active ligands were found for NUTM2G."
 
 - case:
+    name: "Geno2MP by entrez id value comparison"
+    input: "What is the most common mutation category in HTT gene variant HPO entries?"
+    expected: "Synonymous/Unknown"
+
+- case:
     name: "Geno2MP by entrez id"
-    input: "Are there any Geno2MP entries for the HTT gene?"
-    expeted: "tbd"
+    input: "How many noncoding HTT gene variant HPO entries are there in the Geno2MP database?"
+    expected: "654 HPO entries for noncoding HTT variants"
 
 - case:
     name: "OMIM by disease name"
-    input: "Which genes are associated with huntington's disease?"
-    expected: "tbd"
+    input: "Which gene is most associated with huntington's disease?"
+    expected: "The gene most associated with huntington's is HTT"
+
+- case:
+    name: "Omim by mim number"
+    input: "Which genes are connected to mim number 114480?"
+    expected: "The genes connected include BRCA1, BRCA2, RAD51C, and RAD51D"
+
+- case: 
+    name: "Omim by variant - variant does not exist"
+    input: "Is the variant variant chr4:31600 A>T present on OMIM? If so what is that associated phenotype?"
+    expected: "The variant is not present on OMIM."
+
+- case:
+    name: "Omim by variant"
+    input: "Is the variant variant chr4:3160307 C>T present on OMIM? If so what is that associated phenotype?"
+    expected: "The associated phenotype is Lopes-Maciel-Rodan syndrome."
+
+- case:
+    name: "HPO by phenotype query"
+    input: "What HPO terms are associated with the search term 'haemolytic anaemia'?"
+    expected: "HP:0001878, HP:0001890, HP:0004804 are among the results"
+
+- case:
+    name: "HPO by id query"
+    input: "How many genes are associated with HPO term HP:0002671"
+    expected: "HP:0002671 is associated with 58 genes."
 
 - case:
     name: "UniProt ID and name"
@@ -133,6 +172,11 @@
     name: "GO functions for TP53"
     input: "Regarding GO molecular functions, does the fly ortholog for TP53 have RNA Polymerase II TF binding function?"
     expected: "Yes, the fly ortholog of TP53 has the molecular function \"RNA polymerase II transcription factor binding\" (GO:0001085)."
+
+- case:
+    name: "Ortholog tissue expression"
+    input: "Which developmental stage has the most HTT expression annotations in mice?"
+    expected: "Embryo stage"
 
 - case:
     name: "PubMed search by gene name"
