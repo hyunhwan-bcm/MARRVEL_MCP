@@ -125,7 +125,7 @@
 
 - case:
     name: "Geno2MP by entrez id value comparison"
-    input: "What is the most common mutation category in HTT gene variant HPO entries?"
+    input: "What is the most common mutation category in ENSG00000197386 gene variant HPO entries?"
     expected: "Synonymous/Unknown"
 
 - case:
