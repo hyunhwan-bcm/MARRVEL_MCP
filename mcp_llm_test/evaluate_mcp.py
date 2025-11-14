@@ -849,7 +849,10 @@ def generate_html_report(
                 web_classification = model_data["web"].get("classification", "").lower()
                 tool_classification = model_data["tool"]["classification"].lower()
 
-                if re.search(r"\byes\b", vanilla_classification):
+                # Skip counting N/A vanilla results
+                if model_data["vanilla"].get("status") != "N/A" and re.search(
+                    r"\byes\b", vanilla_classification
+                ):
                     models_stats[model_id]["vanilla_success"] += 1
                 # Skip counting N/A web results
                 if model_data["web"].get("status") != "N/A" and re.search(
@@ -993,6 +996,8 @@ def generate_html_report(
                         "tokens_used": vanilla_res.get("tokens_used", 0),
                         "tool_calls": vanilla_res.get("tool_calls", []),
                         "conversation": vanilla_conversation,
+                        "is_na": vanilla_res.get("status") == "N/A",
+                        "na_reason": vanilla_res.get("reason", ""),
                     },
                     "web": {
                         "response": web_res.get("response", "N/A"),
