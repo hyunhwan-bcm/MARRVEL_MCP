@@ -24,6 +24,7 @@ import json
 import ssl
 import certifi
 import inspect
+import re
 import ast
 import asyncio
 from typing import Optional
@@ -1236,10 +1237,34 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
     description="Convert protein-level variant to genomic coordinates using Transvar across multiple transcripts",
     meta={"category": "utility", "service": "Transvar", "version": "1.0"},
 )
-async def convert_protein_variant(protein_variant: str) -> str:
+async def convert_protein_variant(gene_symbol: str, protein_variant: str) -> str:
     try:
         encoded_variant = quote(protein_variant)
-        data = await fetch_marrvel_data(f"/transvar/protein/{encoded_variant}", is_graphql=False)
+        data = await fetch_marrvel_data(f"/transvar/protein/{gene_symbol}:{encoded_variant}", is_graphql=False)
+        data_obj = json.loads(data)
+        for c in data_obj["candidates"]:
+            try:
+                coords = c["coord"]
+                coords_re = r"chr(\w+):g\.(\d+)(\w+)>(\w+)"
+                match = re.match(coords_re, coords)
+
+                chromosome = match.group(1)
+                position = match.group(2)
+                ref = match.group(3)
+                alt = match.group(4)
+
+                lo_data = await liftover_hg19_to_hg38(chromosome, position)
+                lo_data_obj = json.loads(lo_data)
+
+                c["hg38Chr"] = lo_data_obj["hg38Chr"]
+                c["hg38Pos"] = lo_data_obj["hg38Pos"]
+                c["ref"] = ref
+                c["alt"] = alt
+                del c["coord"]
+            except:
+                c["error"] = "Could not map location"
+
+        data = json.dumps(data_obj, indent=2)
         return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error converting protein variant: {str(e)}"}, indent=2)

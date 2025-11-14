@@ -25,7 +25,7 @@
 
 - case:
     name: "Average dbNSFP rank score"
-    input: "What is the average dbNSFP rank score for Chr9:96931892 C>T?"
+    input: "What is the average dbNSFP rank score for p.P63S in NUTM2G?"
     expected: "The average dbNSFP rank score is 0.214."
 
 - case:
