@@ -1286,6 +1286,11 @@ async def main():
     models_config_path = Path(args.models_config) if args.models_config else None
     yaml_evaluator_config = load_evaluator_config_from_yaml(models_config_path)
 
+    # Determine the actual YAML file path for logging
+    yaml_file_path = (
+        models_config_path if models_config_path else Path(__file__).parent / "models_config.yaml"
+    )
+
     # Override evaluator configuration from YAML if provided
     if (
         yaml_evaluator_config
@@ -1304,7 +1309,8 @@ async def main():
             # Apply YAML evaluator config
             evaluator_model = yaml_model
             evaluator_provider = yaml_provider
-            print(f"📊 Using YAML evaluator config: {yaml_provider} / {yaml_model}")
+            print(f"📊 Evaluator config loaded from YAML: {yaml_file_path}")
+            print(f"   Using: {yaml_provider} / {yaml_model} (applies to ALL test modes)")
         except Exception as e:
             print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
             print(
@@ -1822,7 +1828,6 @@ async def main():
 
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
     elif args.with_web:
-        print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
         print(
             f"🚀 Running {len(test_cases)} test case(s) with THREE modes: vanilla, web search, and MARRVEL-MCP"
         )
@@ -1911,7 +1916,6 @@ async def main():
 
     # Handle --with-vanilla mode: run both vanilla and tool modes
     elif args.with_vanilla:
-        print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
         print(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
         print(f"   Concurrency: {args.concurrency}")
         print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
@@ -1979,7 +1983,6 @@ async def main():
 
     else:
         # Normal mode: run with tools only
-        print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
         print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
         print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
 
