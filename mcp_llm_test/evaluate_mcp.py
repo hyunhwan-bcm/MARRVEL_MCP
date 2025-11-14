@@ -1202,6 +1202,9 @@ Examples:
   # Debug timeout issues (shows API call timing)
   python evaluate_mcp.py --debug-timing --timeout 1200
 
+  # Or use DEBUG environment variable
+  DEBUG=1 python evaluate_mcp.py --multi-model
+
 Cache Behavior:
   Results are always cached at: {cache_dir}
 
@@ -1260,7 +1263,8 @@ Cache Behavior:
     parser.add_argument(
         "--debug-timing",
         action="store_true",
-        help="Enable debug logging to show API call timing and help diagnose timeout issues.",
+        help="Enable debug logging to show API call timing and help diagnose timeout issues. "
+        "Can also use DEBUG=1 environment variable.",
     )
 
     parser.add_argument(
@@ -1300,12 +1304,16 @@ async def main():
     # Parse command-line arguments
     args = parse_arguments()
 
-    # Configure logging based on --debug-timing flag
+    # Configure logging based on --debug-timing flag or DEBUG environment variable
     import logging
 
-    if args.debug_timing:
+    debug_enabled = args.debug_timing or os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
+
+    if debug_enabled:
         logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
-        print("🐛 Debug timing enabled - showing API call timing information")
+        print("🐛 Debug logging enabled - showing detailed timing and diagnostic information")
+        if os.getenv("DEBUG"):
+            print("   (via DEBUG environment variable)")
     else:
         logging.basicConfig(level=logging.WARNING)
 
@@ -1679,6 +1687,15 @@ async def main():
             print(f"   This will run ALL models × modes × tests in parallel!")
             pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
 
+            # Track test results for progress bar
+            test_stats = {"yes": 0, "no": 0, "failed": 0}
+
+            def update_progress_bar():
+                """Update progress bar with current test statistics."""
+                pbar_global.set_postfix_str(
+                    f"✓ {test_stats['yes']} | ✗ {test_stats['no']} | ⚠ {test_stats['failed']}"
+                )
+
             # Run all tasks concurrently using gather, which preserves order
             # We'll update the progress bar as tasks complete using a callback
             # Add timeout to prevent hanging tasks
@@ -1686,10 +1703,27 @@ async def main():
                 try:
                     # Set a timeout per task (configurable via --timeout)
                     result = await asyncio.wait_for(task, timeout=args.timeout)
+
+                    # Track success/failure based on classification
+                    if isinstance(result, dict) and "classification" in result:
+                        classification = result.get("classification", "").lower()
+                        if classification.startswith("yes"):
+                            test_stats["yes"] += 1
+                        elif classification.startswith("no"):
+                            test_stats["no"] += 1
+                        else:
+                            test_stats["failed"] += 1
+                    elif isinstance(result, Exception):
+                        test_stats["failed"] += 1
+
                     pbar_global.update(1)
+                    update_progress_bar()
                     return result
                 except asyncio.TimeoutError:
+                    test_stats["failed"] += 1
                     pbar_global.update(1)
+                    update_progress_bar()
+
                     # Provide detailed information about which task timed out
                     model_name = metadata.get("model_name", "Unknown")
                     mode = metadata.get("mode", "Unknown")
@@ -1710,7 +1744,9 @@ async def main():
                     )
                     return Exception(f"Task timed out after {args.timeout} seconds")
                 except Exception as e:
+                    test_stats["failed"] += 1
                     pbar_global.update(1)
+                    update_progress_bar()
                     print(f"❌ Task failed: {e}")
                     return e
 
@@ -1724,12 +1760,20 @@ async def main():
             task_results = await asyncio.gather(*tasks_with_progress, return_exceptions=True)
             pbar_global.close()
 
+            # Print summary statistics
+            print(f"\n📊 Test Summary:")
+            print(f"   ✓ Passed: {test_stats['yes']}")
+            print(f"   ✗ Failed: {test_stats['no']}")
+            print(f"   ⚠ Errors/Timeouts: {test_stats['failed']}")
+            print(f"   Total: {len(all_tasks)}")
+
             # Check for any exceptions in results and log them
             exception_count = 0
             for idx, result in enumerate(task_results):
                 if isinstance(result, Exception):
                     exception_count += 1
-                    print(f"⚠️  Task {idx} failed with exception: {result}")
+                    if debug_enabled:
+                        print(f"⚠️  Task {idx} failed with exception: {result}")
 
             if exception_count > 0:
                 print(
