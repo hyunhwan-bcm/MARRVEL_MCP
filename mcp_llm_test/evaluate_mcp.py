@@ -554,6 +554,8 @@ async def evaluate_response(actual: str, expected: str, llm_instance=None) -> st
         expected: The expected response text
         llm_instance: DEPRECATED - kept for backward compatibility, ignored
     """
+    import logging
+
     # Always use the dedicated evaluator LLM for consistent evaluation
     # The llm_instance parameter is kept for backward compatibility but ignored
     active_llm = llm_evaluator
@@ -575,14 +577,39 @@ Answer with 'yes' or 'no' followed by a brief reason.
 Expected: {expected}
 Actual: {actual}"""
 
+    # Log evaluator input in debug mode
+    logging.debug("=" * 80)
+    logging.debug("🔍 EVALUATOR INPUT:")
+    logging.debug(
+        f"   Expected answer: {expected[:200]}..."
+        if len(expected) > 200
+        else f"   Expected answer: {expected}"
+    )
+    logging.debug(
+        f"   Actual response: {actual[:200]}..."
+        if len(actual) > 200
+        else f"   Actual response: {actual}"
+    )
+    logging.debug(f"   Full prompt length: {len(prompt)} chars")
+
     # Validate token count before making API call
     is_valid, token_count = validate_token_count(prompt)
     if not is_valid:
-        return f"no - Evaluation skipped: Input token count ({token_count:,}) exceeds maximum allowed ({MAX_TOKENS:,}). The response or context is excessively long. Please reduce the input size."
+        error_msg = f"no - Evaluation skipped: Input token count ({token_count:,}) exceeds maximum allowed ({MAX_TOKENS:,}). The response or context is excessively long. Please reduce the input size."
+        logging.debug(f"   ❌ Token limit exceeded: {error_msg}")
+        logging.debug("=" * 80)
+        return error_msg
 
     messages = [HumanMessage(content=prompt)]
+
+    logging.debug(f"   Calling evaluator LLM ({type(active_llm).__name__})...")
     response = await invoke_with_throttle_retry(active_llm, messages)
-    return response.content
+
+    classification = response.content
+    logging.debug(f"   ✅ Evaluator classification: {classification}")
+    logging.debug("=" * 80)
+
+    return classification
 
 
 async def run_test_case(
@@ -646,12 +673,51 @@ async def run_test_case(
             mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
             pbar.set_postfix_str(f"Running ({mode_label}): {name[:40]}...")
 
+        # Log test execution details in debug mode
+        mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
+        import logging
+
+        logging.debug("=" * 80)
+        logging.debug(f"🧪 TEST EXECUTION:")
+        logging.debug(f"   Test: {name}")
+        logging.debug(f"   Mode: {mode_label.upper()}")
+        if vanilla_mode:
+            logging.debug("   ⚠️  VANILLA MODE: No tools will be called (baseline test)")
+        elif web_mode:
+            logging.debug("   🌐 WEB MODE: Web search enabled via :online suffix")
+        else:
+            logging.debug("   🔧 TOOL MODE: MARRVEL-MCP tools available")
+        logging.debug(
+            f"   Question: {user_input[:150]}..."
+            if len(user_input) > 150
+            else f"   Question: {user_input}"
+        )
+        logging.debug(
+            f"   Expected: {expected[:150]}..."
+            if len(expected) > 150
+            else f"   Expected: {expected}"
+        )
+
         try:
             langchain_response, tool_history, full_conversation, tokens_used, metadata = (
                 await get_langchain_response(
                     mcp_client, user_input, vanilla_mode, web_mode, llm_instance, llm_web_instance
                 )
             )
+
+            # Log response details in debug mode
+            logging.debug(f"   Response received: {len(langchain_response)} chars")
+            logging.debug(f"   Tool calls made: {len(tool_history)}")
+            if tool_history:
+                logging.debug(
+                    f"   Tools used: {', '.join(set(tc.get('name', 'unknown') for tc in tool_history))}"
+                )
+            else:
+                if not vanilla_mode and not web_mode:
+                    logging.debug(
+                        "   ⚠️  No tools were called in TOOL mode - LLM may have answered without tools"
+                    )
+            logging.debug("=" * 80)
             # Use the global evaluator LLM (not the model being tested) for consistent evaluation
             classification = await evaluate_response(langchain_response, expected)
             result = {
