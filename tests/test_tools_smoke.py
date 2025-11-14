@@ -98,7 +98,7 @@ tool_calls = [
     ("get_pmc_figure_captions_by_pmcid", {"pmcid": "PMC3518823"}),
     ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
     ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}),
-    ("convert_protein_variant", {"gene_symbol":"NUTM2G", "protein_variant":"p.P63S"}),
+    ("convert_protein_variant", {"gene_symbol": "NUTM2G", "protein_variant": "p.P63S"}),
     ("convert_rsid_to_variant", {"rsid": "rs137852987"}),
     ("get_decipher_by_location", {"chr": "6", "start": 99316420, "stop": 99395849}),
     ("get_string_interactions_by_entrez_id", {"entrez_id": "10"}),
