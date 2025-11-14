@@ -1185,6 +1185,10 @@ Examples:
   python evaluate_mcp.py --multi-model
   python evaluate_mcp.py --multi-model --models-config custom_models.yaml
 
+  # Increase timeout for slow models or complex queries
+  python evaluate_mcp.py --timeout 1200  # 20 minutes per test
+  python evaluate_mcp.py --multi-model --timeout 900 --concurrency 2
+
 Cache Behavior:
   Results are always cached at: {cache_dir}
 
@@ -1229,6 +1233,15 @@ Cache Behavior:
         help="Maximum number of concurrent test executions (default: 4 for most providers, 1 for Bedrock). "
         "Bedrock has strict rate limits and connection pool constraints (max 10 connections). "
         "Increase for faster execution if API rate limits allow, but be cautious with Bedrock.",
+    )
+
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=600,
+        metavar="SECONDS",
+        help="Timeout per test case in seconds (default: 600 = 10 minutes). "
+        "Increase this if you have complex queries or slow models that need more time.",
     )
 
     parser.add_argument(
@@ -1468,6 +1481,7 @@ async def main():
                 f"   Total evaluations: {len(models)} models × 3 modes × {len(test_cases)} tests = {len(models) * 3 * len(test_cases)}"
             )
             print(f"   Concurrency: {args.concurrency}")
+            print(f"   Timeout per test: {args.timeout} seconds ({args.timeout // 60} minutes)")
             print(
                 f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}"
             )
@@ -1642,13 +1656,13 @@ async def main():
             # Add timeout to prevent hanging tasks
             async def run_task_with_progress(task):
                 try:
-                    # Set a timeout of 5 minutes per task
-                    result = await asyncio.wait_for(task, timeout=300)
+                    # Set a timeout per task (configurable via --timeout)
+                    result = await asyncio.wait_for(task, timeout=args.timeout)
                     pbar_global.update(1)
                     return result
                 except asyncio.TimeoutError:
                     pbar_global.update(1)
-                    error_msg = "Task timed out after 5 minutes"
+                    error_msg = f"Task timed out after {args.timeout} seconds"
                     print(f"⏱️  {error_msg}")
                     return Exception(error_msg)
                 except Exception as e:
