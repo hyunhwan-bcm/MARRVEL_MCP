@@ -1083,6 +1083,38 @@ def open_in_browser(html_path: str):
     print(f"--- Opened {html_path} in browser ---")
 
 
+def load_evaluator_config_from_yaml(
+    config_path: Path | None = None,
+) -> Dict[str, Any]:
+    """Load only the evaluator configuration from YAML file.
+
+    This function extracts just the evaluator config without requiring
+    models to be defined. Used for single test modes that want to respect
+    YAML evaluator config.
+
+    Args:
+        config_path: Path to models configuration YAML file.
+                     If None, uses default models_config.yaml in mcp-llm-test directory.
+
+    Returns:
+        Dict with 'provider' and 'model' keys for evaluator, or empty dict if not found
+    """
+    if config_path is None:
+        config_path = Path(__file__).parent / "models_config.yaml"
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config_data = yaml.safe_load(f)
+
+        config = config_data.get("config", {})
+        evaluator_config = config.get("evaluator", {})
+
+        return evaluator_config
+    except Exception:
+        # File not found or parse error - return empty dict
+        return {}
+
+
 def load_models_config(
     config_path: Path | None = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
@@ -1249,8 +1281,39 @@ async def main():
     # Configure evaluator LLM (separate from models being tested)
     evaluator_model, evaluator_provider = get_evaluation_model_config()
 
+    # Load YAML evaluator config and override if specified
+    # This applies to ALL test modes for consistency (not just multi-model mode)
+    models_config_path = Path(args.models_config) if args.models_config else None
+    yaml_evaluator_config = load_evaluator_config_from_yaml(models_config_path)
+
+    # Override evaluator configuration from YAML if provided
+    if (
+        yaml_evaluator_config
+        and "provider" in yaml_evaluator_config
+        and "model" in yaml_evaluator_config
+    ):
+        yaml_provider = yaml_evaluator_config["provider"]
+        yaml_model = yaml_evaluator_config["model"]
+
+        # Validate YAML evaluator provider before applying
+        from config.llm_providers import validate_provider_credentials
+
+        try:
+            validate_provider_credentials(yaml_provider)
+
+            # Apply YAML evaluator config
+            evaluator_model = yaml_model
+            evaluator_provider = yaml_provider
+            print(f"📊 Using YAML evaluator config: {yaml_provider} / {yaml_model}")
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
+            print(
+                f"   Continuing with environment/default evaluator: {evaluator_provider} / {evaluator_model}"
+            )
+
     # Validate provider credentials before proceeding
-    from config.llm_providers import validate_provider_credentials
+    if "validate_provider_credentials" not in dir():
+        from config.llm_providers import validate_provider_credentials
 
     try:
         validate_provider_credentials(provider)
@@ -1383,38 +1446,12 @@ async def main():
         # Load models configuration
         try:
             models_config_path = Path(args.models_config) if args.models_config else None
-            models, yaml_evaluator_config = load_models_config(models_config_path)
+            models, _ = load_models_config(models_config_path)
 
-            # Override evaluator configuration from YAML if provided
-            if (
-                yaml_evaluator_config
-                and "provider" in yaml_evaluator_config
-                and "model" in yaml_evaluator_config
-            ):
-                yaml_provider = yaml_evaluator_config["provider"]
-                yaml_model = yaml_evaluator_config["model"]
+            # Note: Evaluator config is now loaded globally (before this mode)
+            # and llm_evaluator is already created with the correct config
 
-                # Validate and create new evaluator instance
-                try:
-                    from config.llm_providers import validate_provider_credentials
-
-                    validate_provider_credentials(yaml_provider)
-
-                    # Update global evaluator variables
-                    evaluator_model = yaml_model
-                    evaluator_provider = yaml_provider
-                    llm_evaluator = create_llm_instance(
-                        provider=yaml_provider,
-                        model_id=yaml_model,
-                        temperature=0,
-                    )
-                    print(f"📊 Evaluator: {yaml_provider} / {yaml_model}")
-                except Exception as e:
-                    print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
-                    print(
-                        f"   Continuing with environment/default evaluator: {evaluator_provider} / {evaluator_model}"
-                    )
-
+            print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
             print(f"🎯 Multi-Model Testing Mode")
             print(f"   Models to test: {len(models)}")
             for model in models:
