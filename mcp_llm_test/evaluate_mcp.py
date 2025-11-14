@@ -1292,17 +1292,8 @@ async def main():
         temperature=0,
     )
 
-    # Display configuration
-    if provider == "openrouter":
-        if resolved_model != DEFAULT_MODEL:
-            print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
-        else:
-            print(f"✨ Using default OpenRouter model: {resolved_model}")
-    else:
-        print(f"🔧 Using provider: {provider}, model: {resolved_model}")
-
-    # Display evaluator configuration
-    print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
+    # Display configuration - provider-agnostic messaging
+    print(f"🔧 Model: {provider} / {resolved_model}")
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
@@ -1402,7 +1393,6 @@ async def main():
             ):
                 yaml_provider = yaml_evaluator_config["provider"]
                 yaml_model = yaml_evaluator_config["model"]
-                print(f"🔄 Overriding evaluator from YAML config: {yaml_provider} / {yaml_model}")
 
                 # Validate and create new evaluator instance
                 try:
@@ -1418,7 +1408,7 @@ async def main():
                         model_id=yaml_model,
                         temperature=0,
                     )
-                    print(f"✅ Evaluator updated: {yaml_provider} / {yaml_model}")
+                    print(f"📊 Evaluator: {yaml_provider} / {yaml_model}")
                 except Exception as e:
                     print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
                     print(
@@ -1494,33 +1484,47 @@ async def main():
             for model_config in models:
                 model_name = model_config["name"]
                 model_id = model_config["id"]
+                skip_vanilla = model_config.get("skip_vanilla", False)
                 skip_web_search = model_config.get("skip_web_search", False)
                 model_llm = model_llm_instances[model_id]["llm"]
                 model_llm_web = model_llm_instances[model_id]["llm_web"]
 
-                # Vanilla mode tasks
-                for i, test_case in enumerate(test_cases):
-                    task = run_test_case(
-                        semaphore,
-                        mcp_client,
-                        test_case,
-                        use_cache=use_cache,
-                        vanilla_mode=True,
-                        web_mode=False,
-                        model_id=model_id,
-                        pbar=None,
-                        llm_instance=model_llm,
-                        llm_web_instance=model_llm_web,
-                    )
-                    all_tasks.append(task)
-                    task_metadata.append(
-                        {
-                            "model_id": model_id,
-                            "model_name": model_name,
-                            "mode": "vanilla",
-                            "test_index": i,
-                        }
-                    )
+                # Vanilla mode tasks (or N/A placeholders if not supported)
+                if skip_vanilla:
+                    # Don't create tasks, we'll fill in N/A results later
+                    for i in enumerate(test_cases):
+                        task_metadata.append(
+                            {
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "vanilla",
+                                "test_index": i[0],
+                                "skip": True,
+                            }
+                        )
+                else:
+                    for i, test_case in enumerate(test_cases):
+                        task = run_test_case(
+                            semaphore,
+                            mcp_client,
+                            test_case,
+                            use_cache=use_cache,
+                            vanilla_mode=True,
+                            web_mode=False,
+                            model_id=model_id,
+                            pbar=None,
+                            llm_instance=model_llm,
+                            llm_web_instance=model_llm_web,
+                        )
+                        all_tasks.append(task)
+                        task_metadata.append(
+                            {
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "vanilla",
+                                "test_index": i,
+                            }
+                        )
 
                 # Web mode tasks (or N/A placeholders if not supported)
                 if skip_web_search:
@@ -1662,6 +1666,7 @@ async def main():
                 model_name = model_config["name"]
                 model_id = model_config["id"]
                 model_provider = model_config.get("provider", "openrouter")
+                skip_vanilla = model_config.get("skip_vanilla", False)
                 skip_web_search = model_config.get("skip_web_search", False)
 
                 if model_id not in all_models_results:
@@ -1676,18 +1681,32 @@ async def main():
 
                 # Collect results for this model (they're in order: vanilla, web, tool)
                 # Vanilla results
-                vanilla_results = []
-                for i in range(len(test_cases)):
-                    # Find the corresponding result
-                    for idx, meta in enumerate(task_metadata):
-                        if (
-                            meta["model_id"] == model_id
-                            and meta["mode"] == "vanilla"
-                            and meta["test_index"] == i
-                            and not meta.get("skip", False)
-                        ):
-                            vanilla_results.append(results_map[idx])
-                            break
+                if skip_vanilla:
+                    vanilla_results = [
+                        {
+                            "status": "N/A",
+                            "reason": "Vanilla mode not supported by this model",
+                            "response": "N/A",
+                            "classification": "N/A",
+                            "tokens_used": 0,
+                            "tool_calls": [],
+                            "conversation": [],
+                        }
+                        for _ in test_cases
+                    ]
+                else:
+                    vanilla_results = []
+                    for i in range(len(test_cases)):
+                        # Find the corresponding result
+                        for idx, meta in enumerate(task_metadata):
+                            if (
+                                meta["model_id"] == model_id
+                                and meta["mode"] == "vanilla"
+                                and meta["test_index"] == i
+                                and not meta.get("skip", False)
+                            ):
+                                vanilla_results.append(results_map[idx])
+                                break
                 all_models_results[model_id]["vanilla"] = vanilla_results
 
                 # Web results
@@ -1766,6 +1785,7 @@ async def main():
 
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
     elif args.with_web:
+        print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
         print(
             f"🚀 Running {len(test_cases)} test case(s) with THREE modes: vanilla, web search, and MARRVEL-MCP"
         )
@@ -1854,6 +1874,7 @@ async def main():
 
     # Handle --with-vanilla mode: run both vanilla and tool modes
     elif args.with_vanilla:
+        print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
         print(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
         print(f"   Concurrency: {args.concurrency}")
         print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
@@ -1921,6 +1942,7 @@ async def main():
 
     else:
         # Normal mode: run with tools only
+        print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
         print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
         print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
 
