@@ -804,6 +804,7 @@ def generate_html_report(
     multi_model: bool = False,
     evaluator_model: str | None = None,
     evaluator_provider: str | None = None,
+    total_duration: float | None = None,
 ) -> str:
     """Generate HTML report with modal popups, reordered columns, and success rate summary.
 
@@ -814,6 +815,7 @@ def generate_html_report(
         multi_model: If True, results contain multiple models across all three modes
         evaluator_model: Model ID used for evaluation/grading
         evaluator_provider: Provider used for evaluation model
+        total_duration: Total execution time in seconds
 
     Returns:
         Path to generated HTML file
@@ -1166,6 +1168,7 @@ def generate_html_report(
             results=enriched_results,
             evaluator_model=evaluator_model,
             evaluator_provider=evaluator_provider,
+            total_duration=total_duration,
         )
     elif tri_mode:
         html_content = template.render(
@@ -1180,6 +1183,7 @@ def generate_html_report(
             results=enriched_results,
             evaluator_model=evaluator_model,
             evaluator_provider=evaluator_provider,
+            total_duration=total_duration,
         )
     elif dual_mode:
         html_content = template.render(
@@ -1192,6 +1196,7 @@ def generate_html_report(
             results=enriched_results,
             evaluator_model=evaluator_model,
             evaluator_provider=evaluator_provider,
+            total_duration=total_duration,
         )
     else:
         html_content = template.render(
@@ -1202,6 +1207,7 @@ def generate_html_report(
             results=enriched_results,
             evaluator_model=evaluator_model,
             evaluator_provider=evaluator_provider,
+            total_duration=total_duration,
         )
 
     temp_html.write(html_content)
@@ -1434,6 +1440,11 @@ async def main():
     """
     Main function to run the evaluation concurrently.
     """
+    import time
+
+    # Track total execution time
+    start_time = time.time()
+
     global llm, llm_web, llm_evaluator, OPENROUTER_API_KEY
 
     # Parse command-line arguments
@@ -2155,11 +2166,13 @@ async def main():
 
         # Generate HTML report with multi-model comparison
         try:
+            total_duration = time.time() - start_time
             html_path = generate_html_report(
                 combined_results,
                 multi_model=True,
                 evaluator_model=evaluator_model,
                 evaluator_provider=evaluator_provider,
+                total_duration=total_duration,
             )
             open_in_browser(html_path)
         except Exception as e:
@@ -2246,11 +2259,13 @@ async def main():
 
         # Generate HTML report with 3-way comparison
         try:
+            total_duration = time.time() - start_time
             html_path = generate_html_report(
                 combined_results,
                 tri_mode=True,
                 evaluator_model=evaluator_model,
                 evaluator_provider=evaluator_provider,
+                total_duration=total_duration,
             )
             open_in_browser(html_path)
         except Exception as e:
@@ -2313,11 +2328,13 @@ async def main():
 
         # Generate HTML report with dual-mode results
         try:
+            total_duration = time.time() - start_time
             html_path = generate_html_report(
                 combined_results,
                 dual_mode=True,
                 evaluator_model=evaluator_model,
                 evaluator_provider=evaluator_provider,
+                total_duration=total_duration,
             )
             open_in_browser(html_path)
         except Exception as e:
@@ -2357,10 +2374,12 @@ async def main():
 
         # Generate HTML report and open in browser
         try:
+            total_duration = time.time() - start_time
             html_path = generate_html_report(
                 ordered_results,
                 evaluator_model=evaluator_model,
                 evaluator_provider=evaluator_provider,
+                total_duration=total_duration,
             )
             open_in_browser(html_path)
         except Exception as e:
