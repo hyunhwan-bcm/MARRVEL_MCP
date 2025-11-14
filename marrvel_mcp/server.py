@@ -832,49 +832,49 @@ async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
     categories taken from https://github.com/LiuzLab/MARRVEL2/blob/master/client/src/app/components/pages/human-result/geno2mp/categories.ts
     """
     functional_annotation_to_cat_num = {
-    'non-coding-exon': 0,
-    'upstream-gene': 0,
-    'missense': 2,
-    'synonymous': 1,
-    'stop-gained': 3,
-    'intergenic': 0,
-    'intron': 0,
-    'downstream-gene':  0,
-    '5-prime-UTR': 0,
-    'missense-near-splice': 2,
-    'intron-near-splice': 0,
-    'splice-donor': 3,
-    'coding': 1,
-    'frameshift': 3,
-    'codingComplex': 2,
-    '3-prime-UTR': 0,
-    'frameshift-near-splice': 3,
-    'splice-acceptor': 3,
-    'synonymous-near-splice': 1,
-    'coding-near-splice': 2,
-    'stop-lost': 3,
-    'stop-gained-near-splice': 3,
-    'non-coding-exon-near-splice': 0,
-    'codingComplex-near-splice': 2,
-    'stop-lost-near-splice': 3,
-    'coding-unknown': 1,
-    'coding-unknown-near-splice': 1
+        "non-coding-exon": 0,
+        "upstream-gene": 0,
+        "missense": 2,
+        "synonymous": 1,
+        "stop-gained": 3,
+        "intergenic": 0,
+        "intron": 0,
+        "downstream-gene": 0,
+        "5-prime-UTR": 0,
+        "missense-near-splice": 2,
+        "intron-near-splice": 0,
+        "splice-donor": 3,
+        "coding": 1,
+        "frameshift": 3,
+        "codingComplex": 2,
+        "3-prime-UTR": 0,
+        "frameshift-near-splice": 3,
+        "splice-acceptor": 3,
+        "synonymous-near-splice": 1,
+        "coding-near-splice": 2,
+        "stop-lost": 3,
+        "stop-gained-near-splice": 3,
+        "non-coding-exon-near-splice": 0,
+        "codingComplex-near-splice": 2,
+        "stop-lost-near-splice": 3,
+        "coding-unknown": 1,
+        "coding-unknown-near-splice": 1,
     }
     cat_names = [
-        'Non-Coding',
-        'Synonymous/Unknown',
-        'Missense/Other Indel',
-        'Splice/Frameshift/Nonsense/Stop Loss'
+        "Non-Coding",
+        "Synonymous/Unknown",
+        "Missense/Other Indel",
+        "Splice/Frameshift/Nonsense/Stop Loss",
     ]
     try:
         data = await fetch_marrvel_data(f"/geno2mp/gene/entrezId/{entrez_id}", is_graphql=False)
         data_obj = json.loads(data)
-        counts = {"total":0}
+        counts = {"total": 0}
         for entry in data_obj:
             if entry.get("funcAnno"):
                 category = cat_names[functional_annotation_to_cat_num[entry["funcAnno"]]]
-                counts[category] = counts.get(category, 0)+len(entry.get("hpoProfiles",[]))
-            counts["total"]+=len(entry.get("hpoProfiles",[]))
+                counts[category] = counts.get(category, 0) + len(entry.get("hpoProfiles", []))
+            counts["total"] += len(entry.get("hpoProfiles", []))
         data = json.dumps(counts, indent=2)
         return data
     except Exception as e:
@@ -917,7 +917,7 @@ async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
     description="Get OMIM data for a specific variant with disease associations and clinical significance",
     meta={"category": "disease", "database": "OMIM", "version": "1.0"},
 )
-async def get_omim_variant(gene_symbol: str, chr: str, pos:str, ref:str, alt:str) -> str:
+async def get_omim_variant(gene_symbol: str, chr: str, pos: str, ref: str, alt: str) -> str:
     try:
         lo_data = await liftover_hg38_to_hg19(chr, pos)
         lo_data_obj = json.loads(lo_data)
@@ -1214,13 +1214,13 @@ async def get_ortholog_expression(entrez_id: str, taxon_id: str) -> str:
         )
         data_obj = json.loads(data)
         for i in data_obj:
-            if i["taxonId2"]==int(taxon_id) and i["bestScore"]:
+            if i["taxonId2"] == int(taxon_id) and i["bestScore"]:
                 entry = i
                 break
 
         if entry["gene2"] and entry["gene2"]["agrExpressions"]:
             for group in entry["gene2"]["agrExpressions"]["expressionSummary"]["groups"]:
-                group["terms"] = [i for i in group["terms"] if i["numberOfAnnotations"]>0]
+                group["terms"] = [i for i in group["terms"] if i["numberOfAnnotations"] > 0]
         data = json.dumps(entry, indent=2)
         return data
     except httpx.HTTPError as e:
