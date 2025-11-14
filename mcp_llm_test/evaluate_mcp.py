@@ -193,10 +193,19 @@ async def invoke_with_throttle_retry(
                 continue
 
             # For non-throttling errors or exhausted retries, raise immediately
-            logging.debug(f"Non-throttling error or exhausted retries, raising: {error_name}")
+            # Log at warning level (not just debug) so users see the error
+            if attempt >= max_retries:
+                logging.warning(
+                    f"⚠️  LLM API call failed after {max_retries + 1} attempts: {error_name}: {error_msg[:200]}"
+                )
+            else:
+                logging.debug(f"Non-throttling error or exhausted retries, raising: {error_name}")
             raise
 
     # If we get here, we exhausted all retries
+    logging.warning(
+        f"⚠️  LLM API call exhausted all {max_retries + 1} retries. Last error: {type(last_exception).__name__}: {str(last_exception)[:200]}"
+    )
     raise last_exception
 
 
@@ -658,13 +667,28 @@ async def run_test_case(
             # Don't cache failures
             return result
         except Exception as e:
+            # Always log errors, not just when pbar exists
+            import traceback
+
+            error_details = f"❌ Error in {name}: {e}"
+
             if pbar:
-                pbar.write(f"❌ Error in {name}: {e}")
+                pbar.write(error_details)
+            else:
+                # In multi-model mode without pbar, print directly
+                print(error_details)
+
+            # Show full traceback in debug mode
+            import logging
+
+            logging.debug(f"Full traceback for {name}:")
+            logging.debug(traceback.format_exc())
+
             result = {
                 "question": user_input,
                 "expected": expected,
                 "response": "**No response generated due to error.**",
-                "classification": f"**Error:** {e}",
+                "classification": f"**Error:** {str(e)[:200]}",  # Truncate long errors
                 "tool_calls": [],
                 "conversation": [],
             }
@@ -1202,6 +1226,10 @@ Examples:
   # Debug timeout issues (shows API call timing)
   python evaluate_mcp.py --debug-timing --timeout 1200
 
+  # Show detailed error messages when tests fail
+  python evaluate_mcp.py --verbose --multi-model
+  python evaluate_mcp.py -v --multi-model  # short form
+
   # Or use DEBUG environment variable
   DEBUG=1 python evaluate_mcp.py --multi-model
 
@@ -1268,6 +1296,14 @@ Cache Behavior:
     )
 
     parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show detailed error messages and test execution information. "
+        "Useful for troubleshooting when tests are failing.",
+    )
+
+    parser.add_argument(
         "--with-vanilla",
         action="store_true",
         help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",
@@ -1308,12 +1344,16 @@ async def main():
     import logging
 
     debug_enabled = args.debug_timing or os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
+    verbose_enabled = args.verbose
 
     if debug_enabled:
         logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
         print("🐛 Debug logging enabled - showing detailed timing and diagnostic information")
         if os.getenv("DEBUG"):
             print("   (via DEBUG environment variable)")
+    elif verbose_enabled:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+        print("📢 Verbose mode enabled - showing detailed error messages")
     else:
         logging.basicConfig(level=logging.WARNING)
 
