@@ -143,7 +143,7 @@
     input: "Which genes are connected to mim number 114480?"
     expected: "The genes connected include BRCA1, BRCA2, RAD51C, and RAD51D"
 
-- case: 
+- case:
     name: "Omim by variant - variant does not exist"
     input: "Is the variant variant chr4:31600 A>T present on OMIM? If so what is that associated phenotype?"
     expected: "The variant is not present on OMIM."

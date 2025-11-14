@@ -1240,7 +1240,9 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
 async def convert_protein_variant(gene_symbol: str, protein_variant: str) -> str:
     try:
         encoded_variant = quote(protein_variant)
-        data = await fetch_marrvel_data(f"/transvar/protein/{gene_symbol}:{encoded_variant}", is_graphql=False)
+        data = await fetch_marrvel_data(
+            f"/transvar/protein/{gene_symbol}:{encoded_variant}", is_graphql=False
+        )
         data_obj = json.loads(data)
         for c in data_obj["candidates"]:
             try:
