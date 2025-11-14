@@ -71,7 +71,7 @@ VERIFY_SSL = False  # Set to True for production
 
 async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 1.0):
     """
-    Retry an async function with exponential backoff for rate limiting (429 errors).
+    Retry an async function with exponential backoff for rate limiting (429 errors) and server errors (500).
 
     Args:
         func: Async function to retry
@@ -92,14 +92,15 @@ async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 
             return await func()
         except httpx.HTTPStatusError as e:
             last_exception = e
-            # Only retry on 429 (Too Many Requests)
-            if e.response.status_code == 429:
+            # Retry on 429 (Too Many Requests) or 500 (Internal Server Error)
+            if e.response.status_code in (429, 500):
                 if attempt < max_retries:
                     # Add jitter to avoid thundering herd
                     jitter = delay * 0.1 * (asyncio.get_event_loop().time() % 1.0)
                     sleep_time = delay + jitter
+                    error_type = "Rate limited" if e.response.status_code == 429 else "Server error"
                     logging.warning(
-                        f"Rate limited (429), retrying in {sleep_time:.2f}s "
+                        f"{error_type} ({e.response.status_code}), retrying in {sleep_time:.2f}s "
                         f"(attempt {attempt + 1}/{max_retries})"
                     )
                     await asyncio.sleep(sleep_time)
@@ -117,7 +118,7 @@ async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 
 
 async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) -> str:
     """
-    Fetch data from MARRVEL API with proper error handling.
+    Fetch data from MARRVEL API with proper error handling and retry logic.
 
     Args:
         query_or_endpoint: GraphQL query string if is_graphql=True, or REST API endpoint path if is_graphql=False
@@ -127,7 +128,7 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
         JSON response as string
 
     Raises:
-        httpx.HTTPError: If the HTTP request fails
+        httpx.HTTPError: If the HTTP request fails after all retries
     """
     verify = ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False
 
@@ -145,57 +146,64 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
         except Exception:
             return obj
 
-    async with httpx.AsyncClient(verify=verify, timeout=API_TIMEOUT) as client:
-        if is_graphql:
-            # GraphQL API call (POST request)
-            payload = {"query": query_or_endpoint}
-            headers = {"Content-Type": "application/json"}
-            response = await client.post(
-                API_BASE_URL,
-                json=payload,
-                headers=headers,
-            )
-        else:
-            # REST API call (GET request)
-            url = f"{API_REST_BASE_URL}{query_or_endpoint}"
-            response = await client.get(url)
+    async def _fetch():
+        """Inner function to perform the actual fetch, wrapped by retry logic."""
+        async with httpx.AsyncClient(verify=verify, timeout=API_TIMEOUT) as client:
+            if is_graphql:
+                # GraphQL API call (POST request)
+                payload = {"query": query_or_endpoint}
+                headers = {"Content-Type": "application/json"}
+                response = await client.post(
+                    API_BASE_URL,
+                    json=payload,
+                    headers=headers,
+                )
+            else:
+                # REST API call (GET request)
+                url = f"{API_REST_BASE_URL}{query_or_endpoint}"
+                response = await client.get(url)
 
-        # Some test mocks make raise_for_status() a coroutine
-        rfs = response.raise_for_status()
-        if inspect.isawaitable(rfs):
-            await rfs
+            # Some test mocks make raise_for_status() a coroutine
+            rfs = response.raise_for_status()
+            if inspect.isawaitable(rfs):
+                await rfs
 
-        # Parse JSON (handle mocks that return coroutines)
-        try:
-            data = response.json()
+            # Parse JSON (handle mocks that return coroutines)
+            try:
+                data = response.json()
 
-            # Check for GraphQL errors only if using GraphQL API
-            if is_graphql and data.get("errors") and data.get("data") is None:
-                # Raise an exception if GraphQL errors are present in the response body
-                error_details = json.dumps(data["errors"], indent=2)
-                raise Exception(f"GraphQL query failed with execution errors:\n{error_details}")
+                # Check for GraphQL errors only if using GraphQL API
+                if is_graphql and data.get("errors") and data.get("data") is None:
+                    # Raise an exception if GraphQL errors are present in the response body
+                    error_details = json.dumps(data["errors"], indent=2)
+                    raise Exception(f"GraphQL query failed with execution errors:\n{error_details}")
 
-            if inspect.isawaitable(data):
-                data = await data
-        except json.JSONDecodeError:
-            text = await _maybe_await(getattr(response, "text", ""))
-            content_type = response.headers.get("Content-Type", "").lower()
-            is_json_content_type = "application/json" in content_type or "text/json" in content_type
+                if inspect.isawaitable(data):
+                    data = await data
+            except json.JSONDecodeError:
+                text = await _maybe_await(getattr(response, "text", ""))
+                content_type = response.headers.get("Content-Type", "").lower()
+                is_json_content_type = (
+                    "application/json" in content_type or "text/json" in content_type
+                )
 
-            error_message = (
-                "Invalid JSON response"
-                if is_json_content_type
-                else "Unexpected API response format"
-            )
-            err = {
-                "error": error_message,
-                "status_code": getattr(response, "status_code", None),
-                "content": str(text),
-                "content_type": content_type,
-            }
-            return json.dumps(err, indent=2)
+                error_message = (
+                    "Invalid JSON response"
+                    if is_json_content_type
+                    else "Unexpected API response format"
+                )
+                err = {
+                    "error": error_message,
+                    "status_code": getattr(response, "status_code", None),
+                    "content": str(text),
+                    "content_type": content_type,
+                }
+                return json.dumps(err, indent=2)
 
-        return json.dumps(data, indent=2)
+            return json.dumps(data, indent=2)
+
+    # Wrap the fetch in retry logic with exponential backoff
+    return await retry_with_backoff(_fetch)
 
 
 # ============================================================================
