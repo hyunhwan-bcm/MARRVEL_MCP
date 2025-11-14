@@ -144,12 +144,35 @@ async def invoke_with_throttle_retry(
         try:
             # Add timing to help debug slow API calls
             start_time = time.time()
+
+            # Log request details in debug mode
             logging.debug(f"Starting LLM API call (attempt {attempt + 1}/{max_retries + 1})...")
+            logging.debug(f"LLM instance type: {type(llm_instance).__name__}")
+            logging.debug(f"Number of messages: {len(messages)}")
+            for i, msg in enumerate(messages):
+                msg_type = type(msg).__name__
+                content_preview = (
+                    str(msg.content)[:200] if hasattr(msg, "content") else str(msg)[:200]
+                )
+                logging.debug(f"  Message {i} ({msg_type}): {content_preview}...")
 
             result = await llm_instance.ainvoke(messages)
 
             elapsed = time.time() - start_time
+
+            # Log response details in debug mode
             logging.debug(f"LLM API call completed in {elapsed:.2f}s")
+            logging.debug(f"Response type: {type(result).__name__}")
+            if hasattr(result, "content"):
+                logging.debug(f"Response content preview: {str(result.content)[:200]}...")
+            else:
+                logging.debug(f"Response: {str(result)[:200]}...")
+
+            # Log response metadata if available
+            if hasattr(result, "response_metadata"):
+                logging.debug(f"Response metadata: {result.response_metadata}")
+            if hasattr(result, "usage_metadata"):
+                logging.debug(f"Usage metadata: {result.usage_metadata}")
 
             return result
         except Exception as e:
@@ -669,6 +692,7 @@ async def run_test_case(
         except Exception as e:
             # Always log errors, not just when pbar exists
             import traceback
+            import logging
 
             error_details = f"❌ Error in {name}: {e}"
 
@@ -678,11 +702,20 @@ async def run_test_case(
                 # In multi-model mode without pbar, print directly
                 print(error_details)
 
-            # Show full traceback in debug mode
-            import logging
+            # Show error type and first part of message even in normal mode
+            error_type = type(e).__name__
+            error_msg = str(e)
+            print(f"   Error type: {error_type}")
+            print(f"   Error message: {error_msg[:500]}")
 
+            # Show full traceback in debug mode
             logging.debug(f"Full traceback for {name}:")
             logging.debug(traceback.format_exc())
+
+            # In verbose mode, show more context
+            logging.info(f"Test case: {name}")
+            logging.info(f"Question: {user_input[:200]}")
+            logging.info(f"Full error: {error_msg}")
 
             result = {
                 "question": user_input,
