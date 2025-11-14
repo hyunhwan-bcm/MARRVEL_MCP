@@ -1457,6 +1457,7 @@ async def main():
             # Note: Evaluator config is now loaded globally (before this mode)
             # and llm_evaluator is already created with the correct config
 
+            print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
             print(f"🎯 Multi-Model Testing Mode")
             print(f"   Models to test: {len(models)}")
             for model in models:
