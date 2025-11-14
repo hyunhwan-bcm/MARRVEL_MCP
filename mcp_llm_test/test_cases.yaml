@@ -35,8 +35,8 @@
 
 - case:
     name: "AlphaMissesense"
-    input: "What is the AlphaMisssense prediction for the variant Chr9:96931892 C>T?"
-    expected: "The AlphaMissense prediction for this variant is likely benign"
+    input: "What is the CADD phred prediction for the variant rs137852987?"
+    expected: "The CADD prediction for this variant is highly deleterious."
 
 - case:
     name: "REVEL prediction"

@@ -1325,7 +1325,7 @@ async def get_variant_annotation_by_genomic_position(chr: str, pos: int, ref: st
 
 @mcp.tool(
     name="convert_rsid_to_variant",
-    description="Convert dbSNP rsID to MARRVEL variant format with GRCh37/hg19 coordinates",
+    description="Convert dbSNP rsID to MARRVEL variant format with GRCh38/hg38 coordinates",
     meta={"category": "utility", "service": "dbSNP", "version": "1.0", "genome_build": "hg19"},
 )
 async def convert_rsid_to_variant(rsid: str) -> str:
@@ -1334,7 +1334,7 @@ async def convert_rsid_to_variant(rsid: str) -> str:
             rsid = f"rs{rsid}"
 
         url = f"https://clinicaltables.nlm.nih.gov/api/snps/v3/search"
-        params = {"terms": rsid, "ef": "37.chr,37.pos,37.alleles,37.gene"}
+        params = {"terms": rsid, "ef": "38.chr,38.pos,38.alleles,38.gene"}
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(url, params=params)
@@ -1359,13 +1359,13 @@ async def convert_rsid_to_variant(rsid: str) -> str:
 
         idx = rsid_list.index(rsid)
 
-        chr_data = field_data.get("37.chr", [])
-        pos_data = field_data.get("37.pos", [])
-        alleles_data = field_data.get("37.alleles", [])
-        gene_data = field_data.get("37.gene", [])
+        chr_data = field_data.get("38.chr", [])
+        pos_data = field_data.get("38.pos", [])
+        alleles_data = field_data.get("38.alleles", [])
+        gene_data = field_data.get("38.gene", [])
 
         if idx >= len(chr_data) or idx >= len(pos_data) or idx >= len(alleles_data):
-            return json.dumps({"error": "Incomplete GRCh37 data for this rsID"}, indent=2)
+            return json.dumps({"error": "Incomplete GRCh38 data for this rsID"}, indent=2)
 
         chromosome = chr_data[idx]
         position = pos_data[idx]
@@ -1373,7 +1373,7 @@ async def convert_rsid_to_variant(rsid: str) -> str:
         gene = gene_data[idx] if idx < len(gene_data) and gene_data[idx] is not None else ""
 
         if not chromosome or not position or not alleles:
-            return json.dumps({"error": "Missing required GRCh37 coordinate data"}, indent=2)
+            return json.dumps({"error": "Missing required GRCh38 coordinate data"}, indent=2)
 
         allele_pairs = alleles.split(",")[0].strip().split("/")
         if len(allele_pairs) < 2:
@@ -1393,7 +1393,7 @@ async def convert_rsid_to_variant(rsid: str) -> str:
             "alt": alternate,
             "alleles": alleles,
             "gene": gene,
-            "assembly": "GRCh37",
+            "assembly": "GRCh38",
         }
 
         return json.dumps(result, indent=2)
