@@ -1753,92 +1753,155 @@ async def main():
                         }
                     )
 
-            # Execute ALL tasks concurrently!
-            print(
-                f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})..."
-            )
-            print(f"   This will run ALL models × modes × tests in parallel!")
-            pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
-
             # Track test results for progress bar
             test_stats = {"yes": 0, "no": 0, "failed": 0}
 
-            def update_progress_bar():
-                """Update progress bar with current test statistics."""
-                pbar_global.set_postfix_str(
-                    f"✓ {test_stats['yes']} | ✗ {test_stats['no']} | ⚠ {test_stats['failed']}"
+            # For concurrency=1, use simple sequential execution to make debugging easier
+            if args.concurrency == 1:
+                print(
+                    f"\n🔍 Running {len(all_tasks)} tests SEQUENTIALLY (concurrency=1 for easier debugging)..."
                 )
+                print("   Errors will be shown immediately as they occur.")
 
-            # Run all tasks concurrently using gather, which preserves order
-            # We'll update the progress bar as tasks complete using a callback
-            # Add timeout to prevent hanging tasks
-            async def run_task_with_progress(task, metadata):
-                try:
-                    # Set a timeout per task (configurable via --timeout)
-                    result = await asyncio.wait_for(task, timeout=args.timeout)
-
-                    # Track success/failure based on classification
-                    if isinstance(result, dict) and "classification" in result:
-                        classification = result.get("classification", "").lower()
-                        if classification.startswith("yes"):
-                            test_stats["yes"] += 1
-                        elif classification.startswith("no"):
-                            test_stats["no"] += 1
-                        else:
-                            test_stats["failed"] += 1
-                    elif isinstance(result, Exception):
-                        test_stats["failed"] += 1
-
-                    pbar_global.update(1)
-                    update_progress_bar()
-                    return result
-                except asyncio.TimeoutError:
-                    test_stats["failed"] += 1
-                    pbar_global.update(1)
-                    update_progress_bar()
-
-                    # Provide detailed information about which task timed out
-                    model_name = metadata.get("model_name", "Unknown")
-                    mode = metadata.get("mode", "Unknown")
-                    test_idx = metadata.get("test_index", "?")
+                task_results = []
+                for idx, (task, meta) in enumerate(zip(all_tasks, task_metadata)):
+                    model_name = meta.get("model_name", "Unknown")
+                    mode = meta.get("mode", "Unknown")
+                    test_idx = meta.get("test_index", 0)
                     test_name = (
                         test_cases[test_idx]["case"]["name"]
                         if test_idx < len(test_cases)
                         else "Unknown"
                     )
-                    error_msg = (
-                        f"⏱️  TIMEOUT after {args.timeout}s ({args.timeout // 60}min): "
-                        f"{model_name} / {mode} / Test #{test_idx + 1}: {test_name[:50]}"
+
+                    print(f"\n[{idx+1}/{len(all_tasks)}] {model_name} / {mode} / {test_name}")
+
+                    try:
+                        # Run task with timeout
+                        result = await asyncio.wait_for(task, timeout=args.timeout)
+
+                        # Track stats
+                        if isinstance(result, dict) and "classification" in result:
+                            classification = result.get("classification", "").lower()
+                            if classification.startswith("yes"):
+                                test_stats["yes"] += 1
+                                print(f"   ✓ PASSED")
+                            elif classification.startswith("no"):
+                                test_stats["no"] += 1
+                                print(f"   ✗ FAILED: {classification}")
+                            else:
+                                test_stats["failed"] += 1
+                                print(f"   ⚠ ERROR: {classification}")
+                        elif isinstance(result, Exception):
+                            test_stats["failed"] += 1
+                            print(f"   ⚠ EXCEPTION: {result}")
+
+                        task_results.append(result)
+
+                    except asyncio.TimeoutError:
+                        test_stats["failed"] += 1
+                        error_msg = f"⏱️  TIMEOUT after {args.timeout}s"
+                        print(f"   {error_msg}")
+                        task_results.append(
+                            Exception(f"Task timed out after {args.timeout} seconds")
+                        )
+
+                    except Exception as e:
+                        test_stats["failed"] += 1
+                        print(f"   ⚠ EXCEPTION: {e}")
+                        task_results.append(e)
+
+                # Print summary
+                print(f"\n📊 Sequential Execution Complete:")
+                print(f"   ✓ Passed: {test_stats['yes']}")
+                print(f"   ✗ Failed: {test_stats['no']}")
+                print(f"   ⚠ Errors/Timeouts: {test_stats['failed']}")
+
+            else:
+                # Execute ALL tasks concurrently!
+                print(
+                    f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})..."
+                )
+                print(f"   This will run ALL models × modes × tests in parallel!")
+                pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
+
+                def update_progress_bar():
+                    """Update progress bar with current test statistics."""
+                    pbar_global.set_postfix_str(
+                        f"✓ {test_stats['yes']} | ✗ {test_stats['no']} | ⚠ {test_stats['failed']}"
                     )
-                    print(error_msg)
-                    print(
-                        f"    💡 This usually means the API is slow or the query is complex. "
-                        f"Try: --timeout {args.timeout * 2}"
-                    )
-                    return Exception(f"Task timed out after {args.timeout} seconds")
-                except Exception as e:
-                    test_stats["failed"] += 1
-                    pbar_global.update(1)
-                    update_progress_bar()
-                    print(f"❌ Task failed: {e}")
-                    return e
 
-            # Wrap all tasks with progress tracking and metadata
-            tasks_with_progress = [
-                run_task_with_progress(task, meta) for task, meta in zip(all_tasks, task_metadata)
-            ]
+                # Run all tasks concurrently using gather, which preserves order
+                # We'll update the progress bar as tasks complete using a callback
+                # Add timeout to prevent hanging tasks
+                async def run_task_with_progress(task, metadata):
+                    try:
+                        # Set a timeout per task (configurable via --timeout)
+                        result = await asyncio.wait_for(task, timeout=args.timeout)
 
-            # Execute all tasks concurrently and get results in order
-            # Use return_exceptions=True to prevent one failed task from blocking all others
-            task_results = await asyncio.gather(*tasks_with_progress, return_exceptions=True)
-            pbar_global.close()
+                        # Track success/failure based on classification
+                        if isinstance(result, dict) and "classification" in result:
+                            classification = result.get("classification", "").lower()
+                            if classification.startswith("yes"):
+                                test_stats["yes"] += 1
+                            elif classification.startswith("no"):
+                                test_stats["no"] += 1
+                            else:
+                                test_stats["failed"] += 1
+                        elif isinstance(result, Exception):
+                            test_stats["failed"] += 1
 
-            # Print summary statistics
-            print(f"\n📊 Test Summary:")
-            print(f"   ✓ Passed: {test_stats['yes']}")
-            print(f"   ✗ Failed: {test_stats['no']}")
-            print(f"   ⚠ Errors/Timeouts: {test_stats['failed']}")
-            print(f"   Total: {len(all_tasks)}")
+                        pbar_global.update(1)
+                        update_progress_bar()
+                        return result
+                    except asyncio.TimeoutError:
+                        test_stats["failed"] += 1
+                        pbar_global.update(1)
+                        update_progress_bar()
+
+                        # Provide detailed information about which task timed out
+                        model_name = metadata.get("model_name", "Unknown")
+                        mode = metadata.get("mode", "Unknown")
+                        test_idx = metadata.get("test_index", "?")
+                        test_name = (
+                            test_cases[test_idx]["case"]["name"]
+                            if test_idx < len(test_cases)
+                            else "Unknown"
+                        )
+                        error_msg = (
+                            f"⏱️  TIMEOUT after {args.timeout}s ({args.timeout // 60}min): "
+                            f"{model_name} / {mode} / Test #{test_idx + 1}: {test_name[:50]}"
+                        )
+                        print(error_msg)
+                        print(
+                            f"    💡 This usually means the API is slow or the query is complex. "
+                            f"Try: --timeout {args.timeout * 2}"
+                        )
+                        return Exception(f"Task timed out after {args.timeout} seconds")
+                    except Exception as e:
+                        test_stats["failed"] += 1
+                        pbar_global.update(1)
+                        update_progress_bar()
+                        print(f"❌ Task failed: {e}")
+                        return e
+
+                # Wrap all tasks with progress tracking and metadata
+                tasks_with_progress = [
+                    run_task_with_progress(task, meta)
+                    for task, meta in zip(all_tasks, task_metadata)
+                ]
+
+                # Execute all tasks concurrently and get results in order
+                # Use return_exceptions=True to prevent one failed task from blocking all others
+                task_results = await asyncio.gather(*tasks_with_progress, return_exceptions=True)
+                pbar_global.close()
+
+                # Print summary statistics
+                print(f"\n📊 Test Summary:")
+                print(f"   ✓ Passed: {test_stats['yes']}")
+                print(f"   ✗ Failed: {test_stats['no']}")
+                print(f"   ⚠ Errors/Timeouts: {test_stats['failed']}")
+                print(f"   Total: {len(all_tasks)}")
 
             # Check for any exceptions in results and log them
             exception_count = 0
