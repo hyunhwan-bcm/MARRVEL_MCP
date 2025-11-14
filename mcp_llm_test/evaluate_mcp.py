@@ -1824,13 +1824,20 @@ async def main():
 
             # For concurrency=1, use simple sequential execution to make debugging easier
             if args.concurrency == 1:
+                # Filter out skipped tests - only include metadata entries that have actual tasks
+                active_metadata = [meta for meta in task_metadata if not meta.get("skip", False)]
+
                 print(
                     f"\n🔍 Running {len(all_tasks)} tests SEQUENTIALLY (concurrency=1 for easier debugging)..."
                 )
                 print("   Errors will be shown immediately as they occur.")
+                if len(active_metadata) != len(all_tasks):
+                    print(
+                        f"   ⚠️  Note: {len(task_metadata) - len(active_metadata)} tests skipped (skip_vanilla or skip_web_search)"
+                    )
 
                 task_results = []
-                for idx, (task, meta) in enumerate(zip(all_tasks, task_metadata)):
+                for idx, (task, meta) in enumerate(zip(all_tasks, active_metadata)):
                     model_name = meta.get("model_name", "Unknown")
                     mode = meta.get("mode", "Unknown")
                     test_idx = meta.get("test_index", 0)
@@ -1840,24 +1847,45 @@ async def main():
                         else "Unknown"
                     )
 
-                    print(f"\n[{idx+1}/{len(all_tasks)}] {model_name} / {mode} / {test_name}")
+                    print(
+                        f"\n[{idx+1}/{len(all_tasks)}] {model_name} / {mode.upper()} / {test_name}"
+                    )
 
                     try:
                         # Run task with timeout
                         result = await asyncio.wait_for(task, timeout=args.timeout)
 
-                        # Track stats
+                        # Track stats and show detailed output
                         if isinstance(result, dict) and "classification" in result:
+                            # Show model's actual response
+                            response = result.get("response", "")
+                            if response:
+                                response_preview = (
+                                    response[:300] + "..." if len(response) > 300 else response
+                                )
+                                print(f"   📝 Model response: {response_preview}")
+
+                            # Show tool calls if any
+                            tool_calls = result.get("tool_calls", [])
+                            if tool_calls:
+                                tool_names = [tc.get("name", "unknown") for tc in tool_calls]
+                                print(
+                                    f"   🔧 Tools called: {', '.join(tool_names)} ({len(tool_calls)} calls)"
+                                )
+                            elif mode == "tool":
+                                print(f"   ⚠️  No tools called in TOOL mode")
+
+                            # Show classification
                             classification = result.get("classification", "").lower()
                             if classification.startswith("yes"):
                                 test_stats["yes"] += 1
-                                print(f"   ✓ PASSED")
+                                print(f"   ✅ EVALUATOR: PASSED")
                             elif classification.startswith("no"):
                                 test_stats["no"] += 1
-                                print(f"   ✗ FAILED: {classification}")
+                                print(f"   ❌ EVALUATOR: FAILED - {classification}")
                             else:
                                 test_stats["failed"] += 1
-                                print(f"   ⚠ ERROR: {classification}")
+                                print(f"   ⚠️  EVALUATOR: ERROR - {classification}")
                         elif isinstance(result, Exception):
                             test_stats["failed"] += 1
                             print(f"   ⚠ EXCEPTION: {result}")
@@ -1884,11 +1912,18 @@ async def main():
                 print(f"   ⚠ Errors/Timeouts: {test_stats['failed']}")
 
             else:
+                # Filter out skipped tests - only include metadata entries that have actual tasks
+                active_metadata = [meta for meta in task_metadata if not meta.get("skip", False)]
+
                 # Execute ALL tasks concurrently!
                 print(
                     f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})..."
                 )
                 print(f"   This will run ALL models × modes × tests in parallel!")
+                if len(active_metadata) != len(all_tasks):
+                    print(
+                        f"   ⚠️  Note: {len(task_metadata) - len(active_metadata)} tests skipped (skip_vanilla or skip_web_search)"
+                    )
                 pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
 
                 def update_progress_bar():
@@ -1952,9 +1987,10 @@ async def main():
                         return e
 
                 # Wrap all tasks with progress tracking and metadata
+                # Only zip with active_metadata (skipped tests filtered out)
                 tasks_with_progress = [
                     run_task_with_progress(task, meta)
-                    for task, meta in zip(all_tasks, task_metadata)
+                    for task, meta in zip(all_tasks, active_metadata)
                 ]
 
                 # Execute all tasks concurrently and get results in order
