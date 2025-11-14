@@ -1484,33 +1484,47 @@ async def main():
             for model_config in models:
                 model_name = model_config["name"]
                 model_id = model_config["id"]
+                skip_vanilla = model_config.get("skip_vanilla", False)
                 skip_web_search = model_config.get("skip_web_search", False)
                 model_llm = model_llm_instances[model_id]["llm"]
                 model_llm_web = model_llm_instances[model_id]["llm_web"]
 
-                # Vanilla mode tasks
-                for i, test_case in enumerate(test_cases):
-                    task = run_test_case(
-                        semaphore,
-                        mcp_client,
-                        test_case,
-                        use_cache=use_cache,
-                        vanilla_mode=True,
-                        web_mode=False,
-                        model_id=model_id,
-                        pbar=None,
-                        llm_instance=model_llm,
-                        llm_web_instance=model_llm_web,
-                    )
-                    all_tasks.append(task)
-                    task_metadata.append(
-                        {
-                            "model_id": model_id,
-                            "model_name": model_name,
-                            "mode": "vanilla",
-                            "test_index": i,
-                        }
-                    )
+                # Vanilla mode tasks (or N/A placeholders if not supported)
+                if skip_vanilla:
+                    # Don't create tasks, we'll fill in N/A results later
+                    for i in enumerate(test_cases):
+                        task_metadata.append(
+                            {
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "vanilla",
+                                "test_index": i[0],
+                                "skip": True,
+                            }
+                        )
+                else:
+                    for i, test_case in enumerate(test_cases):
+                        task = run_test_case(
+                            semaphore,
+                            mcp_client,
+                            test_case,
+                            use_cache=use_cache,
+                            vanilla_mode=True,
+                            web_mode=False,
+                            model_id=model_id,
+                            pbar=None,
+                            llm_instance=model_llm,
+                            llm_web_instance=model_llm_web,
+                        )
+                        all_tasks.append(task)
+                        task_metadata.append(
+                            {
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "vanilla",
+                                "test_index": i,
+                            }
+                        )
 
                 # Web mode tasks (or N/A placeholders if not supported)
                 if skip_web_search:
@@ -1652,6 +1666,7 @@ async def main():
                 model_name = model_config["name"]
                 model_id = model_config["id"]
                 model_provider = model_config.get("provider", "openrouter")
+                skip_vanilla = model_config.get("skip_vanilla", False)
                 skip_web_search = model_config.get("skip_web_search", False)
 
                 if model_id not in all_models_results:
@@ -1666,18 +1681,32 @@ async def main():
 
                 # Collect results for this model (they're in order: vanilla, web, tool)
                 # Vanilla results
-                vanilla_results = []
-                for i in range(len(test_cases)):
-                    # Find the corresponding result
-                    for idx, meta in enumerate(task_metadata):
-                        if (
-                            meta["model_id"] == model_id
-                            and meta["mode"] == "vanilla"
-                            and meta["test_index"] == i
-                            and not meta.get("skip", False)
-                        ):
-                            vanilla_results.append(results_map[idx])
-                            break
+                if skip_vanilla:
+                    vanilla_results = [
+                        {
+                            "status": "N/A",
+                            "reason": "Vanilla mode not supported by this model",
+                            "response": "N/A",
+                            "classification": "N/A",
+                            "tokens_used": 0,
+                            "tool_calls": [],
+                            "conversation": [],
+                        }
+                        for _ in test_cases
+                    ]
+                else:
+                    vanilla_results = []
+                    for i in range(len(test_cases)):
+                        # Find the corresponding result
+                        for idx, meta in enumerate(task_metadata):
+                            if (
+                                meta["model_id"] == model_id
+                                and meta["mode"] == "vanilla"
+                                and meta["test_index"] == i
+                                and not meta.get("skip", False)
+                            ):
+                                vanilla_results.append(results_map[idx])
+                                break
                 all_models_results[model_id]["vanilla"] = vanilla_results
 
                 # Web results
