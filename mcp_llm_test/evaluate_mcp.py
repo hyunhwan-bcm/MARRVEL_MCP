@@ -129,6 +129,7 @@ async def invoke_with_throttle_retry(
     """
     import logging
     import random
+    import time
 
     # Auto-detect Bedrock and add initial jitter to spread out concurrent requests
     is_bedrock = "ChatBedrock" in str(type(llm_instance))
@@ -141,7 +142,16 @@ async def invoke_with_throttle_retry(
 
     for attempt in range(max_retries + 1):
         try:
-            return await llm_instance.ainvoke(messages)
+            # Add timing to help debug slow API calls
+            start_time = time.time()
+            logging.debug(f"Starting LLM API call (attempt {attempt + 1}/{max_retries + 1})...")
+
+            result = await llm_instance.ainvoke(messages)
+
+            elapsed = time.time() - start_time
+            logging.debug(f"LLM API call completed in {elapsed:.2f}s")
+
+            return result
         except Exception as e:
             last_exception = e
 
@@ -1189,6 +1199,9 @@ Examples:
   python evaluate_mcp.py --timeout 1200  # 20 minutes per test
   python evaluate_mcp.py --multi-model --timeout 900 --concurrency 2
 
+  # Debug timeout issues (shows API call timing)
+  python evaluate_mcp.py --debug-timing --timeout 1200
+
 Cache Behavior:
   Results are always cached at: {cache_dir}
 
@@ -1245,6 +1258,12 @@ Cache Behavior:
     )
 
     parser.add_argument(
+        "--debug-timing",
+        action="store_true",
+        help="Enable debug logging to show API call timing and help diagnose timeout issues.",
+    )
+
+    parser.add_argument(
         "--with-vanilla",
         action="store_true",
         help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",
@@ -1280,6 +1299,15 @@ async def main():
 
     # Parse command-line arguments
     args = parse_arguments()
+
+    # Configure logging based on --debug-timing flag
+    import logging
+
+    if args.debug_timing:
+        logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+        print("🐛 Debug timing enabled - showing API call timing information")
+    else:
+        logging.basicConfig(level=logging.WARNING)
 
     # Configure API keys (after argument parsing so --help works)
     # Note: Provider-specific credential validation is done later
@@ -1654,7 +1682,7 @@ async def main():
             # Run all tasks concurrently using gather, which preserves order
             # We'll update the progress bar as tasks complete using a callback
             # Add timeout to prevent hanging tasks
-            async def run_task_with_progress(task):
+            async def run_task_with_progress(task, metadata):
                 try:
                     # Set a timeout per task (configurable via --timeout)
                     result = await asyncio.wait_for(task, timeout=args.timeout)
@@ -1662,16 +1690,34 @@ async def main():
                     return result
                 except asyncio.TimeoutError:
                     pbar_global.update(1)
-                    error_msg = f"Task timed out after {args.timeout} seconds"
-                    print(f"⏱️  {error_msg}")
-                    return Exception(error_msg)
+                    # Provide detailed information about which task timed out
+                    model_name = metadata.get("model_name", "Unknown")
+                    mode = metadata.get("mode", "Unknown")
+                    test_idx = metadata.get("test_index", "?")
+                    test_name = (
+                        test_cases[test_idx]["case"]["name"]
+                        if test_idx < len(test_cases)
+                        else "Unknown"
+                    )
+                    error_msg = (
+                        f"⏱️  TIMEOUT after {args.timeout}s ({args.timeout // 60}min): "
+                        f"{model_name} / {mode} / Test #{test_idx + 1}: {test_name[:50]}"
+                    )
+                    print(error_msg)
+                    print(
+                        f"    💡 This usually means the API is slow or the query is complex. "
+                        f"Try: --timeout {args.timeout * 2}"
+                    )
+                    return Exception(f"Task timed out after {args.timeout} seconds")
                 except Exception as e:
                     pbar_global.update(1)
                     print(f"❌ Task failed: {e}")
                     return e
 
-            # Wrap all tasks with progress tracking
-            tasks_with_progress = [run_task_with_progress(task) for task in all_tasks]
+            # Wrap all tasks with progress tracking and metadata
+            tasks_with_progress = [
+                run_task_with_progress(task, meta) for task, meta in zip(all_tasks, task_metadata)
+            ]
 
             # Execute all tasks concurrently and get results in order
             # Use return_exceptions=True to prevent one failed task from blocking all others
