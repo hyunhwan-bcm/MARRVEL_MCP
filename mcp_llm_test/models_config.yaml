@@ -22,7 +22,7 @@ models:
   - name: "LLaMA 3.2 3B Instruct"
     id: "meta-llama/llama-3.2-3b-instruct"
     provider: "openrouter"
-    enabled: true
+    enabled: false
     skip_vanilla: true
     description: "Meta LLaMA 3.2 3B Instruct via OpenRouter ($0.03/$0.06 per 1M tokens)"
 
@@ -44,7 +44,7 @@ models:
   - name: "GPT OSS 20B"
     id: "openai/gpt-oss-20b"
     provider: "openrouter"
-    enabled: true
+    enabled: false
     skip_vanilla: true
     skip_web_search: true
     description: "GPT OSS 20B via OpenRouter ($0.03/$0.14 per 1M tokens)"
@@ -61,7 +61,7 @@ models:
   - name: "Claude 3.5 Sonnet v2 (Oct 2024)"
     id: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
     provider: "bedrock"
-    enabled: true
+    enabled: false
     skip_web_search: true
     description: "Anthropic Claude 3.5 Sonnet v2 October 2024 via AWS Bedrock"
 
