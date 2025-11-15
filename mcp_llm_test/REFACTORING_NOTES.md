@@ -171,7 +171,7 @@ The `evaluation_modules` package follows Python best practices:
 
 ### File Size Comparison
 - **Original**: 2,376 lines in single file
-- **Refactored**: 
+- **Refactored**:
   - Main script: 1,045 lines (56% reduction)
   - 8 modules: ~1,730 lines total
   - Average module size: ~216 lines (highly maintainable)

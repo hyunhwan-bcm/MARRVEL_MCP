@@ -122,7 +122,7 @@ async def run_test_case(
                         "   ⚠️  No tools were called in TOOL mode - LLM may have answered without tools"
                     )
             logging.debug("=" * 80)
-            
+
             # Use the provided evaluator LLM for consistent evaluation
             classification = await evaluate_response(langchain_response, expected, llm_evaluator)
             result = {

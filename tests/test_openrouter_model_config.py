@@ -39,7 +39,7 @@ def test_openrouter_model_env_override():
 def test_evaluate_mcp_module_resolves_override(tmp_path):
     """get_openrouter_model should respect OPENROUTER_MODEL env var at import time."""
     from config.llm_config import get_openrouter_model
-    
+
     override = "openai/gpt-4o"
     original = os.environ.get("OPENROUTER_MODEL")
     os.environ["OPENROUTER_MODEL"] = override
@@ -47,9 +47,10 @@ def test_evaluate_mcp_module_resolves_override(tmp_path):
         # Re-import to pick up the new environment variable
         from importlib import reload
         import config.llm_config
+
         reload(config.llm_config)
         from config.llm_config import get_openrouter_model
-        
+
         assert get_openrouter_model() == override
     finally:
         if original is None:
