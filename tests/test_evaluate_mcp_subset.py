@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "mcp_llm_test"))
 
 def test_subset_argument_filters_test_cases():
     """Test that --subset argument correctly filters test cases."""
-    from evaluate_mcp import parse_subset
+    from evaluation_modules import parse_subset
 
     # Load actual test cases to get the count
     test_cases_path = Path(__file__).parent.parent / "mcp_llm_test" / "test_cases.yaml"
@@ -47,7 +47,7 @@ def test_subset_argument_filters_test_cases():
 
 def test_subset_with_invalid_index_fails():
     """Test that invalid subset indices raise appropriate errors."""
-    from evaluate_mcp import parse_subset
+    from evaluation_modules import parse_subset
 
     # Load actual test cases to get the count
     test_cases_path = Path(__file__).parent.parent / "mcp_llm_test" / "test_cases.yaml"

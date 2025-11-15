@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "mcp-llm-test"))
 
 def test_concurrency_argument_parsing():
     """Test that --concurrency argument is parsed correctly."""
-    from evaluate_mcp import parse_arguments
+    from evaluation_modules import parse_arguments
 
     # Test default concurrency
     with patch("sys.argv", ["evaluate_mcp.py"]):
@@ -46,7 +46,7 @@ def test_concurrency_argument_parsing():
 
 def test_concurrency_argument_type():
     """Test that --concurrency only accepts integer values."""
-    from evaluate_mcp import parse_arguments
+    from evaluation_modules import parse_arguments
 
     # Test invalid (non-integer) concurrency
     with patch("sys.argv", ["evaluate_mcp.py", "--concurrency", "invalid"]):
@@ -57,18 +57,19 @@ def test_concurrency_argument_type():
 @pytest.mark.asyncio
 async def test_run_test_case_updates_progress_bar():
     """Test that run_test_case updates progress bar correctly."""
-    from evaluate_mcp import run_test_case
+    from evaluation_modules import run_test_case
 
     # Create mock objects
     semaphore = asyncio.Semaphore(1)
     mock_client = AsyncMock()
     mock_pbar = MagicMock()
+    mock_llm_evaluator = AsyncMock()
 
-    # Mock the get_langchain_response to avoid actual API calls
+    # Mock the get_langchain_response and evaluate_response from their modules
     with (
-        patch("evaluate_mcp.get_langchain_response") as mock_get_response,
-        patch("evaluate_mcp.evaluate_response") as mock_evaluate,
-        patch("evaluate_mcp.save_cached_result"),
+        patch("evaluation_modules.evaluation.get_langchain_response") as mock_get_response,
+        patch("evaluation_modules.evaluation.evaluate_response") as mock_evaluate,
+        patch("evaluation_modules.cache.save_cached_result"),
     ):
 
         mock_get_response.return_value = (
@@ -76,7 +77,8 @@ async def test_run_test_case_updates_progress_bar():
             [],
             [],
             100,
-        )  # response, tool_history, conversation, tokens
+            {},
+        )  # response, tool_history, conversation, tokens, metadata
         mock_evaluate.return_value = "yes - test passed"
 
         test_case = {
@@ -87,9 +89,9 @@ async def test_run_test_case_updates_progress_bar():
             }
         }
 
-        # Run test case with progress bar
+        # Run test case with progress bar (needs llm_evaluator now)
         result = await run_test_case(
-            semaphore, mock_client, test_case, use_cache=False, pbar=mock_pbar
+            semaphore, mock_client, test_case, mock_llm_evaluator, use_cache=False, pbar=mock_pbar
         )
 
         # Verify progress bar was updated
@@ -101,11 +103,12 @@ async def test_run_test_case_updates_progress_bar():
 @pytest.mark.asyncio
 async def test_run_test_case_with_cached_result():
     """Test that run_test_case updates progress bar for cached results."""
-    from evaluate_mcp import run_test_case
+    from evaluation_modules import run_test_case
 
     semaphore = asyncio.Semaphore(1)
     mock_client = AsyncMock()
     mock_pbar = MagicMock()
+    mock_llm_evaluator = AsyncMock()
 
     cached_result = {
         "question": "What is a gene?",
@@ -117,7 +120,7 @@ async def test_run_test_case_with_cached_result():
         "tokens_used": 50,
     }
 
-    with patch("evaluate_mcp.load_cached_result", return_value=cached_result):
+    with patch("evaluation_modules.cache.load_cached_result", return_value=cached_result):
         test_case = {
             "case": {
                 "name": "Test Case",
@@ -127,7 +130,7 @@ async def test_run_test_case_with_cached_result():
         }
 
         result = await run_test_case(
-            semaphore, mock_client, test_case, use_cache=True, pbar=mock_pbar
+            semaphore, mock_client, test_case, mock_llm_evaluator, use_cache=True, pbar=mock_pbar
         )
 
         # Verify progress bar was updated for cached result
@@ -141,15 +144,16 @@ async def test_run_test_case_with_cached_result():
 @pytest.mark.asyncio
 async def test_run_test_case_handles_errors_with_progress():
     """Test that run_test_case handles errors and updates progress bar."""
-    from evaluate_mcp import run_test_case
+    from evaluation_modules import run_test_case
 
     semaphore = asyncio.Semaphore(1)
     mock_client = AsyncMock()
     mock_pbar = MagicMock()
+    mock_llm_evaluator = AsyncMock()
 
     # Mock get_langchain_response to raise an error
     with patch(
-        "evaluate_mcp.get_langchain_response",
+        "evaluation_modules.evaluation.get_langchain_response",
         side_effect=Exception("Test error"),
     ):
         test_case = {
@@ -161,7 +165,7 @@ async def test_run_test_case_handles_errors_with_progress():
         }
 
         result = await run_test_case(
-            semaphore, mock_client, test_case, use_cache=False, pbar=mock_pbar
+            semaphore, mock_client, test_case, mock_llm_evaluator, use_cache=False, pbar=mock_pbar
         )
 
         # Verify error was logged to progress bar
@@ -176,7 +180,7 @@ async def test_run_test_case_handles_errors_with_progress():
 def test_tqdm_import():
     """Test that tqdm.asyncio is correctly imported."""
     # This will fail if the import is broken
-    from evaluate_mcp import atqdm
+    from tqdm.asyncio import tqdm as atqdm
 
     assert atqdm is not None, "tqdm.asyncio should be imported as atqdm"
 
@@ -185,7 +189,7 @@ def test_progress_bar_parameter_in_run_test_case():
     """Test that run_test_case function signature includes pbar parameter."""
     import inspect
 
-    from evaluate_mcp import run_test_case
+    from evaluation_modules import run_test_case
 
     sig = inspect.signature(run_test_case)
     params = list(sig.parameters.keys())
