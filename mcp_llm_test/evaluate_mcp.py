@@ -21,7 +21,7 @@ References:
 
 This script has been refactored into modular components in the evaluation_modules package:
 - cache: Cache management for test results
-- llm_retry: LLM invocation with exponential backoff retry logic  
+- llm_retry: LLM invocation with exponential backoff retry logic
 - evaluation: Core evaluation logic for test responses
 - test_execution: Test case execution orchestration
 - reporting: HTML report generation and browser integration
@@ -45,7 +45,11 @@ from fastmcp.client import Client
 from tqdm.asyncio import tqdm as atqdm
 
 from marrvel_mcp.server import create_server
-from config.llm_providers import create_llm_instance, get_provider_config, validate_provider_credentials
+from config.llm_providers import (
+    create_llm_instance,
+    get_provider_config,
+    validate_provider_credentials,
+)
 from config.llm_config import get_default_model_config, get_evaluation_model_config
 from marrvel_mcp import TokenLimitExceeded
 
@@ -75,7 +79,7 @@ load_dotenv()
 async def main():
     """
     Main function to run the evaluation concurrently.
-    
+
     This orchestrator coordinates:
     1. Argument parsing and configuration loading
     2. LLM instance creation (tested models and evaluator)
@@ -322,8 +326,6 @@ async def main():
 
                 # Validate provider credentials for each model
                 try:
-                    from config.llm_providers import validate_provider_credentials
-
                     validate_provider_credentials(model_provider)
                 except ValueError as e:
                     print(f"⚠️  Skipping model {model_id}: {e}")
@@ -812,7 +814,6 @@ async def main():
             import traceback
 
             traceback.print_exc()
-
 
     # Handle --multi-model mode: test multiple models across all three modes
     if args.multi_model:
