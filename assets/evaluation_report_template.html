@@ -151,6 +151,109 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                 modals.forEach(modal => modal.classList.add('hidden'));
             }
         });
+
+        // Export results to CSV/TSV format
+        function exportResults(format) {
+            const delimiter = format === 'csv' ? ',' : '\t';
+            const extension = format === 'csv' ? 'csv' : 'tsv';
+            
+            // Check if multi-model mode
+            const isMultiModel = document.querySelector('[data-multi-model="true"]');
+            
+            if (!isMultiModel) {
+                alert('Export is currently only available for multi-model comparison mode.');
+                return;
+            }
+            
+            // Build header row
+            let header = ['Test #', 'Question', 'Expected'];
+            const modelNames = [];
+            
+            // Extract model names from the summary stats
+            const modelCards = document.querySelectorAll('[data-model-id]');
+            modelCards.forEach(card => {
+                const modelId = card.getAttribute('data-model-id');
+                const modelName = card.getAttribute('data-model-name');
+                modelNames.push({id: modelId, name: modelName});
+                // Add three columns for each model (Vanilla, Web, MARRVEL)
+                header.push(`${modelName} - Vanilla`);
+                header.push(`${modelName} - Web`);
+                header.push(`${modelName} - MARRVEL`);
+            });
+            
+            let csvContent = header.map(h => escapeField(h, delimiter)).join(delimiter) + '\n';
+            
+            // Extract data from table rows
+            const rows = document.querySelectorAll('tbody tr:not([id^="modal-"])');
+            let testNum = 1;
+            
+            rows.forEach(row => {
+                // Skip modal rows
+                if (row.id && row.id.startsWith('modal-')) return;
+                
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return;
+                
+                const question = cells[0].textContent.trim();
+                const expected = cells[1].textContent.trim();
+                
+                let rowData = [testNum.toString(), question, expected];
+                
+                // Extract YES/NO/N/A values for each model's three modes
+                for (let i = 2; i < cells.length; i++) {
+                    const cellText = cells[i].textContent.trim();
+                    rowData.push(cellText);
+                }
+                
+                csvContent += rowData.map(d => escapeField(d, delimiter)).join(delimiter) + '\n';
+                testNum++;
+            });
+            
+            // Add summary statistics at the end
+            csvContent += '\n';
+            csvContent += escapeField('Summary Statistics', delimiter) + '\n';
+            csvContent += '\n';
+            
+            // Add accuracy percentages from the summary
+            csvContent += escapeField('Model', delimiter) + delimiter + 
+                         escapeField('Vanilla %', delimiter) + delimiter + 
+                         escapeField('Web %', delimiter) + delimiter + 
+                         escapeField('MARRVEL %', delimiter) + '\n';
+            
+            modelCards.forEach(card => {
+                const modelName = card.getAttribute('data-model-name');
+                const vanillaRate = card.getAttribute('data-vanilla-rate') || '0';
+                const webRate = card.getAttribute('data-web-rate') || '0';
+                const toolRate = card.getAttribute('data-tool-rate') || '0';
+                
+                csvContent += escapeField(modelName, delimiter) + delimiter + 
+                             escapeField(vanillaRate, delimiter) + delimiter + 
+                             escapeField(webRate, delimiter) + delimiter + 
+                             escapeField(toolRate, delimiter) + '\n';
+            });
+            
+            // Create download
+            const blob = new Blob([csvContent], { type: 'text/plain;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `evaluation_results.${extension}`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function escapeField(field, delimiter) {
+            // Convert to string and handle null/undefined
+            field = (field === null || field === undefined) ? '' : String(field);
+            
+            // If field contains delimiter, newline, or quotes, wrap in quotes and escape internal quotes
+            if (field.includes(delimiter) || field.includes('\n') || field.includes('"')) {
+                return '"' + field.replace(/"/g, '""') + '"';
+            }
+            return field;
+        }
     </script>
 </head>
 <body class="min-h-screen py-8 px-4">
@@ -158,10 +261,30 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
     <div id="global-tooltip"></div>
 
     <div class="max-w-[95%] mx-auto">
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden" {% if multi_model %}data-multi-model="true"{% endif %}>
             <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-8">
-                <h1 class="text-3xl font-bold text-white">Evaluation Results</h1>
-                <p class="text-blue-100 mt-2">MCP Test Case Evaluation Summary</p>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h1 class="text-3xl font-bold text-white">Evaluation Results</h1>
+                        <p class="text-blue-100 mt-2">MCP Test Case Evaluation Summary</p>
+                    </div>
+                    {% if multi_model %}
+                    <div class="flex gap-2">
+                        <button onclick="exportResults('csv')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-sm font-medium rounded-md transition-colors backdrop-blur-sm">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Export CSV
+                        </button>
+                        <button onclick="exportResults('tsv')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-sm font-medium rounded-md transition-colors backdrop-blur-sm">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Export TSV
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
                 {% if evaluator_model %}
                 <div class="mt-3 bg-white bg-opacity-10 rounded px-3 py-1.5 inline-block">
                     <p class="text-blue-100 text-xs">
@@ -177,7 +300,12 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                     <p class="text-blue-100 text-sm font-medium mb-3">🎯 Multi-Model Comparison: {{ models_stats|length }} Models × 3 Modes</p>
                     <div class="grid gap-4" style="grid-template-columns: repeat({{ models_stats|length }}, minmax(200px, 1fr));">
                         {% for model_id, stats in models_stats.items() %}
-                        <div class="border-r border-blue-300 border-opacity-30 pr-4 last:border-r-0">
+                        <div class="border-r border-blue-300 border-opacity-30 pr-4 last:border-r-0" 
+                             data-model-id="{{ model_id }}" 
+                             data-model-name="{{ stats.name }}"
+                             data-vanilla-rate="{{ "%.1f"|format(stats.vanilla_rate) }}"
+                             data-web-rate="{{ "%.1f"|format(stats.web_rate) }}"
+                             data-tool-rate="{{ "%.1f"|format(stats.tool_rate) }}">
                             <p class="text-white text-sm font-semibold mb-1">{{ stats.name }}</p>
                             <p class="text-blue-200 text-xs mb-2">({{ stats.provider }})</p>
                             <div class="space-y-2">
