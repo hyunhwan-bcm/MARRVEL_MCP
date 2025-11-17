@@ -250,16 +250,16 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                 });
             }
 
-            // Copy to clipboard
-            navigator.clipboard.writeText(csvContent).then(() => {
-                // Show success message
-                const formatName = format.toUpperCase();
-                alert(`✅ ${formatName} data copied to clipboard!\n\nYou can now paste it into Excel, Google Sheets, or any text editor.`);
-            }).catch(err => {
-                // Fallback for older browsers
-                console.error('Failed to copy to clipboard:', err);
-                alert('❌ Failed to copy to clipboard. Please try again or use a modern browser.');
-            });
+            // Create download
+            const blob = new Blob([csvContent], { type: 'text/plain;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `evaluation_results.${extension}`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         function escapeField(field, delimiter) {
@@ -289,15 +289,15 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                     <div class="flex gap-2">
                         <button onclick="exportResults('csv')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-sm font-medium rounded-md transition-colors backdrop-blur-sm">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            Copy CSV
+                            Export CSV
                         </button>
                         <button onclick="exportResults('tsv')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-sm font-medium rounded-md transition-colors backdrop-blur-sm">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            Copy TSV
+                            Export TSV
                         </button>
                     </div>
                 </div>
