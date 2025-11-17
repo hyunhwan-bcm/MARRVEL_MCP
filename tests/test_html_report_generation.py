@@ -212,8 +212,8 @@ def test_multi_model_report_has_export_buttons():
         # Verify export buttons are present
         assert "Export CSV" in html_content
         assert "Export TSV" in html_content
-        assert 'onclick="exportResults(\'csv\')"' in html_content
-        assert 'onclick="exportResults(\'tsv\')"' in html_content
+        assert "onclick=\"exportResults('csv')\"" in html_content
+        assert "onclick=\"exportResults('tsv')\"" in html_content
 
         # Verify export function is defined
         assert "function exportResults(format)" in html_content
@@ -221,11 +221,11 @@ def test_multi_model_report_has_export_buttons():
 
         # Verify data attributes are present for export functionality
         assert 'data-multi-model="true"' in html_content
-        assert 'data-model-id=' in html_content
-        assert 'data-model-name=' in html_content
-        assert 'data-vanilla-rate=' in html_content
-        assert 'data-web-rate=' in html_content
-        assert 'data-tool-rate=' in html_content
+        assert "data-model-id=" in html_content
+        assert "data-model-name=" in html_content
+        assert "data-vanilla-rate=" in html_content
+        assert "data-web-rate=" in html_content
+        assert "data-tool-rate=" in html_content
 
         # Verify multi-model comparison structure
         assert "Multi-Model Comparison" in html_content
@@ -235,4 +235,3 @@ def test_multi_model_report_has_export_buttons():
         # Clean up the temporary HTML file
         if os.path.exists(html_path):
             os.unlink(html_path)
-
