@@ -19,7 +19,7 @@ import pytest
 os.environ["OPENROUTER_API_KEY"] = "dummy_key_for_testing"
 
 # Add project root to path to import evaluate_mcp
-sys.path.insert(0, str(Path(__file__).parent.parent / "mcp-llm-test"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "mcp_llm_test"))
 
 
 def test_concurrency_argument_parsing():
@@ -120,7 +120,7 @@ async def test_run_test_case_with_cached_result():
         "tokens_used": 50,
     }
 
-    with patch("evaluation_modules.cache.load_cached_result", return_value=cached_result):
+    with patch("evaluation_modules.test_execution.load_cached_result", return_value=cached_result):
         test_case = {
             "case": {
                 "name": "Test Case",
