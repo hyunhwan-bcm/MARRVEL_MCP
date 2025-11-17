@@ -1,0 +1,21 @@
+# Temporary configuration for testing local OpenAI-compatible API
+# Usage: python evaluate_mcp.py --subset "1" --models-config local_api_config.yaml
+
+models:
+  - name: "Local GPT OSS 20B"
+    id: "openai/gpt-oss-20b"
+    provider: "openai"
+    enabled: true
+    skip_vanilla: false
+    skip_web_search: true
+    description: "Local OpenAI-compatible API at localhost:8031"
+
+config:
+  only_enabled: true
+  timeout: 60
+  use_cache: false
+
+  # Evaluator also uses the same local API
+  evaluator:
+    provider: "openai"
+    model: "openai/gpt-oss-20b"

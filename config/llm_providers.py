@@ -343,6 +343,8 @@ def create_llm_instance(
         openai_kwargs: Dict[str, Any] = {
             "model": effective_model_id,
             "temperature": temperature,
+            "timeout": 300,  # 5 minute timeout to prevent hanging
+            "max_retries": 2,  # Reduce retries to fail faster
             **kwargs,
         }
 
