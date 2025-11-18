@@ -66,12 +66,12 @@
 - case:
     name: "gnomAD presence"
     input: "Is Chr9:99694174 C>T found in gnomAD?"
-    expected: "Chr9:99694174 C>T is not found in gnomAD control populations."
+    expected: "This variant is not found in gnomAD control populations."
 
 - case:
     name: "gnomAD presence 2"
     input: "Is Chr9:99699454 C>A (hg19) found in gnomAD?"
-    expected: "Yes, Chr9:96937172 C>A is found in gnomAD control populations."
+    expected: "Yes, this variant is found in gnomAD control populations."
 
 - case:
     name: "LoF o/e score"
