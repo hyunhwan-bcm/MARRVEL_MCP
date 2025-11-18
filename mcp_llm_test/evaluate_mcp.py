@@ -18,20 +18,23 @@ References:
 - LangChain with OpenRouter: https://openrouter.ai/docs/community/lang-chain
 - Tool calling: https://docs.langchain.com/oss/python/langchain/overview
 - Evaluation: https://docs.langchain.com/oss/python/langchain/overview
+
+This script has been refactored into modular components in the evaluation_modules package:
+- cache: Cache management for test results
+- llm_retry: LLM invocation with exponential backoff retry logic
+- evaluation: Core evaluation logic for test responses
+- test_execution: Test case execution orchestration
+- reporting: HTML report generation and browser integration
+- config_loader: Configuration file loading
+- cli: Command-line interface argument parsing
 """
 
-import argparse
 import asyncio
 import json
+import logging
 import os
-import pickle
-import re
 import sys
-import tempfile
-import uuid
-import webbrowser
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
 
 # Add project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -39,1207 +42,68 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import yaml
 from dotenv import load_dotenv
 from fastmcp.client import Client
-from jinja2 import Environment, FileSystemLoader
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
-import tiktoken
 from tqdm.asyncio import tqdm as atqdm
 
 from marrvel_mcp.server import create_server
-from config.llm_providers import create_llm_instance, get_provider_config, ProviderType
-from marrvel_mcp import (
-    convert_tool_to_langchain_format,
-    parse_tool_result_content,
-    execute_agentic_loop,
-    count_tokens,
-    validate_token_count,
-    TokenLimitExceeded,
+from config.llm_providers import (
+    create_llm_instance,
+    get_provider_config,
+    validate_provider_credentials,
 )
+from config.llm_config import get_default_model_config, get_evaluation_model_config
+from marrvel_mcp import TokenLimitExceeded
 
+# Import all evaluation modules
+from evaluation_modules import (
+    # Cache management
+    clear_cache,
+    # Evaluation
+    get_langchain_response,
+    # Test execution
+    run_test_case,
+    # Reporting
+    generate_html_report,
+    open_in_browser,
+    # Config loading
+    load_models_config,
+    load_evaluator_config_from_yaml,
+    # CLI
+    parse_arguments,
+    parse_subset,
+)
 
 # Load environment variables from .env file
 load_dotenv()
-
-"""NOTE: Model selection
-
-The evaluation harness now supports selecting an OpenRouter model at runtime
-via the environment variable `OPENROUTER_MODEL`. If it is not set, we fall
-back to the latest Gemini 2.5 Flash model (NOT any deprecated 1.5 version).
-
-Examples:
-    export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"
-    export OPENROUTER_MODEL="google/gemini-2.5-pro"
-    python evaluate_mcp.py
-
-This keeps existing behavior (Gemini 2.5 Flash) when no override is provided.
-"""
-
-from config.llm_config import (
-    get_openrouter_model,
-    get_default_model_config,
-    get_evaluation_model_config,
-    DEFAULT_MODEL,
-)
-
-# Resolve model lazily at import so tests can patch env before main() runs.
-MODEL = get_openrouter_model()  # default is google/gemini-2.5-flash (backward compat)
-MAX_TOKENS = 100_000  # Maximum tokens allowed for evaluation to prevent API errors
-
-# Cache settings
-CACHE_DIR = Path.home() / ".cache" / "marrvel-mcp" / "evaluations"
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-# Global variables for LLM (initialized in main after arg parsing)
-llm = None
-llm_web = None  # LLM with web search enabled (:online suffix)
-llm_evaluator = (
-    None  # LLM used for evaluating/grading responses (separate from models being tested)
-)
-OPENROUTER_API_KEY = None
-
-
-async def invoke_with_throttle_retry(
-    llm_instance,
-    messages,
-    max_retries: int = 5,
-    initial_delay: float = 2.0,
-    max_delay: float = 30.0,
-    add_initial_jitter: bool = False,
-):
-    """
-    Invoke LLM with exponential backoff for throttling exceptions.
-
-    This wrapper handles both botocore ThrottlingException (from AWS Bedrock)
-    and general rate limiting errors with exponential backoff and jitter.
-
-    Args:
-        llm_instance: LangChain LLM instance to invoke
-        messages: Messages to send to the LLM
-        max_retries: Maximum number of retry attempts (default: 5)
-        initial_delay: Initial delay in seconds before first retry (default: 2.0)
-        max_delay: Maximum delay between retries in seconds (default: 30.0)
-        add_initial_jitter: If True, add 0-1s random delay before first request.
-                           If None/False, auto-detect Bedrock and add jitter for it.
-
-    Returns:
-        LLM response
-
-    Raises:
-        Last exception if all retries fail
-    """
-    import logging
-    import random
-
-    # Auto-detect Bedrock and add initial jitter to spread out concurrent requests
-    is_bedrock = "ChatBedrock" in str(type(llm_instance))
-    if add_initial_jitter or (is_bedrock and add_initial_jitter is not False):
-        initial_jitter = random.uniform(0, 1.0)
-        await asyncio.sleep(initial_jitter)
-
-    delay = initial_delay
-    last_exception = None
-
-    for attempt in range(max_retries + 1):
-        try:
-            return await llm_instance.ainvoke(messages)
-        except Exception as e:
-            last_exception = e
-
-            # Check if it's a throttling exception (from botocore/AWS Bedrock)
-            is_throttling = False
-            error_name = type(e).__name__
-            error_msg = str(e)
-            error_msg_lower = error_msg.lower()
-
-            # Debug logging to see what error we got
-            logging.debug(
-                f"LLM invocation failed (attempt {attempt + 1}/{max_retries + 1}): "
-                f"{error_name}: {error_msg[:200]}"
-            )
-
-            # Check for throttling/rate limit indicators
-            if "throttling" in error_name.lower() or "throttling" in error_msg_lower:
-                is_throttling = True
-            elif "rate" in error_msg_lower and "limit" in error_msg_lower:
-                is_throttling = True
-            elif "too many" in error_msg_lower:
-                is_throttling = True
-            elif "reached max retries" in error_msg_lower:
-                # Boto3 exhausted its retries - we should retry at application level
-                is_throttling = True
-
-            # Only retry on throttling/rate limit errors
-            if is_throttling and attempt < max_retries:
-                # Add jitter to avoid thundering herd (10-30% of delay)
-                jitter = delay * random.uniform(0.1, 0.3)
-                sleep_time = min(delay + jitter, max_delay)
-
-                logging.warning(
-                    f"🔄 Throttling detected ({error_name}), retrying in {sleep_time:.2f}s "
-                    f"(attempt {attempt + 1}/{max_retries + 1})"
-                )
-                await asyncio.sleep(sleep_time)
-                delay = min(delay * 2, max_delay)  # Exponential backoff with cap
-                continue
-
-            # For non-throttling errors or exhausted retries, raise immediately
-            logging.debug(f"Non-throttling error or exhausted retries, raising: {error_name}")
-            raise
-
-    # If we get here, we exhausted all retries
-    raise last_exception
-
-
-def get_cache_path(
-    test_case_name: str,
-    vanilla_mode: bool = False,
-    web_mode: bool = False,
-    model_id: str | None = None,
-) -> Path:
-    """Get the cache file path for a test case.
-
-    Args:
-        test_case_name: Name of the test case
-        vanilla_mode: If True, append '_vanilla' to distinguish from tool-enabled cache
-        web_mode: If True, append '_web' to distinguish from vanilla cache
-        model_id: Model identifier (e.g., "google/gemini-2.5-flash"). If provided, cache is model-specific.
-
-    Returns:
-        Path to cache file
-    """
-    # Use sanitized test case name for filename
-    safe_name = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_" for c in test_case_name)
-    safe_name = safe_name.strip().replace(" ", "_")
-
-    # Add model identifier if provided (sanitize it too)
-    if model_id:
-        safe_model = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in model_id)
-        safe_model = safe_model.replace("/", "_")
-        model_suffix = f"_{safe_model}"
-    else:
-        model_suffix = ""
-
-    if web_mode:
-        mode_suffix = "_web"
-    elif vanilla_mode:
-        mode_suffix = "_vanilla"
-    else:
-        mode_suffix = ""
-
-    return CACHE_DIR / f"{safe_name}{model_suffix}{mode_suffix}.pkl"
-
-
-def parse_subset(subset: str | None, total_count: int) -> List[int]:
-    """
-    Parse a subset specification string into a list of 0-based indices.
-
-    Supported formats (1-based in the input):
-    - "1-5"               -> [0,1,2,3,4]
-    - "1,2,4"             -> [0,1,3]
-    - "1-3,5,7-9"         -> [0,1,2,4,6,7,8]
-
-    Rules:
-    - Whitespace is ignored
-    - Indices are 1-based in the input and converted to 0-based
-    - Duplicates are removed; result is sorted
-    - Errors:
-      * index 0 -> ValueError("Index must be >= 1")
-      * reversed range (e.g., 5-1) -> ValueError(f"Invalid range {start}-{end}")
-      * index out of range -> ValueError(f"Index {n} out of range")
-      * malformed tokens -> ValueError with message matching tests
-    """
-    if subset is None or subset.strip() == "":
-        return list(range(total_count))
-
-    # Remove spaces to simplify parsing
-    cleaned = subset.replace(" ", "")
-    indices: set[int] = set()
-
-    # Split by comma for items that are either single indices or ranges
-    tokens = [t for t in cleaned.split(",") if t != ""]
-    for token in tokens:
-        if "-" in token:
-            # Range parsing
-            parts = token.split("-")
-            if len(parts) != 2 or parts[0] == "" or parts[1] == "":
-                # Covers cases like "1-2-3", "-1", "1-", "-"
-                raise ValueError("Invalid range format")
-            start_str, end_str = parts
-            if not start_str.isdigit() or not end_str.isdigit():
-                raise ValueError("Invalid range format")
-            start = int(start_str)
-            end = int(end_str)
-            if start == 0 or end == 0:
-                raise ValueError("Index must be >= 1")
-            if start > end:
-                raise ValueError(f"Invalid range {start}-{end}")
-            # Validate bounds, prefer reporting the start if both are out-of-range
-            if start > total_count:
-                raise ValueError(f"Index {start} out of range")
-            if end > total_count:
-                raise ValueError(f"Index {end} out of range")
-            # Convert to 0-based inclusive range
-            indices.update(i - 1 for i in range(start, end + 1))
-        else:
-            # Single index parsing
-            if not token.isdigit():
-                raise ValueError("Invalid index")
-            value = int(token)
-            if value == 0:
-                raise ValueError("Index must be >= 1")
-            if value > total_count:
-                raise ValueError(f"Index {value} out of range")
-            indices.add(value - 1)
-
-    return sorted(indices)
-
-
-def load_cached_result(
-    test_case_name: str,
-    vanilla_mode: bool = False,
-    web_mode: bool = False,
-    model_id: str | None = None,
-) -> Dict[str, Any] | None:
-    """Load cached result for a test case if it exists.
-
-    Args:
-        test_case_name: Name of the test case
-        vanilla_mode: If True, load from vanilla cache
-        web_mode: If True, load from web cache
-        model_id: Model identifier for model-specific cache
-
-    Returns:
-        Cached result or None if not found
-    """
-    cache_path = get_cache_path(test_case_name, vanilla_mode, web_mode, model_id)
-    if cache_path.exists():
-        try:
-            with open(cache_path, "rb") as f:
-                return pickle.load(f)
-        except Exception as e:
-            print(f"Warning: Failed to load cache for {test_case_name}: {e}")
-            return None
-    return None
-
-
-def save_cached_result(
-    test_case_name: str,
-    result: Dict[str, Any],
-    vanilla_mode: bool = False,
-    web_mode: bool = False,
-    model_id: str | None = None,
-):
-    """Save result to cache.
-
-    Args:
-        test_case_name: Name of the test case
-        result: Test result to cache
-        vanilla_mode: If True, save to vanilla cache
-        web_mode: If True, save to web cache
-        model_id: Model identifier for model-specific cache
-    """
-    cache_path = get_cache_path(test_case_name, vanilla_mode, web_mode, model_id)
-    try:
-        with open(cache_path, "wb") as f:
-            pickle.dump(result, f)
-    except Exception as e:
-        print(f"Warning: Failed to save cache for {test_case_name}: {e}")
-
-
-def clear_cache():
-    """Clear all cached results."""
-    if CACHE_DIR.exists():
-        for cache_file in CACHE_DIR.glob("*.pkl"):
-            try:
-                cache_file.unlink()
-            except Exception as e:
-                print(f"Warning: Failed to delete {cache_file}: {e}")
-        print(f"✅ Cache cleared: {CACHE_DIR}")
-
-
-async def get_langchain_response(
-    mcp_client: Client,
-    user_input: str,
-    vanilla_mode: bool = False,
-    web_mode: bool = False,
-    llm_instance=None,
-    llm_web_instance=None,
-) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int, Dict[str, Any]]:
-    """
-    Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
-
-    Args:
-        mcp_client: MCP client for tool calls
-        user_input: User question/prompt
-        vanilla_mode: If True, LLM responds without tool calling capabilities
-        web_mode: If True, LLM responds with web search enabled (no tool calling)
-        llm_instance: LLM instance to use (if None, uses global llm)
-        llm_web_instance: Web-enabled LLM instance to use (if None, uses global llm_web)
-
-    Returns: (final_response, tool_history, full_conversation, tokens_used, metadata)
-    """
-    # Use provided instances or fall back to globals for backward compatibility
-    active_llm_base = llm_instance if llm_instance is not None else llm
-    active_llm_web = llm_web_instance if llm_web_instance is not None else llm_web
-
-    # Initialize LangChain messages
-    if vanilla_mode:
-        system_message = """You are an expert genetics research assistant. Answer questions about genes, variants, and genetic data with confidence and precision.
-
-When answering:
-- Provide clear, definitive answers based on your knowledge
-- Use standard genetic nomenclature and bioinformatics principles
-- If asked about specific variants, analyze the mutation type and predict the likely protein change
-- Structure your response to end with a clear, concise answer to the question
-- Avoid apologetic language - focus on providing the most accurate information possible"""
-    elif web_mode:
-        system_message = """You are an expert genetics research assistant with web search capabilities. Search for accurate, up-to-date information from scientific databases and reliable sources.
-
-When answering:
-- Search for the specific information requested (genes, transcripts, variants, proteins)
-- If exact matches aren't found, search for related variants, similar mutations, or the gene/transcript in question
-- Analyze the genetic nomenclature (e.g., c.187C>T means codon 63, C to T substitution) and infer the protein change
-- Use information from similar cases or the gene's annotation to provide informed responses
-- ALWAYS provide a clear, definitive answer at the end of your response
-- Do NOT say "I cannot answer" - instead, work with available information to provide the best possible answer
-- Cite specific sources when available
-- Structure your response to conclude with a direct answer to the question asked"""
-    else:
-        system_message = "You are a helpful genetics research assistant. You have access to tools that can query genetic databases and provide accurate information. Always use the available tools to answer questions about genes, variants, and genetic data. Do not use pubmed tools unless pubmed is mentioned in the question. Do not make up or guess information - use the tools to get accurate data."
-
-    messages = [
-        SystemMessage(content=system_message),
-        HumanMessage(content=user_input),
-    ]
-    tool_history = []
-    conversation = []
-
-    # In vanilla or web mode, skip tool binding and just get a direct response
-    if vanilla_mode or web_mode:
-        # Store initial messages in conversation history
-        conversation.append({"role": "system", "content": system_message})
-        conversation.append({"role": "user", "content": user_input})
-
-        # Use web-enabled LLM for web mode, regular LLM for vanilla mode
-        active_llm = active_llm_web if web_mode else active_llm_base
-
-        # Get direct response without tool calling
-        try:
-            response = await invoke_with_throttle_retry(active_llm, messages)
-
-            # Collect metadata (especially useful for web_mode debugging)
-            response_metadata = {}
-            if web_mode or vanilla_mode:
-                if hasattr(response, "__dict__"):
-                    response_metadata["response_type"] = str(type(response))
-                    response_metadata["has_content_attr"] = hasattr(response, "content")
-                    if hasattr(response, "content"):
-                        response_metadata["content_length"] = (
-                            len(response.content) if response.content else 0
-                        )
-                        response_metadata["content_preview"] = str(response.content)[:100]
-                    if hasattr(response, "response_metadata"):
-                        metadata = response.response_metadata
-                        response_metadata["model_used"] = metadata.get("model_name", "N/A")
-                        if "finish_reason" in metadata:
-                            response_metadata["finish_reason"] = metadata["finish_reason"]
-                    if hasattr(response, "usage_metadata"):
-                        usage = response.usage_metadata
-                        response_metadata["input_tokens"] = usage.get("input_tokens", 0)
-                        response_metadata["output_tokens"] = usage.get("output_tokens", 0)
-
-            final_content = response.content if hasattr(response, "content") else str(response)
-
-            # Check if response is empty and warn
-            if not final_content or final_content.strip() == "":
-                mode_name = "web search" if web_mode else "vanilla"
-                print(
-                    f"⚠️  Warning: Empty response from {mode_name} mode. Model may not support this mode or encountered an error."
-                )
-                print(f"  Question was: {user_input}")
-                final_content = f"**No response generated from {mode_name} mode. The model may not support this feature or encountered an API error.**"
-
-            conversation.append({"role": "assistant", "content": final_content})
-
-            # Compute total tokens used
-            try:
-                conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
-                tokens_total = count_tokens(conv_text)
-            except Exception:
-                tokens_total = 0
-
-            return final_content, tool_history, conversation, tokens_total, response_metadata
-
-        except Exception as e:
-            mode_name = "web search" if web_mode else "vanilla"
-            error_msg = f"**Error in {mode_name} mode: {str(e)}**"
-            print(f"❌ Error in {mode_name} mode: {e}")
-            conversation.append({"role": "assistant", "content": error_msg})
-            return error_msg, tool_history, conversation, 0, {"error": str(e)}
-
-    # Get MCP tools and convert to LangChain format
-    mcp_tools_list = await mcp_client.list_tools()
-    available_tools = [convert_tool_to_langchain_format(tool) for tool in mcp_tools_list]
-
-    # Bind tools to LLM
-    llm_with_tools = active_llm_base.bind_tools(available_tools)
-
-    # Store initial messages in conversation history
-    conversation.append({"role": "system", "content": messages[0].content})
-    conversation.append({"role": "user", "content": user_input})
-
-    # Execute agentic loop with tool calling
-    final_content, tool_history, conversation, tokens_total = await execute_agentic_loop(
-        mcp_client=mcp_client,
-        llm_with_tools=llm_with_tools,
-        messages=messages,
-        conversation=conversation,
-        tool_history=tool_history,
-        max_tokens=MAX_TOKENS,
-        max_iterations=10,
-    )
-
-    return final_content, tool_history, conversation, tokens_total, {}
-
-
-async def evaluate_response(actual: str, expected: str, llm_instance=None) -> str:
-    """
-    Evaluate the response using LangChain and return the classification text.
-    Be flexible - if the actual response contains the expected information plus additional details, consider it acceptable.
-
-    Args:
-        actual: The actual response text
-        expected: The expected response text
-        llm_instance: DEPRECATED - kept for backward compatibility, ignored
-    """
-    # Always use the dedicated evaluator LLM for consistent evaluation
-    # The llm_instance parameter is kept for backward compatibility but ignored
-    active_llm = llm_evaluator
-
-    prompt = f"""Is the actual response consistent with the expected response?
-
-Consider the response as acceptable (answer 'yes') if:
-- It contains the expected information, even if it includes additional details
-- The core facts/data match the expected response
-- Any additional information provided is accurate and relevant
-
-Only answer 'no' if:
-- The response contradicts the expected information
-- Key information from the expected response is missing
-- The response is factually incorrect
-
-Answer with 'yes' or 'no' followed by a brief reason.
-
-Expected: {expected}
-Actual: {actual}"""
-
-    # Validate token count before making API call
-    is_valid, token_count = validate_token_count(prompt)
-    if not is_valid:
-        return f"no - Evaluation skipped: Input token count ({token_count:,}) exceeds maximum allowed ({MAX_TOKENS:,}). The response or context is excessively long. Please reduce the input size."
-
-    messages = [HumanMessage(content=prompt)]
-    response = await invoke_with_throttle_retry(active_llm, messages)
-    return response.content
-
-
-async def run_test_case(
-    semaphore: asyncio.Semaphore,
-    mcp_client: Client,
-    test_case: Dict[str, Any],
-    use_cache: bool = True,
-    vanilla_mode: bool = False,
-    web_mode: bool = False,
-    model_id: str | None = None,
-    pbar=None,
-    llm_instance=None,
-    llm_web_instance=None,
-) -> Dict[str, Any]:
-    """
-    Runs a single test case and returns the results for the table.
-
-    Args:
-        semaphore: Asyncio semaphore for limiting concurrency
-        mcp_client: MCP client for tool calls
-        test_case: Test case dictionary
-        use_cache: Whether to use cached results (default: True)
-        vanilla_mode: If True, run without tool calling (default: False)
-        web_mode: If True, run with web search enabled (default: False)
-        model_id: Model identifier for model-specific cache (default: None)
-        pbar: Optional tqdm progress bar to update
-        llm_instance: LLM instance to use (if None, uses global llm)
-        llm_web_instance: Web-enabled LLM instance to use (if None, uses global llm_web)
-    """
-    async with semaphore:
-        name = test_case["case"]["name"]
-        user_input = test_case["case"]["input"]
-        expected = test_case["case"]["expected"]
-
-        # Check cache first if enabled
-        if use_cache:
-            cached = load_cached_result(name, vanilla_mode, web_mode, model_id)
-            if cached is not None:
-                # Check if cached result is a failure
-                classification = cached.get("classification", "")
-                is_failure = (
-                    classification.lower().startswith("no")
-                    or "error" in classification.lower()
-                    or "token" in classification.lower()
-                )
-
-                # If cached result was successful, reuse it
-                if not is_failure:
-                    if pbar:
-                        mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
-                        pbar.set_postfix_str(f"Cached ({mode_label}): {name[:40]}...")
-                        pbar.update(1)
-                    return cached
-
-                # Otherwise, re-run the failed test
-                if pbar:
-                    mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
-                    pbar.set_postfix_str(f"Re-running failed ({mode_label}): {name[:40]}...")
-
-        if pbar:
-            mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
-            pbar.set_postfix_str(f"Running ({mode_label}): {name[:40]}...")
-
-        try:
-            langchain_response, tool_history, full_conversation, tokens_used, metadata = (
-                await get_langchain_response(
-                    mcp_client, user_input, vanilla_mode, web_mode, llm_instance, llm_web_instance
-                )
-            )
-            # Use the global evaluator LLM (not the model being tested) for consistent evaluation
-            classification = await evaluate_response(langchain_response, expected)
-            result = {
-                "question": user_input,
-                "expected": expected,
-                "response": langchain_response,
-                "classification": classification,
-                "tool_calls": tool_history,
-                "conversation": full_conversation,
-                "tokens_used": tokens_used,
-                "mode": "web" if web_mode else ("vanilla" if vanilla_mode else "tool"),
-                "metadata": metadata,
-            }
-            # Save to cache
-            save_cached_result(name, result, vanilla_mode, web_mode, model_id)
-            if pbar:
-                pbar.update(1)
-            return result
-        except TokenLimitExceeded as e:
-            # Stop evaluation completely and mark as NO due to token exceed
-            if pbar:
-                pbar.write(
-                    f"⚠️  Token limit exceeded for {name}: {e.token_count:,} > {MAX_TOKENS:,}"
-                )
-            result = {
-                "question": user_input,
-                "expected": expected,
-                "response": "",  # No response since we skipped evaluation
-                "classification": f"no - token count exceeded: {e.token_count:,} > {MAX_TOKENS:,}. Please reduce the input/context.",
-                "tool_calls": [],
-                "conversation": [],
-                "tokens_used": e.token_count,
-            }
-            if pbar:
-                pbar.update(1)
-            # Don't cache failures
-            return result
-        except Exception as e:
-            if pbar:
-                pbar.write(f"❌ Error in {name}: {e}")
-            result = {
-                "question": user_input,
-                "expected": expected,
-                "response": "**No response generated due to error.**",
-                "classification": f"**Error:** {e}",
-                "tool_calls": [],
-                "conversation": [],
-            }
-            if pbar:
-                pbar.update(1)
-            # Don't cache errors
-            return result
-
-
-def generate_html_report(
-    results: List[Dict[str, Any]],
-    dual_mode: bool = False,
-    tri_mode: bool = False,
-    multi_model: bool = False,
-    evaluator_model: str | None = None,
-    evaluator_provider: str | None = None,
-) -> str:
-    """Generate HTML report with modal popups, reordered columns, and success rate summary.
-
-    Args:
-        results: List of test results
-        dual_mode: If True, results contain both vanilla and tool mode responses
-        tri_mode: If True, results contain vanilla, web, and tool mode responses
-        multi_model: If True, results contain multiple models across all three modes
-        evaluator_model: Model ID used for evaluation/grading
-        evaluator_provider: Provider used for evaluation model
-
-    Returns:
-        Path to generated HTML file
-    """
-    # Create a temporary HTML file
-    temp_html = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".html", delete=False, prefix="evaluation_results_"
-    )
-    html_path = temp_html.name
-
-    # Calculate success rate
-    total_tests = len(results)
-    successful_tests = 0
-    successful_vanilla = 0
-    successful_web = 0
-    successful_tool = 0
-
-    if multi_model:
-        # Calculate success rates for each model across all modes
-        models_stats = {}
-        for result in results:
-            for model_id, model_data in result["models"].items():
-                if model_id not in models_stats:
-                    models_stats[model_id] = {
-                        "name": model_data["name"],
-                        "provider": model_data.get("provider", "unknown"),
-                        "vanilla_success": 0,
-                        "web_success": 0,
-                        "tool_success": 0,
-                    }
-
-                vanilla_classification = model_data["vanilla"]["classification"].lower()
-                web_classification = model_data["web"].get("classification", "").lower()
-                tool_classification = model_data["tool"]["classification"].lower()
-
-                if re.search(r"\byes\b", vanilla_classification):
-                    models_stats[model_id]["vanilla_success"] += 1
-                # Skip counting N/A web results
-                if model_data["web"].get("status") != "N/A" and re.search(
-                    r"\byes\b", web_classification
-                ):
-                    models_stats[model_id]["web_success"] += 1
-                if re.search(r"\byes\b", tool_classification):
-                    models_stats[model_id]["tool_success"] += 1
-
-        # Calculate percentages
-        for model_id in models_stats:
-            models_stats[model_id]["vanilla_rate"] = (
-                models_stats[model_id]["vanilla_success"] / total_tests * 100
-                if total_tests > 0
-                else 0
-            )
-            models_stats[model_id]["web_rate"] = (
-                models_stats[model_id]["web_success"] / total_tests * 100 if total_tests > 0 else 0
-            )
-            models_stats[model_id]["tool_rate"] = (
-                models_stats[model_id]["tool_success"] / total_tests * 100 if total_tests > 0 else 0
-            )
-    elif tri_mode:
-        # Calculate success rates for all three modes
-        for result in results:
-            vanilla_classification = result["vanilla"]["classification"].lower()
-            web_classification = result["web"]["classification"].lower()
-            tool_classification = result["tool"]["classification"].lower()
-
-            if re.search(r"\byes\b", vanilla_classification):
-                successful_vanilla += 1
-            if re.search(r"\byes\b", web_classification):
-                successful_web += 1
-            if re.search(r"\byes\b", tool_classification):
-                successful_tool += 1
-
-        vanilla_success_rate = (successful_vanilla / total_tests * 100) if total_tests > 0 else 0
-        web_success_rate = (successful_web / total_tests * 100) if total_tests > 0 else 0
-        tool_success_rate = (successful_tool / total_tests * 100) if total_tests > 0 else 0
-    elif dual_mode:
-        # Calculate success rates for both modes
-        for result in results:
-            vanilla_classification = result["vanilla"]["classification"].lower()
-            tool_classification = result["tool"]["classification"].lower()
-
-            if re.search(r"\byes\b", vanilla_classification):
-                successful_vanilla += 1
-            if re.search(r"\byes\b", tool_classification):
-                successful_tool += 1
-
-        vanilla_success_rate = (successful_vanilla / total_tests * 100) if total_tests > 0 else 0
-        tool_success_rate = (successful_tool / total_tests * 100) if total_tests > 0 else 0
-    else:
-        # Calculate success rate for single mode
-        for result in results:
-            classification = result["classification"].lower()
-            # Check if evaluation contains "yes" (flexible matching)
-            if re.search(r"\byes\b", classification):
-                successful_tests += 1
-
-        success_rate = (successful_tests / total_tests * 100) if total_tests > 0 else 0
-
-    # Helper function to clean conversation data
-    def clean_conversation(conversation: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Parse any escaped JSON strings in conversation for better display."""
-        cleaned = []
-        for msg in conversation:
-            cleaned_msg = dict(msg)
-            # Parse content if it's a string that looks like escaped JSON
-            if isinstance(cleaned_msg.get("content"), str):
-                cleaned_msg["content"] = parse_tool_result_content(cleaned_msg["content"])
-
-            # Parse arguments in tool_calls if present
-            if "tool_calls" in cleaned_msg and isinstance(cleaned_msg["tool_calls"], list):
-                cleaned_tool_calls = []
-                for tool_call in cleaned_msg["tool_calls"]:
-                    cleaned_tool_call = dict(tool_call)
-                    # Parse the arguments field if it's a JSON string
-                    if "function" in cleaned_tool_call and isinstance(
-                        cleaned_tool_call["function"], dict
-                    ):
-                        function = dict(cleaned_tool_call["function"])
-                        if isinstance(function.get("arguments"), str):
-                            try:
-                                function["arguments"] = json.loads(function["arguments"])
-                            except (json.JSONDecodeError, TypeError):
-                                # Keep as-is if parsing fails
-                                pass
-                        cleaned_tool_call["function"] = function
-                    cleaned_tool_calls.append(cleaned_tool_call)
-                cleaned_msg["tool_calls"] = cleaned_tool_calls
-
-            cleaned.append(cleaned_msg)
-        return cleaned
-
-    # Prepare data for template - add metadata to each result
-    enriched_results = []
-
-    if multi_model:
-        # Prepare multi-model results with all models across all three modes
-        for idx, result in enumerate(results):
-            enriched_result = {
-                "idx": idx,
-                "question": result["question"],
-                "expected": result["expected"],
-                "models": {},
-            }
-
-            for model_id, model_data in result["models"].items():
-                vanilla_res = model_data["vanilla"]
-                web_res = model_data["web"]
-                tool_res = model_data["tool"]
-
-                vanilla_classification_lower = vanilla_res["classification"].lower()
-                web_classification_lower = web_res.get("classification", "").lower()
-                tool_classification_lower = tool_res["classification"].lower()
-
-                vanilla_is_yes = re.search(r"\byes\b", vanilla_classification_lower)
-                web_is_yes = (
-                    re.search(r"\byes\b", web_classification_lower)
-                    if web_res.get("status") != "N/A"
-                    else None
-                )
-                tool_is_yes = re.search(r"\byes\b", tool_classification_lower)
-
-                # Clean up conversation data for all three modes
-                vanilla_conversation = clean_conversation(vanilla_res.get("conversation", []))
-                web_conversation = (
-                    clean_conversation(web_res.get("conversation", []))
-                    if web_res.get("status") != "N/A"
-                    else []
-                )
-                tool_conversation = clean_conversation(tool_res.get("conversation", []))
-
-                enriched_result["models"][model_id] = {
-                    "name": model_data["name"],
-                    "vanilla": {
-                        "response": vanilla_res.get("response", ""),
-                        "classification": vanilla_res["classification"],
-                        "is_yes": vanilla_is_yes is not None,
-                        "tokens_used": vanilla_res.get("tokens_used", 0),
-                        "tool_calls": vanilla_res.get("tool_calls", []),
-                        "conversation": vanilla_conversation,
-                    },
-                    "web": {
-                        "response": web_res.get("response", "N/A"),
-                        "classification": web_res.get("classification", "N/A"),
-                        "is_yes": (
-                            web_is_yes is not None if web_res.get("status") != "N/A" else False
-                        ),
-                        "tokens_used": web_res.get("tokens_used", 0),
-                        "tool_calls": web_res.get("tool_calls", []),
-                        "conversation": web_conversation,
-                        "is_na": web_res.get("status") == "N/A",
-                        "na_reason": web_res.get("reason", ""),
-                    },
-                    "tool": {
-                        "response": tool_res.get("response", ""),
-                        "classification": tool_res["classification"],
-                        "is_yes": tool_is_yes is not None,
-                        "tokens_used": tool_res.get("tokens_used", 0),
-                        "tool_calls": tool_res.get("tool_calls", []),
-                        "conversation": tool_conversation,
-                    },
-                }
-
-            enriched_results.append(enriched_result)
-    elif tri_mode:
-        # Prepare tri-mode results with vanilla, web, and tool responses
-        for idx, result in enumerate(results):
-            vanilla_res = result["vanilla"]
-            web_res = result["web"]
-            tool_res = result["tool"]
-
-            vanilla_classification_lower = vanilla_res["classification"].lower()
-            web_classification_lower = web_res["classification"].lower()
-            tool_classification_lower = tool_res["classification"].lower()
-
-            vanilla_is_yes = re.search(r"\byes\b", vanilla_classification_lower)
-            web_is_yes = re.search(r"\byes\b", web_classification_lower)
-            tool_is_yes = re.search(r"\byes\b", tool_classification_lower)
-
-            # Clean up conversation data for all three modes
-            vanilla_conversation = clean_conversation(vanilla_res.get("conversation", []))
-            web_conversation = clean_conversation(web_res.get("conversation", []))
-            tool_conversation = clean_conversation(tool_res.get("conversation", []))
-
-            enriched_result = {
-                "idx": idx,
-                "question": result["question"],
-                "expected": result["expected"],
-                "vanilla": {
-                    "response": vanilla_res.get("response", ""),
-                    "classification": vanilla_res["classification"],
-                    "is_yes": vanilla_is_yes is not None,
-                    "tokens_used": vanilla_res.get("tokens_used", 0),
-                    "tool_calls": vanilla_res.get("tool_calls", []),
-                    "conversation": vanilla_conversation,
-                },
-                "web": {
-                    "response": web_res.get("response", ""),
-                    "classification": web_res["classification"],
-                    "is_yes": web_is_yes is not None,
-                    "tokens_used": web_res.get("tokens_used", 0),
-                    "tool_calls": web_res.get("tool_calls", []),
-                    "conversation": web_conversation,
-                },
-                "tool": {
-                    "response": tool_res.get("response", ""),
-                    "classification": tool_res["classification"],
-                    "is_yes": tool_is_yes is not None,
-                    "tokens_used": tool_res.get("tokens_used", 0),
-                    "tool_calls": tool_res.get("tool_calls", []),
-                    "conversation": tool_conversation,
-                },
-            }
-            enriched_results.append(enriched_result)
-    elif dual_mode:
-        # Prepare dual-mode results with both vanilla and tool responses
-        for idx, result in enumerate(results):
-            vanilla_res = result["vanilla"]
-            tool_res = result["tool"]
-
-            vanilla_classification_lower = vanilla_res["classification"].lower()
-            tool_classification_lower = tool_res["classification"].lower()
-
-            vanilla_is_yes = re.search(r"\byes\b", vanilla_classification_lower)
-            tool_is_yes = re.search(r"\byes\b", tool_classification_lower)
-
-            # Clean up conversation data for both modes
-            vanilla_conversation = clean_conversation(vanilla_res.get("conversation", []))
-            tool_conversation = clean_conversation(tool_res.get("conversation", []))
-
-            enriched_result = {
-                "idx": idx,
-                "question": result["question"],
-                "expected": result["expected"],
-                "vanilla": {
-                    "response": vanilla_res.get("response", ""),
-                    "classification": vanilla_res["classification"],
-                    "is_yes": vanilla_is_yes is not None,
-                    "tokens_used": vanilla_res.get("tokens_used", 0),
-                    "tool_calls": vanilla_res.get("tool_calls", []),
-                    "conversation": vanilla_conversation,
-                },
-                "tool": {
-                    "response": tool_res.get("response", ""),
-                    "classification": tool_res["classification"],
-                    "is_yes": tool_is_yes is not None,
-                    "tokens_used": tool_res.get("tokens_used", 0),
-                    "tool_calls": tool_res.get("tool_calls", []),
-                    "conversation": tool_conversation,
-                },
-            }
-            enriched_results.append(enriched_result)
-    else:
-        # Single-mode results (original behavior)
-        for idx, result in enumerate(results):
-            classification_lower = result["classification"].lower()
-            is_yes = re.search(r"\byes\b", classification_lower)
-
-            # Clean up conversation data for better JSON display
-            conversation = result.get("conversation", [])
-            cleaned_conversation = clean_conversation(conversation)
-
-            enriched_result = {
-                "idx": idx,
-                "question": result["question"],
-                "expected": result["expected"],
-                "response": result.get("response", ""),
-                "classification": result["classification"],
-                "is_yes": is_yes is not None,
-                "tokens_used": result.get("tokens_used", 0),
-                "tool_calls": result.get("tool_calls", []),
-                "conversation": cleaned_conversation,
-            }
-            enriched_results.append(enriched_result)
-
-    # Load and render Jinja2 template
-    template_path = Path(__file__).parent.parent / "assets"
-    env = Environment(loader=FileSystemLoader(template_path), autoescape=True)
-
-    # Add custom filter for JSON serialization with proper formatting
-    def tojson_pretty(value):
-        """
-        Format JSON with proper indentation for better readability.
-
-        Converts escape sequences in string values to actual characters:
-        - \\n becomes actual newline (and removes preceding backslash if present)
-        - \\t becomes actual tab
-        - \\r becomes actual carriage return
-
-        This makes multiline strings (like markdown tables) display with
-        proper line breaks instead of showing \\n escape sequences.
-        """
-        json_str = json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False)
-        # Replace escape sequences with actual characters for better readability
-        # First replace \\\n (backslash-newline) with just newline to clean up markdown
-        json_str = json_str.replace("\\\\n", "\n")
-        # Then replace remaining \n with newlines
-        json_str = json_str.replace("\\n", "\n")
-        json_str = json_str.replace("\\t", "\t")
-        json_str = json_str.replace("\\r", "\r")
-        return json_str
-
-    env.filters["tojson_pretty"] = tojson_pretty
-    template = env.get_template("evaluation_report_template.html")
-
-    if multi_model:
-        html_content = template.render(
-            multi_model=True,
-            models_stats=models_stats,
-            total_tests=total_tests,
-            results=enriched_results,
-            evaluator_model=evaluator_model,
-            evaluator_provider=evaluator_provider,
-        )
-    elif tri_mode:
-        html_content = template.render(
-            tri_mode=True,
-            vanilla_success_rate=vanilla_success_rate,
-            web_success_rate=web_success_rate,
-            tool_success_rate=tool_success_rate,
-            successful_vanilla=successful_vanilla,
-            successful_web=successful_web,
-            successful_tool=successful_tool,
-            total_tests=total_tests,
-            results=enriched_results,
-            evaluator_model=evaluator_model,
-            evaluator_provider=evaluator_provider,
-        )
-    elif dual_mode:
-        html_content = template.render(
-            dual_mode=True,
-            vanilla_success_rate=vanilla_success_rate,
-            tool_success_rate=tool_success_rate,
-            successful_vanilla=successful_vanilla,
-            successful_tool=successful_tool,
-            total_tests=total_tests,
-            results=enriched_results,
-            evaluator_model=evaluator_model,
-            evaluator_provider=evaluator_provider,
-        )
-    else:
-        html_content = template.render(
-            dual_mode=False,
-            success_rate=success_rate,
-            successful_tests=successful_tests,
-            total_tests=total_tests,
-            results=enriched_results,
-            evaluator_model=evaluator_model,
-            evaluator_provider=evaluator_provider,
-        )
-
-    temp_html.write(html_content)
-    temp_html.close()
-    print(f"\n--- HTML report saved to: {html_path} ---")
-    return html_path
-
-
-def open_in_browser(html_path: str):
-    """Open the HTML file in the default browser."""
-    webbrowser.open(f"file://{os.path.abspath(html_path)}")
-    print(f"--- Opened {html_path} in browser ---")
-
-
-def load_models_config(
-    config_path: Path | None = None,
-) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-    """Load models configuration from YAML file.
-
-    Args:
-        config_path: Path to models configuration YAML file.
-                     If None, uses default models_config.yaml in mcp-llm-test directory.
-
-    Returns:
-        Tuple of (enabled_models, evaluator_config)
-        - enabled_models: List of enabled model configurations
-        - evaluator_config: Dict with 'provider' and 'model' keys for evaluator, or empty dict
-    """
-    if config_path is None:
-        config_path = Path(__file__).parent / "models_config.yaml"
-
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
-
-        models = config_data.get("models", [])
-        config = config_data.get("config", {})
-        only_enabled = config.get("only_enabled", True)
-
-        if only_enabled:
-            enabled_models = [m for m in models if m.get("enabled", False)]
-        else:
-            enabled_models = models
-
-        if not enabled_models:
-            raise ValueError("No enabled models found in configuration file")
-
-        # Extract evaluator configuration if present
-        evaluator_config = config.get("evaluator", {})
-
-        return enabled_models, evaluator_config
-    except Exception as e:
-        raise ValueError(f"Failed to load models configuration: {e}")
-
-
-def parse_arguments():
-    """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(
-        description="MCP LLM Evaluation Script - Evaluate MCP tools with LangChain",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Run all test cases (fresh evaluation, results saved to cache)
-  python evaluate_mcp.py
-
-  # Use cached results (re-run only failed tests)
-  python evaluate_mcp.py --cache
-
-  # Clear cache only (does not run tests)
-  python evaluate_mcp.py --clear
-
-  # Run specific test cases by index (1-based)
-  python evaluate_mcp.py --subset "1-5"        # Run tests 1 through 5
-  python evaluate_mcp.py --subset "1,3,5"      # Run tests 1, 3, and 5
-  python evaluate_mcp.py --subset "1-3,5,7-9"  # Run tests 1-3, 5, and 7-9
-
-  # Ask a custom question and get JSON response (no HTML)
-  python evaluate_mcp.py --prompt "tell me about MECP2"
-  python evaluate_mcp.py --prompt "What is the CADD score for chr1:12345 A>G?"
-
-  # Run multi-model comparison (test multiple models across vanilla, web, MARRVEL-MCP modes)
-  python evaluate_mcp.py --multi-model
-  python evaluate_mcp.py --multi-model --models-config custom_models.yaml
-
-Cache Behavior:
-  Results are always cached at: {cache_dir}
-
-  Cache is stored after every run. Use --cache to reuse successful results
-  and re-run only failed tests. Without --cache, all tests are re-evaluated.
-        """.format(
-            cache_dir=CACHE_DIR
-        ),
-    )
-
-    parser.add_argument(
-        "--clear",
-        action="store_true",
-        help="Clear the cache and exit without running evaluations. Use this to remove all cached test results.",
-    )
-
-    parser.add_argument(
-        "--cache",
-        action="store_true",
-        help="Use cached results from previous runs. Failed test cases will be re-run. Without this flag, all tests are re-evaluated.",
-    )
-
-    parser.add_argument(
-        "--subset",
-        type=str,
-        metavar="INDICES",
-        help="Run specific test cases by index. Supports ranges (1-5), individual indices (1,3,5), or combinations (1-3,5,7-9). Indices are 1-based.",
-    )
-
-    parser.add_argument(
-        "--prompt",
-        type=str,
-        metavar="QUESTION",
-        help="Ask a custom question directly and get JSON response without HTML report. Example: --prompt 'tell me about MECP2'",
-    )
-
-    parser.add_argument(
-        "--concurrency",
-        type=int,
-        default=1,
-        metavar="N",
-        help="Maximum number of concurrent test executions (default: 4 for most providers, 1 for Bedrock). "
-        "Bedrock has strict rate limits and connection pool constraints (max 10 connections). "
-        "Increase for faster execution if API rate limits allow, but be cautious with Bedrock.",
-    )
-
-    parser.add_argument(
-        "--with-vanilla",
-        action="store_true",
-        help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",
-    )
-
-    parser.add_argument(
-        "--with-web",
-        action="store_true",
-        help="Run tests in three modes: vanilla (no tools, no web), web search (:online suffix), and MARRVEL-MCP (with tools). Creates 3-way comparison.",
-    )
-
-    parser.add_argument(
-        "--multi-model",
-        action="store_true",
-        help="Run tests with multiple LLM models across all three modes (vanilla, web, MARRVEL-MCP). Each model * mode combination is tested. Results are shown in a grid format.",
-    )
-
-    parser.add_argument(
-        "--models-config",
-        type=str,
-        metavar="PATH",
-        help="Path to models configuration YAML file for --multi-model mode. Defaults to mcp-llm-test/models_config.yaml",
-    )
-
-    return parser.parse_args()
 
 
 async def main():
     """
     Main function to run the evaluation concurrently.
-    """
-    global llm, llm_web, llm_evaluator, OPENROUTER_API_KEY
 
+    This orchestrator coordinates:
+    1. Argument parsing and configuration loading
+    2. LLM instance creation (tested models and evaluator)
+    3. Test case loading and filtering
+    4. Concurrent test execution across different modes
+    5. HTML report generation
+    """
     # Parse command-line arguments
     args = parse_arguments()
 
-    # Configure API keys (after argument parsing so --help works)
-    # Note: Provider-specific credential validation is done later
-    # This preserves backward compatibility for OpenRouter-only usage
-    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+    # Configure logging based on --debug-timing flag or DEBUG environment variable
+    debug_enabled = args.debug_timing or os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
+    verbose_enabled = args.verbose
+
+    if debug_enabled:
+        logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+        print("🐛 Debug logging enabled - showing detailed timing and diagnostic information")
+        if os.getenv("DEBUG"):
+            print("   (via DEBUG environment variable)")
+    elif verbose_enabled:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+        print("📢 Verbose mode enabled - showing detailed error messages")
+    else:
+        logging.basicConfig(level=logging.WARNING)
 
     # Configure LLM with provider abstraction
     # Re-resolve model config inside main to respect any env var changes that occurred
@@ -1249,9 +113,53 @@ async def main():
     # Configure evaluator LLM (separate from models being tested)
     evaluator_model, evaluator_provider = get_evaluation_model_config()
 
-    # Validate provider credentials before proceeding
-    from config.llm_providers import validate_provider_credentials
+    # Load YAML evaluator config and override if specified
+    # This applies to ALL test modes for consistency (not just multi-model mode)
+    models_config_path = Path(args.models_config) if args.models_config else None
+    yaml_evaluator_config = load_evaluator_config_from_yaml(models_config_path)
 
+    # Determine the actual YAML file path for logging
+    yaml_file_path = (
+        models_config_path if models_config_path else Path(__file__).parent / "models_config.yaml"
+    )
+
+    # Extract evaluator overrides (api_key, api_base) from YAML config
+    evaluator_api_key_override = None
+    evaluator_api_base_override = None
+
+    # Override evaluator configuration from YAML if provided
+    if (
+        yaml_evaluator_config
+        and "provider" in yaml_evaluator_config
+        and "model" in yaml_evaluator_config
+    ):
+        yaml_provider = yaml_evaluator_config["provider"]
+        yaml_model = yaml_evaluator_config["model"]
+        evaluator_api_key_override = yaml_evaluator_config.get("api_key")
+        evaluator_api_base_override = yaml_evaluator_config.get("api_base")
+
+        # Validate YAML evaluator provider before applying
+        try:
+            validate_provider_credentials(
+                yaml_provider, api_key_override=evaluator_api_key_override
+            )
+
+            # Apply YAML evaluator config
+            evaluator_model = yaml_model
+            evaluator_provider = yaml_provider
+            print(f"📊 Evaluator config loaded from YAML: {yaml_file_path}")
+            print(f"   Using: {yaml_provider} / {yaml_model} (applies to ALL test modes)")
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
+            print(
+                f"   Continuing with environment/default evaluator: "
+                f"{evaluator_provider} / {evaluator_model}"
+            )
+            # Reset overrides if validation failed
+            evaluator_api_key_override = None
+            evaluator_api_base_override = None
+
+    # Validate provider credentials before proceeding
     try:
         validate_provider_credentials(provider)
     except ValueError as e:
@@ -1290,27 +198,22 @@ async def main():
         provider=evaluator_provider,
         model_id=evaluator_model,
         temperature=0,
+        api_key=evaluator_api_key_override,
+        api_base=evaluator_api_base_override,
     )
 
-    # Display configuration
-    if provider == "openrouter":
-        if resolved_model != DEFAULT_MODEL:
-            print(f"🔧 Using overridden OpenRouter model: {resolved_model}")
-        else:
-            print(f"✨ Using default OpenRouter model: {resolved_model}")
-    else:
-        print(f"🔧 Using provider: {provider}, model: {resolved_model}")
-
-    # Display evaluator configuration
-    print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
+    # Display configuration - provider-agnostic messaging
+    print(f"🔧 Model: {provider} / {resolved_model}")
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
         print(
-            f"⚠️  Note: Not all models support web search. Check OpenRouter docs for compatibility."
+            f"⚠️  Note: Not all models support web search. "
+            f"Check OpenRouter docs for compatibility."
         )
         print(
-            f"   Models known to support :online - OpenAI (gpt-4, gpt-3.5-turbo, etc), Anthropic Claude"
+            f"   Models known to support :online - "
+            f"OpenAI (gpt-4, gpt-3.5-turbo, etc), Anthropic Claude"
         )
         print(f"   If you see empty responses, try a different model that supports web search.")
 
@@ -1331,7 +234,9 @@ async def main():
         async with mcp_client:
             try:
                 response, tool_history, conversation, tokens_used, metadata = (
-                    await get_langchain_response(mcp_client, args.prompt)
+                    await get_langchain_response(
+                        mcp_client, args.prompt, llm_instance=llm, llm_web_instance=llm_web
+                    )
                 )
 
                 # Output as JSON
@@ -1349,7 +254,7 @@ async def main():
                 print("\n" + "=" * 80)
 
             except TokenLimitExceeded as e:
-                print(f"❌ Token limit exceeded: {e.token_count:,} > {MAX_TOKENS:,}")
+                print(f"❌ Token limit exceeded: {e.token_count:,} > {100_000:,}")
                 print("   Please reduce the complexity of your question or context.")
             except Exception as e:
                 print(f"❌ Error processing prompt: {e}")
@@ -1389,55 +294,39 @@ async def main():
 
     # Handle --multi-model mode: test multiple models across all three modes
     if args.multi_model:
+        # Note: Multi-model mode logic is extensive (~530 lines) and kept in main
+        # for now to avoid excessive abstraction. Future refactoring could extract
+        # this to a separate module if needed.
+        print("⚠️  Multi-model mode is not yet fully refactored.")
+        print("   Please use the original evaluate_mcp_backup.py for this mode.")
+        print("   Or run without --multi-model to test the refactored code.")
+    # Handle --multi-model mode: test multiple models across all three modes
+    if args.multi_model:
         # Load models configuration
         try:
             models_config_path = Path(args.models_config) if args.models_config else None
-            models, yaml_evaluator_config = load_models_config(models_config_path)
+            models, _ = load_models_config(models_config_path)
 
-            # Override evaluator configuration from YAML if provided
-            if (
-                yaml_evaluator_config
-                and "provider" in yaml_evaluator_config
-                and "model" in yaml_evaluator_config
-            ):
-                yaml_provider = yaml_evaluator_config["provider"]
-                yaml_model = yaml_evaluator_config["model"]
-                print(f"🔄 Overriding evaluator from YAML config: {yaml_provider} / {yaml_model}")
+            # Note: Evaluator config is now loaded globally (before this mode)
+            # and llm_evaluator is already created with the correct config
 
-                # Validate and create new evaluator instance
-                try:
-                    from config.llm_providers import validate_provider_credentials
-
-                    validate_provider_credentials(yaml_provider)
-
-                    # Update global evaluator variables
-                    evaluator_model = yaml_model
-                    evaluator_provider = yaml_provider
-                    llm_evaluator = create_llm_instance(
-                        provider=yaml_provider,
-                        model_id=yaml_model,
-                        temperature=0,
-                    )
-                    print(f"✅ Evaluator updated: {yaml_provider} / {yaml_model}")
-                except Exception as e:
-                    print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
-                    print(
-                        f"   Continuing with environment/default evaluator: {evaluator_provider} / {evaluator_model}"
-                    )
-
+            print(f"📊 Evaluator: {evaluator_provider} / {evaluator_model}")
             print(f"🎯 Multi-Model Testing Mode")
             print(f"   Models to test: {len(models)}")
             for model in models:
                 print(f"     • {model['name']} ({model['id']})")
             print(f"   Test cases: {len(test_cases)}")
             print(f"   Modes per model: 3 (vanilla, web, MARRVEL-MCP)")
+            total_evals = len(models) * 3 * len(test_cases)
             print(
-                f"   Total evaluations: {len(models)} models × 3 modes × {len(test_cases)} tests = {len(models) * 3 * len(test_cases)}"
+                f"   Total evaluations: {len(models)} models × 3 modes × "
+                f"{len(test_cases)} tests = {total_evals}"
             )
             print(f"   Concurrency: {args.concurrency}")
-            print(
-                f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}"
-            )
+            timeout_mins = args.timeout // 60
+            print(f"   Timeout per test: {args.timeout} seconds ({timeout_mins} minutes)")
+            cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
+            print(f"💾 Cache {cache_status}")
         except ValueError as e:
             print(f"❌ Error loading models configuration: {e}")
             return
@@ -1453,21 +342,25 @@ async def main():
                 model_id = model_config["id"]
                 model_provider = model_config.get("provider", "openrouter")
 
+                # Extract per-model overrides from YAML config
+                api_key_override = model_config.get("api_key")
+                api_base_override = model_config.get("api_base")
+
                 # Validate provider credentials for each model
                 try:
-                    from config.llm_providers import validate_provider_credentials
-
-                    validate_provider_credentials(model_provider)
+                    validate_provider_credentials(model_provider, api_key_override=api_key_override)
                 except ValueError as e:
                     print(f"⚠️  Skipping model {model_id}: {e}")
                     continue
 
-                # Create base LLM instance
+                # Create base LLM instance with per-model overrides
                 model_llm_instances[model_id] = {
                     "llm": create_llm_instance(
                         provider=model_provider,
                         model_id=model_id,
                         temperature=0,
+                        api_key=api_key_override,
+                        api_base=api_base_override,
                     ),
                     "llm_web": None,  # Will be set below if web search is supported
                 }
@@ -1480,6 +373,8 @@ async def main():
                         model_id=model_id,
                         temperature=0,
                         web_search=True,
+                        api_key=api_key_override,
+                        api_base=api_base_override,
                     )
                 else:
                     # Fall back to regular LLM
@@ -1494,33 +389,48 @@ async def main():
             for model_config in models:
                 model_name = model_config["name"]
                 model_id = model_config["id"]
+                skip_vanilla = model_config.get("skip_vanilla", False)
                 skip_web_search = model_config.get("skip_web_search", False)
                 model_llm = model_llm_instances[model_id]["llm"]
                 model_llm_web = model_llm_instances[model_id]["llm_web"]
 
-                # Vanilla mode tasks
-                for i, test_case in enumerate(test_cases):
-                    task = run_test_case(
-                        semaphore,
-                        mcp_client,
-                        test_case,
-                        use_cache=use_cache,
-                        vanilla_mode=True,
-                        web_mode=False,
-                        model_id=model_id,
-                        pbar=None,
-                        llm_instance=model_llm,
-                        llm_web_instance=model_llm_web,
-                    )
-                    all_tasks.append(task)
-                    task_metadata.append(
-                        {
-                            "model_id": model_id,
-                            "model_name": model_name,
-                            "mode": "vanilla",
-                            "test_index": i,
-                        }
-                    )
+                # Vanilla mode tasks (or N/A placeholders if not supported)
+                if skip_vanilla:
+                    # Don't create tasks, we'll fill in N/A results later
+                    for i in enumerate(test_cases):
+                        task_metadata.append(
+                            {
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "vanilla",
+                                "test_index": i[0],
+                                "skip": True,
+                            }
+                        )
+                else:
+                    for i, test_case in enumerate(test_cases):
+                        task = run_test_case(
+                            semaphore,
+                            mcp_client,
+                            test_case,
+                            llm_evaluator,
+                            use_cache=use_cache,
+                            vanilla_mode=True,
+                            web_mode=False,
+                            model_id=model_id,
+                            pbar=None,
+                            llm_instance=model_llm,
+                            llm_web_instance=model_llm_web,
+                        )
+                        all_tasks.append(task)
+                        task_metadata.append(
+                            {
+                                "model_id": model_id,
+                                "model_name": model_name,
+                                "mode": "vanilla",
+                                "test_index": i,
+                            }
+                        )
 
                 # Web mode tasks (or N/A placeholders if not supported)
                 if skip_web_search:
@@ -1541,6 +451,7 @@ async def main():
                             semaphore,
                             mcp_client,
                             test_case,
+                            llm_evaluator,
                             use_cache=use_cache,
                             vanilla_mode=False,
                             web_mode=True,
@@ -1565,6 +476,7 @@ async def main():
                         semaphore,
                         mcp_client,
                         test_case,
+                        llm_evaluator,
                         use_cache=use_cache,
                         vanilla_mode=False,
                         web_mode=False,
@@ -1583,50 +495,213 @@ async def main():
                         }
                     )
 
-            # Execute ALL tasks concurrently!
-            print(
-                f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})..."
-            )
-            print(f"   This will run ALL models × modes × tests in parallel!")
-            pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
+            # Track test results for progress bar
+            test_stats = {"yes": 0, "no": 0, "failed": 0}
 
-            # Run all tasks concurrently using gather, which preserves order
-            # We'll update the progress bar as tasks complete using a callback
-            # Add timeout to prevent hanging tasks
-            async def run_task_with_progress(task):
-                try:
-                    # Set a timeout of 5 minutes per task
-                    result = await asyncio.wait_for(task, timeout=300)
-                    pbar_global.update(1)
-                    return result
-                except asyncio.TimeoutError:
-                    pbar_global.update(1)
-                    error_msg = "Task timed out after 5 minutes"
-                    print(f"⏱️  {error_msg}")
-                    return Exception(error_msg)
-                except Exception as e:
-                    pbar_global.update(1)
-                    print(f"❌ Task failed: {e}")
-                    return e
+            # For concurrency=1, use simple sequential execution to make debugging easier
+            if args.concurrency == 1:
+                # Filter out skipped tests - only include metadata entries that have actual tasks
+                active_metadata = [meta for meta in task_metadata if not meta.get("skip", False)]
 
-            # Wrap all tasks with progress tracking
-            tasks_with_progress = [run_task_with_progress(task) for task in all_tasks]
+                print(
+                    f"\n🔍 Running {len(all_tasks)} tests SEQUENTIALLY "
+                    f"(concurrency=1 for easier debugging)..."
+                )
+                print("   Errors will be shown immediately as they occur.")
+                if len(active_metadata) != len(all_tasks):
+                    skipped_count = len(task_metadata) - len(active_metadata)
+                    print(
+                        f"   ⚠️  Note: {skipped_count} tests skipped "
+                        f"(skip_vanilla or skip_web_search)"
+                    )
 
-            # Execute all tasks concurrently and get results in order
-            # Use return_exceptions=True to prevent one failed task from blocking all others
-            task_results = await asyncio.gather(*tasks_with_progress, return_exceptions=True)
-            pbar_global.close()
+                task_results = []
+                for idx, (task, meta) in enumerate(zip(all_tasks, active_metadata)):
+                    model_name = meta.get("model_name", "Unknown")
+                    mode = meta.get("mode", "Unknown")
+                    test_idx = meta.get("test_index", 0)
+                    test_name = (
+                        test_cases[test_idx]["case"]["name"]
+                        if test_idx < len(test_cases)
+                        else "Unknown"
+                    )
+
+                    print(
+                        f"\n[{idx+1}/{len(all_tasks)}] {model_name} / {mode.upper()} / {test_name}"
+                    )
+
+                    try:
+                        # Run task with timeout
+                        result = await asyncio.wait_for(task, timeout=args.timeout)
+
+                        # Track stats and show detailed output
+                        if isinstance(result, dict) and "classification" in result:
+                            # Show model's actual response
+                            response = result.get("response", "")
+                            if response:
+                                response_preview = (
+                                    response[:300] + "..." if len(response) > 300 else response
+                                )
+                                print(f"   📝 Model response: {response_preview}")
+
+                            # Show tool calls if any
+                            tool_calls = result.get("tool_calls", [])
+                            if tool_calls:
+                                tool_names = [tc.get("name", "unknown") for tc in tool_calls]
+                                tools_str = ", ".join(tool_names)
+                                num_calls = len(tool_calls)
+                                print(f"   🔧 Tools called: {tools_str} ({num_calls} calls)")
+                            elif mode == "tool":
+                                print(f"   ⚠️  No tools called in TOOL mode")
+
+                            # Show classification
+                            classification = result.get("classification", "").lower()
+                            if classification.startswith("yes"):
+                                test_stats["yes"] += 1
+                                print(f"   ✅ EVALUATOR: PASSED")
+                            elif classification.startswith("no"):
+                                test_stats["no"] += 1
+                                print(f"   ❌ EVALUATOR: FAILED - {classification}")
+                            else:
+                                test_stats["failed"] += 1
+                                print(f"   ⚠️  EVALUATOR: ERROR - {classification}")
+                        elif isinstance(result, Exception):
+                            test_stats["failed"] += 1
+                            print(f"   ⚠ EXCEPTION: {result}")
+
+                        task_results.append(result)
+
+                    except asyncio.TimeoutError:
+                        test_stats["failed"] += 1
+                        error_msg = f"⏱️  TIMEOUT after {args.timeout}s"
+                        print(f"   {error_msg}")
+                        task_results.append(
+                            Exception(f"Task timed out after {args.timeout} seconds")
+                        )
+
+                    except Exception as e:
+                        test_stats["failed"] += 1
+                        print(f"   ⚠ EXCEPTION: {e}")
+                        task_results.append(e)
+
+                # Print summary
+                print(f"\n📊 Sequential Execution Complete:")
+                print(f"   ✓ Passed: {test_stats['yes']}")
+                print(f"   ✗ Failed: {test_stats['no']}")
+                print(f"   ⚠ Errors/Timeouts: {test_stats['failed']}")
+
+            else:
+                # Filter out skipped tests - only include metadata entries that have actual tasks
+                active_metadata = [meta for meta in task_metadata if not meta.get("skip", False)]
+
+                # Execute ALL tasks concurrently!
+                print(
+                    f"\n🔥 Executing {len(all_tasks)} tasks concurrently "
+                    f"(concurrency limit: {args.concurrency})..."
+                )
+                print(f"   This will run ALL models × modes × tests in parallel!")
+                if len(active_metadata) != len(all_tasks):
+                    skipped_count = len(task_metadata) - len(active_metadata)
+                    print(
+                        f"   ⚠️  Note: {skipped_count} tests skipped "
+                        f"(skip_vanilla or skip_web_search)"
+                    )
+                pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
+
+                def update_progress_bar():
+                    """Update progress bar with current test statistics."""
+                    stats_str = (
+                        f"✓ {test_stats['yes']} | "
+                        f"✗ {test_stats['no']} | "
+                        f"⚠ {test_stats['failed']}"
+                    )
+                    pbar_global.set_postfix_str(stats_str)
+
+                # Run all tasks concurrently using gather, which preserves order
+                # We'll update the progress bar as tasks complete using a callback
+                # Add timeout to prevent hanging tasks
+                async def run_task_with_progress(task, metadata):
+                    try:
+                        # Set a timeout per task (configurable via --timeout)
+                        result = await asyncio.wait_for(task, timeout=args.timeout)
+
+                        # Track success/failure based on classification
+                        if isinstance(result, dict) and "classification" in result:
+                            classification = result.get("classification", "").lower()
+                            if classification.startswith("yes"):
+                                test_stats["yes"] += 1
+                            elif classification.startswith("no"):
+                                test_stats["no"] += 1
+                            else:
+                                test_stats["failed"] += 1
+                        elif isinstance(result, Exception):
+                            test_stats["failed"] += 1
+
+                        pbar_global.update(1)
+                        update_progress_bar()
+                        return result
+                    except asyncio.TimeoutError:
+                        test_stats["failed"] += 1
+                        pbar_global.update(1)
+                        update_progress_bar()
+
+                        # Provide detailed information about which task timed out
+                        model_name = metadata.get("model_name", "Unknown")
+                        mode = metadata.get("mode", "Unknown")
+                        test_idx = metadata.get("test_index", "?")
+                        test_name = (
+                            test_cases[test_idx]["case"]["name"]
+                            if test_idx < len(test_cases)
+                            else "Unknown"
+                        )
+                        error_msg = (
+                            f"⏱️  TIMEOUT after {args.timeout}s ({args.timeout // 60}min): "
+                            f"{model_name} / {mode} / Test #{test_idx + 1}: {test_name[:50]}"
+                        )
+                        print(error_msg)
+                        print(
+                            f"    💡 This usually means the API is slow or the query is complex. "
+                            f"Try: --timeout {args.timeout * 2}"
+                        )
+                        return Exception(f"Task timed out after {args.timeout} seconds")
+                    except Exception as e:
+                        test_stats["failed"] += 1
+                        pbar_global.update(1)
+                        update_progress_bar()
+                        print(f"❌ Task failed: {e}")
+                        return e
+
+                # Wrap all tasks with progress tracking and metadata
+                # Only zip with active_metadata (skipped tests filtered out)
+                tasks_with_progress = [
+                    run_task_with_progress(task, meta)
+                    for task, meta in zip(all_tasks, active_metadata)
+                ]
+
+                # Execute all tasks concurrently and get results in order
+                # Use return_exceptions=True to prevent one failed task from blocking all others
+                task_results = await asyncio.gather(*tasks_with_progress, return_exceptions=True)
+                pbar_global.close()
+
+                # Print summary statistics
+                print(f"\n📊 Test Summary:")
+                print(f"   ✓ Passed: {test_stats['yes']}")
+                print(f"   ✗ Failed: {test_stats['no']}")
+                print(f"   ⚠ Errors/Timeouts: {test_stats['failed']}")
+                print(f"   Total: {len(all_tasks)}")
 
             # Check for any exceptions in results and log them
             exception_count = 0
             for idx, result in enumerate(task_results):
                 if isinstance(result, Exception):
                     exception_count += 1
-                    print(f"⚠️  Task {idx} failed with exception: {result}")
+                    if debug_enabled:
+                        print(f"⚠️  Task {idx} failed with exception: {result}")
 
             if exception_count > 0:
                 print(
-                    f"\n⚠️  Warning: {exception_count} task(s) failed with exceptions but execution continued."
+                    f"\n⚠️  Warning: {exception_count} task(s) failed with exceptions "
+                    f"but execution continued."
                 )
 
             # Map results back to their metadata indices (only non-skipped tasks have results)
@@ -1662,6 +737,7 @@ async def main():
                 model_name = model_config["name"]
                 model_id = model_config["id"]
                 model_provider = model_config.get("provider", "openrouter")
+                skip_vanilla = model_config.get("skip_vanilla", False)
                 skip_web_search = model_config.get("skip_web_search", False)
 
                 if model_id not in all_models_results:
@@ -1676,18 +752,32 @@ async def main():
 
                 # Collect results for this model (they're in order: vanilla, web, tool)
                 # Vanilla results
-                vanilla_results = []
-                for i in range(len(test_cases)):
-                    # Find the corresponding result
-                    for idx, meta in enumerate(task_metadata):
-                        if (
-                            meta["model_id"] == model_id
-                            and meta["mode"] == "vanilla"
-                            and meta["test_index"] == i
-                            and not meta.get("skip", False)
-                        ):
-                            vanilla_results.append(results_map[idx])
-                            break
+                if skip_vanilla:
+                    vanilla_results = [
+                        {
+                            "status": "N/A",
+                            "reason": "Vanilla mode not supported by this model",
+                            "response": "N/A",
+                            "classification": "N/A",
+                            "tokens_used": 0,
+                            "tool_calls": [],
+                            "conversation": [],
+                        }
+                        for _ in test_cases
+                    ]
+                else:
+                    vanilla_results = []
+                    for i in range(len(test_cases)):
+                        # Find the corresponding result
+                        for idx, meta in enumerate(task_metadata):
+                            if (
+                                meta["model_id"] == model_id
+                                and meta["mode"] == "vanilla"
+                                and meta["test_index"] == i
+                                and not meta.get("skip", False)
+                            ):
+                                vanilla_results.append(results_map[idx])
+                                break
                 all_models_results[model_id]["vanilla"] = vanilla_results
 
                 # Web results
@@ -1764,13 +854,25 @@ async def main():
 
             traceback.print_exc()
 
+    # Handle --multi-model mode: test multiple models across all three modes
+    if args.multi_model:
+        # Note: Multi-model mode logic is extensive (~530 lines) and kept in main
+        # for now to avoid excessive abstraction. Future refactoring could extract
+        # this to a separate module if needed.
+        print("⚠️  Multi-model mode is not yet fully refactored.")
+        print("   Please use the original evaluate_mcp_backup.py for this mode.")
+        print("   Or run without --multi-model to test the refactored code.")
+        return
+
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
     elif args.with_web:
         print(
-            f"🚀 Running {len(test_cases)} test case(s) with THREE modes: vanilla, web search, and MARRVEL-MCP"
+            f"🚀 Running {len(test_cases)} test case(s) with THREE modes: "
+            f"vanilla, web search, and MARRVEL-MCP"
         )
         print(f"   Concurrency: {args.concurrency}")
-        print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
+        cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
+        print(f"💾 Cache {cache_status}")
 
         async with mcp_client:
             # Run vanilla mode tests
@@ -1782,9 +884,12 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
+                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=True,
                     pbar=pbar_vanilla,
+                    llm_instance=llm,
+                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -1800,9 +905,12 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
+                    llm_evaluator,
                     use_cache=use_cache,
                     web_mode=True,
                     pbar=pbar_web,
+                    llm_instance=llm,
+                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -1818,9 +926,12 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
+                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=False,
                     pbar=pbar_tool,
+                    llm_instance=llm,
+                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -1856,7 +967,8 @@ async def main():
     elif args.with_vanilla:
         print(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
         print(f"   Concurrency: {args.concurrency}")
-        print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
+        cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
+        print(f"💾 Cache {cache_status}")
 
         async with mcp_client:
             # Run vanilla mode tests
@@ -1868,9 +980,12 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
+                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=True,
                     pbar=pbar_vanilla,
+                    llm_instance=llm,
+                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -1886,9 +1001,12 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
+                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=False,
                     pbar=pbar_tool,
+                    llm_instance=llm,
+                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]
@@ -1922,7 +1040,8 @@ async def main():
     else:
         # Normal mode: run with tools only
         print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
-        print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
+        cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
+        print(f"💾 Cache {cache_status}")
 
         async with mcp_client:
             # Create progress bar
@@ -1933,9 +1052,12 @@ async def main():
                     semaphore,
                     mcp_client,
                     test_case,
+                    llm_evaluator,
                     use_cache=use_cache,
                     vanilla_mode=False,
                     pbar=pbar,
+                    llm_instance=llm,
+                    llm_web_instance=llm_web,
                 )
                 for test_case in test_cases
             ]

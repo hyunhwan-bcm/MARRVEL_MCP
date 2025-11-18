@@ -35,8 +35,8 @@ def mcp_server():
 
     repo_root = None
     for p in Path(__file__).resolve().parents:
-        if (p / "server.py").exists():
-            repo_root = p
+        if (p / "marrvel_mcp" / "server.py").exists():
+            repo_root = p / "marrvel_mcp"
             break
     if repo_root is None:
         pytest.skip("Could not locate repo root containing server.py")
@@ -80,12 +80,12 @@ tool_calls = [
     ("get_gnomad_variant", TEST_VARIANT),
     ("get_gnomad_by_entrez_id", {"entrez_id": "1080"}),
     ("get_dgv_by_entrez_id", {"entrez_id": "26235"}),
+    ("get_ortholog_expression", {"entrez_id": "3064", "taxon_id": "10090"}),
     ("get_geno2mp_by_entrez_id", {"entrez_id": "1080"}),
-    ("get_clinvar_by_entrez_id", {"entrez_id": "1080"}),
     ("get_clinvar_counts_by_entrez_id", {"entrez_id": "1080"}),
-    ("get_clinvar_by_gene_symbol", {"gene_symbol": "TP53"}),
     ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
+    ("search_hpo_terms", {"phenotype_query": "sickle cell anemia"}),
     ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),
     ("get_ontology_across_diopt_orthologs", {"entrez_id": "7157", "taxon_id2": 7227}),
     ("get_gtex_expression", {"entrez_id": "7157"}),
@@ -98,6 +98,8 @@ tool_calls = [
     ("get_pmc_figure_captions_by_pmcid", {"pmcid": "PMC3518823"}),
     ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
     ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}),
+    ("convert_protein_variant", {"gene_symbol": "NUTM2G", "protein_variant": "p.P63S"}),
+    ("convert_rsid_to_variant", {"rsid": "rs137852987"}),
     ("get_decipher_by_location", {"chr": "6", "start": 99316420, "stop": 99395849}),
     ("get_string_interactions_by_entrez_id", {"entrez_id": "10"}),
     ("get_string_interactions_between_entrez_ids", {"entrez_id1": "4214", "entrez_id2": "3265"}),

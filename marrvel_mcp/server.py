@@ -24,6 +24,7 @@ import json
 import ssl
 import certifi
 import inspect
+import re
 import ast
 import asyncio
 from typing import Optional
@@ -71,7 +72,7 @@ VERIFY_SSL = False  # Set to True for production
 
 async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 1.0):
     """
-    Retry an async function with exponential backoff for rate limiting (429 errors).
+    Retry an async function with exponential backoff for rate limiting (429 errors) and server errors (500).
 
     Args:
         func: Async function to retry
@@ -92,14 +93,15 @@ async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 
             return await func()
         except httpx.HTTPStatusError as e:
             last_exception = e
-            # Only retry on 429 (Too Many Requests)
-            if e.response.status_code == 429:
+            # Retry on 429 (Too Many Requests) or 500 (Internal Server Error)
+            if e.response.status_code in (429, 500):
                 if attempt < max_retries:
                     # Add jitter to avoid thundering herd
                     jitter = delay * 0.1 * (asyncio.get_event_loop().time() % 1.0)
                     sleep_time = delay + jitter
+                    error_type = "Rate limited" if e.response.status_code == 429 else "Server error"
                     logging.warning(
-                        f"Rate limited (429), retrying in {sleep_time:.2f}s "
+                        f"{error_type} ({e.response.status_code}), retrying in {sleep_time:.2f}s "
                         f"(attempt {attempt + 1}/{max_retries})"
                     )
                     await asyncio.sleep(sleep_time)
@@ -117,7 +119,7 @@ async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 
 
 async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) -> str:
     """
-    Fetch data from MARRVEL API with proper error handling.
+    Fetch data from MARRVEL API with proper error handling and retry logic.
 
     Args:
         query_or_endpoint: GraphQL query string if is_graphql=True, or REST API endpoint path if is_graphql=False
@@ -127,7 +129,7 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
         JSON response as string
 
     Raises:
-        httpx.HTTPError: If the HTTP request fails
+        httpx.HTTPError: If the HTTP request fails after all retries
     """
     verify = ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False
 
@@ -145,57 +147,64 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
         except Exception:
             return obj
 
-    async with httpx.AsyncClient(verify=verify, timeout=API_TIMEOUT) as client:
-        if is_graphql:
-            # GraphQL API call (POST request)
-            payload = {"query": query_or_endpoint}
-            headers = {"Content-Type": "application/json"}
-            response = await client.post(
-                API_BASE_URL,
-                json=payload,
-                headers=headers,
-            )
-        else:
-            # REST API call (GET request)
-            url = f"{API_REST_BASE_URL}{query_or_endpoint}"
-            response = await client.get(url)
+    async def _fetch():
+        """Inner function to perform the actual fetch, wrapped by retry logic."""
+        async with httpx.AsyncClient(verify=verify, timeout=API_TIMEOUT) as client:
+            if is_graphql:
+                # GraphQL API call (POST request)
+                payload = {"query": query_or_endpoint}
+                headers = {"Content-Type": "application/json"}
+                response = await client.post(
+                    API_BASE_URL,
+                    json=payload,
+                    headers=headers,
+                )
+            else:
+                # REST API call (GET request)
+                url = f"{API_REST_BASE_URL}{query_or_endpoint}"
+                response = await client.get(url)
 
-        # Some test mocks make raise_for_status() a coroutine
-        rfs = response.raise_for_status()
-        if inspect.isawaitable(rfs):
-            await rfs
+            # Some test mocks make raise_for_status() a coroutine
+            rfs = response.raise_for_status()
+            if inspect.isawaitable(rfs):
+                await rfs
 
-        # Parse JSON (handle mocks that return coroutines)
-        try:
-            data = response.json()
+            # Parse JSON (handle mocks that return coroutines)
+            try:
+                data = response.json()
 
-            # Check for GraphQL errors only if using GraphQL API
-            if is_graphql and data.get("errors") and data.get("data") is None:
-                # Raise an exception if GraphQL errors are present in the response body
-                error_details = json.dumps(data["errors"], indent=2)
-                raise Exception(f"GraphQL query failed with execution errors:\n{error_details}")
+                # Check for GraphQL errors only if using GraphQL API
+                if is_graphql and data.get("errors") and data.get("data") is None:
+                    # Raise an exception if GraphQL errors are present in the response body
+                    error_details = json.dumps(data["errors"], indent=2)
+                    raise Exception(f"GraphQL query failed with execution errors:\n{error_details}")
 
-            if inspect.isawaitable(data):
-                data = await data
-        except json.JSONDecodeError:
-            text = await _maybe_await(getattr(response, "text", ""))
-            content_type = response.headers.get("Content-Type", "").lower()
-            is_json_content_type = "application/json" in content_type or "text/json" in content_type
+                if inspect.isawaitable(data):
+                    data = await data
+            except json.JSONDecodeError:
+                text = await _maybe_await(getattr(response, "text", ""))
+                content_type = response.headers.get("Content-Type", "").lower()
+                is_json_content_type = (
+                    "application/json" in content_type or "text/json" in content_type
+                )
 
-            error_message = (
-                "Invalid JSON response"
-                if is_json_content_type
-                else "Unexpected API response format"
-            )
-            err = {
-                "error": error_message,
-                "status_code": getattr(response, "status_code", None),
-                "content": str(text),
-                "content_type": content_type,
-            }
-            return json.dumps(err, indent=2)
+                error_message = (
+                    "Invalid JSON response"
+                    if is_json_content_type
+                    else "Unexpected API response format"
+                )
+                err = {
+                    "error": error_message,
+                    "status_code": getattr(response, "status_code", None),
+                    "content": str(text),
+                    "content_type": content_type,
+                }
+                return json.dumps(err, indent=2)
 
-        return json.dumps(data, indent=2)
+            return json.dumps(data, indent=2)
+
+    # Wrap the fetch in retry logic with exponential backoff
+    return await retry_with_backoff(_fetch)
 
 
 # ============================================================================
@@ -653,70 +662,6 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
 
 @mcp.tool(
-    name="get_clinvar_by_gene_symbol",
-    description="Get all ClinVar variants for a gene by symbol for comprehensive gene-level variant review",
-    meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
-)
-async def get_clinvar_by_gene_symbol(gene_symbol: str) -> str:
-    try:
-        data = await fetch_marrvel_data(
-            f"""
-            query MyQuery {{
-                clinvarByGeneSymbol(symbol: "{gene_symbol}") {{
-                    uid
-                    ref
-                    alt
-                    band
-                    chr
-                    grch38Start
-                    grch38Stop
-                    condition
-                    interpretation
-                    significance {{
-                    description
-                    }}
-                }}
-            }}
-            """
-        )
-        return data
-    except Exception as e:
-        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
-
-
-@mcp.tool(
-    name="get_clinvar_by_entrez_id",
-    description="Get all ClinVar variants for a gene by Entrez ID with clinical significance data",
-    meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
-)
-async def get_clinvar_by_entrez_id(entrez_id: str) -> str:
-    try:
-        data = await fetch_marrvel_data(
-            f"""
-            query MyQuery {{
-                clinvarByGeneEntrezId(entrezId: {entrez_id}) {{
-                    uid
-                    ref
-                    alt
-                    band
-                    chr
-                    grch38Start
-                    grch38Stop
-                    condition
-                    interpretation
-                    significance {{
-                    description
-                    }}
-                }}
-            }}
-            """
-        )
-        return data
-    except Exception as e:
-        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
-
-
-@mcp.tool(
     name="get_clinvar_counts_by_entrez_id",
     description="Count all Clinvar variants for a given entrez gene id, with subcounts for benign, likely benign, likely pathogenic, and pathogenic ClinVar designations.",
     meta={"category": "variant", "database": "ClinVar", "version": "1.0"},
@@ -789,19 +734,6 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
 
 @mcp.tool(
-    name="get_gnomad_by_gene_symbol",
-    description="Get gnomAD population frequencies and scores for all variants in a gene to identify common vs rare variants",
-    meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
-)
-async def get_gnomad_by_gene_symbol(gene_symbol: str) -> str:
-    try:
-        data = await fetch_marrvel_data(f"/gnomAD/gene/symbol/{gene_symbol}", is_graphql=False)
-        return data
-    except Exception as e:
-        return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
-
-
-@mcp.tool(
     name="get_gnomad_by_entrez_id",
     description="Get gnomAD population frequencies and scores for a gene by Entrez ID with allele frequency data",
     meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
@@ -837,12 +769,58 @@ async def get_dgv_by_entrez_id(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_geno2mp_by_entrez_id",
-    description="Get Geno2MP phenotypes matched to a gene for phenotype-driven gene prioritization in rare disease diagnosis",
+    description="Get Geno2MP HPO profile counts across 4 variant categories for a given entrez gene id",
     meta={"category": "variant", "database": "Geno2MP", "version": "1.0"},
 )
 async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
+    """
+    categories taken from https://github.com/LiuzLab/MARRVEL2/blob/master/client/src/app/components/pages/human-result/geno2mp/categories.ts
+    """
+    functional_annotation_to_cat_num = {
+        "non-coding-exon": 0,
+        "upstream-gene": 0,
+        "missense": 2,
+        "synonymous": 1,
+        "stop-gained": 3,
+        "intergenic": 0,
+        "intron": 0,
+        "downstream-gene": 0,
+        "5-prime-UTR": 0,
+        "missense-near-splice": 2,
+        "intron-near-splice": 0,
+        "splice-donor": 3,
+        "coding": 1,
+        "frameshift": 3,
+        "codingComplex": 2,
+        "3-prime-UTR": 0,
+        "frameshift-near-splice": 3,
+        "splice-acceptor": 3,
+        "synonymous-near-splice": 1,
+        "coding-near-splice": 2,
+        "stop-lost": 3,
+        "stop-gained-near-splice": 3,
+        "non-coding-exon-near-splice": 0,
+        "codingComplex-near-splice": 2,
+        "stop-lost-near-splice": 3,
+        "coding-unknown": 1,
+        "coding-unknown-near-splice": 1,
+    }
+    cat_names = [
+        "Non-Coding",
+        "Synonymous/Unknown",
+        "Missense/Other Indel",
+        "Splice/Frameshift/Nonsense/Stop Loss",
+    ]
     try:
         data = await fetch_marrvel_data(f"/geno2mp/gene/entrezId/{entrez_id}", is_graphql=False)
+        data_obj = json.loads(data)
+        counts = {"total": 0}
+        for entry in data_obj:
+            if entry.get("funcAnno"):
+                category = cat_names[functional_annotation_to_cat_num[entry["funcAnno"]]]
+                counts[category] = counts.get(category, 0) + len(entry.get("hpoProfiles", []))
+            counts["total"] += len(entry.get("hpoProfiles", []))
+        data = json.dumps(counts, indent=2)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -884,10 +862,16 @@ async def get_omim_by_gene_symbol(gene_symbol: str) -> str:
     description="Get OMIM data for a specific variant with disease associations and clinical significance",
     meta={"category": "disease", "database": "OMIM", "version": "1.0"},
 )
-async def get_omim_variant(gene_symbol: str, variant: str) -> str:
+async def get_omim_variant(gene_symbol: str, chr: str, pos: str, ref: str, alt: str) -> str:
     try:
+        lo_data = await liftover_hg38_to_hg19(chr, pos)
+        lo_data_obj = json.loads(lo_data)
+
+        variant = f"{lo_data_obj["hg19Chr"]}:{lo_data_obj["hg19Pos"]} {ref}>{alt}"
+        variant_uri = quote(variant, safe="")
+
         data = await fetch_marrvel_data(
-            f"/omim/gene/symbol/{gene_symbol}/variant/{variant}", is_graphql=False
+            f"/omim/gene/symbol/{gene_symbol}/variant/{variant_uri}", is_graphql=False
         )
         return data
     except httpx.HTTPError as e:
@@ -1165,14 +1149,24 @@ async def get_gtex_expression(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_ortholog_expression",
-    description="Get expression patterns for orthologs across model organisms including developmental stages and tissues",
+    description="Get expression patterns for orthologs between 2 model organisms including developmental stages and tissues",
     meta={"category": "expression", "version": "1.0"},
 )
-async def get_ortholog_expression(entrez_id: str) -> str:
+async def get_ortholog_expression(entrez_id: str, taxon_id: str) -> str:
     try:
         data = await fetch_marrvel_data(
             f"/expression/orthologs/gene/entrezId/{entrez_id}", is_graphql=False
         )
+        data_obj = json.loads(data)
+        for i in data_obj:
+            if i["taxonId2"] == int(taxon_id) and i["bestScore"]:
+                entry = i
+                break
+
+        if entry["gene2"] and entry["gene2"]["agrExpressions"]:
+            for group in entry["gene2"]["agrExpressions"]["expressionSummary"]["groups"]:
+                group["terms"] = [i for i in group["terms"] if i["numberOfAnnotations"] > 0]
+        data = json.dumps(entry, indent=2)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching ortholog expression data: {str(e)}"
@@ -1243,10 +1237,36 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
     description="Convert protein-level variant to genomic coordinates using Transvar across multiple transcripts",
     meta={"category": "utility", "service": "Transvar", "version": "1.0"},
 )
-async def convert_protein_variant(protein_variant: str) -> str:
+async def convert_protein_variant(gene_symbol: str, protein_variant: str) -> str:
     try:
         encoded_variant = quote(protein_variant)
-        data = await fetch_marrvel_data(f"/transvar/protein/{encoded_variant}", is_graphql=False)
+        data = await fetch_marrvel_data(
+            f"/transvar/protein/{gene_symbol}:{encoded_variant}", is_graphql=False
+        )
+        data_obj = json.loads(data)
+        for c in data_obj["candidates"]:
+            try:
+                coords = c["coord"]
+                coords_re = r"chr(\w+):g\.(\d+)(\w+)>(\w+)"
+                match = re.match(coords_re, coords)
+
+                chromosome = match.group(1)
+                position = match.group(2)
+                ref = match.group(3)
+                alt = match.group(4)
+
+                lo_data = await liftover_hg19_to_hg38(chromosome, position)
+                lo_data_obj = json.loads(lo_data)
+
+                c["hg38Chr"] = lo_data_obj["hg38Chr"]
+                c["hg38Pos"] = lo_data_obj["hg38Pos"]
+                c["ref"] = ref
+                c["alt"] = alt
+                del c["coord"]
+            except:
+                c["error"] = "Could not map location"
+
+        data = json.dumps(data_obj, indent=2)
         return data
     except httpx.HTTPError as e:
         return json.dumps({"error": f"Error converting protein variant: {str(e)}"}, indent=2)
@@ -1305,7 +1325,7 @@ async def get_variant_annotation_by_genomic_position(chr: str, pos: int, ref: st
 
 @mcp.tool(
     name="convert_rsid_to_variant",
-    description="Convert dbSNP rsID to MARRVEL variant format with GRCh37/hg19 coordinates",
+    description="Convert dbSNP rsID to MARRVEL variant format with GRCh38/hg38 coordinates",
     meta={"category": "utility", "service": "dbSNP", "version": "1.0", "genome_build": "hg19"},
 )
 async def convert_rsid_to_variant(rsid: str) -> str:
@@ -1314,7 +1334,7 @@ async def convert_rsid_to_variant(rsid: str) -> str:
             rsid = f"rs{rsid}"
 
         url = f"https://clinicaltables.nlm.nih.gov/api/snps/v3/search"
-        params = {"terms": rsid, "ef": "37.chr,37.pos,37.alleles,37.gene"}
+        params = {"terms": rsid, "ef": "38.chr,38.pos,38.alleles,38.gene"}
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(url, params=params)
@@ -1339,13 +1359,13 @@ async def convert_rsid_to_variant(rsid: str) -> str:
 
         idx = rsid_list.index(rsid)
 
-        chr_data = field_data.get("37.chr", [])
-        pos_data = field_data.get("37.pos", [])
-        alleles_data = field_data.get("37.alleles", [])
-        gene_data = field_data.get("37.gene", [])
+        chr_data = field_data.get("38.chr", [])
+        pos_data = field_data.get("38.pos", [])
+        alleles_data = field_data.get("38.alleles", [])
+        gene_data = field_data.get("38.gene", [])
 
         if idx >= len(chr_data) or idx >= len(pos_data) or idx >= len(alleles_data):
-            return json.dumps({"error": "Incomplete GRCh37 data for this rsID"}, indent=2)
+            return json.dumps({"error": "Incomplete GRCh38 data for this rsID"}, indent=2)
 
         chromosome = chr_data[idx]
         position = pos_data[idx]
@@ -1353,7 +1373,7 @@ async def convert_rsid_to_variant(rsid: str) -> str:
         gene = gene_data[idx] if idx < len(gene_data) and gene_data[idx] is not None else ""
 
         if not chromosome or not position or not alleles:
-            return json.dumps({"error": "Missing required GRCh37 coordinate data"}, indent=2)
+            return json.dumps({"error": "Missing required GRCh38 coordinate data"}, indent=2)
 
         allele_pairs = alleles.split(",")[0].strip().split("/")
         if len(allele_pairs) < 2:
@@ -1373,7 +1393,7 @@ async def convert_rsid_to_variant(rsid: str) -> str:
             "alt": alternate,
             "alleles": alleles,
             "gene": gene,
-            "assembly": "GRCh37",
+            "assembly": "GRCh38",
         }
 
         return json.dumps(result, indent=2)

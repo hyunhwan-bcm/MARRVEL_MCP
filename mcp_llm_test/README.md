@@ -36,13 +36,26 @@ pip install -r requirements.txt
 
 The evaluation tool supports multiple LLM providers. Choose one based on your needs:
 
-### Provider Configuration
+### Unified Provider Configuration
 
-All providers use a consistent environment variable pattern:
-- `LLM_PROVIDER`: Provider type (openrouter, openai, bedrock, ollama, lm-studio)
+MARRVEL-MCP uses a **unified OpenAI-compatible configuration** for all providers except Bedrock:
+
+**Global Defaults (OpenAI-compatible providers):**
+- `OPENAI_API_KEY`: API key for all OpenAI-compatible providers
+- `OPENAI_API_BASE`: Server address for all OpenAI-compatible providers
+- `OPENAI_MODEL`: Default model name
+- `LLM_PROVIDER`: Provider type (openrouter, openai, ollama, lm-studio, etc.)
 - `LLM_MODEL`: Model ID for the specified provider
-- `{PROVIDER}_API_KEY`: API key for authentication (if required)
-- `{PROVIDER}_API_BASE`: Override the default API base URL (optional)
+
+**Bedrock (separate AWS configuration):**
+- `AWS_ACCESS_KEY_ID`: AWS access key
+- `AWS_SECRET_ACCESS_KEY`: AWS secret key
+- `AWS_REGION`: AWS region
+- `BEDROCK_MODEL_ID`: Default Bedrock model ID
+
+**Per-Model Overrides** (in models_config.yaml):
+- `api_key`: Override OPENAI_API_KEY for specific model
+- `api_base`: Override OPENAI_API_BASE for specific model
 
 ### Quick Setup Examples
 
@@ -51,7 +64,8 @@ Access 100+ models through a single API:
 ```bash
 export LLM_PROVIDER=openrouter
 export LLM_MODEL=google/gemini-2.5-flash
-export OPENROUTER_API_KEY=your_key_here
+export OPENAI_API_KEY=your_openrouter_api_key
+# OPENAI_API_BASE automatically set to https://openrouter.ai/api/v1
 ```
 
 Get your API key from [OpenRouter](https://openrouter.ai/).
@@ -61,7 +75,7 @@ Use OpenAI's official models:
 ```bash
 export LLM_PROVIDER=openai
 export LLM_MODEL=gpt-4
-export OPENAI_API_KEY=your_key_here
+export OPENAI_API_KEY=your_openai_api_key
 ```
 
 #### Ollama (Local)
@@ -72,7 +86,8 @@ ollama pull llama2
 
 export LLM_PROVIDER=ollama
 export LLM_MODEL=llama2
-# OLLAMA_API_BASE defaults to http://localhost:11434/v1
+# OPENAI_API_KEY not required (uses dummy key automatically)
+# OPENAI_API_BASE automatically set to http://localhost:11434/v1
 ```
 
 #### LM Studio (Local)
@@ -81,7 +96,8 @@ Use LM Studio for local inference:
 # Start LM Studio with local server enabled
 export LLM_PROVIDER=lm-studio
 export LLM_MODEL=local-model
-# LM_STUDIO_API_BASE defaults to http://localhost:1234/v1
+# OPENAI_API_KEY not required (uses dummy key automatically)
+# OPENAI_API_BASE automatically set to http://localhost:1234/v1
 ```
 
 #### AWS Bedrock
@@ -97,11 +113,11 @@ export AWS_REGION=us-east-1
 
 For backward compatibility, you can still use `OPENROUTER_MODEL` without specifying `LLM_PROVIDER`:
 ```bash
-export OPENROUTER_API_KEY=your_key_here
+export OPENAI_API_KEY=your_openrouter_api_key
 export OPENROUTER_MODEL=google/gemini-2.5-flash
 ```
 
-This will automatically use OpenRouter as the provider.
+This will automatically use OpenRouter as the provider. Note that the unified config uses `OPENAI_API_KEY` for all OpenAI-compatible providers, including OpenRouter.
 
 ### Detailed Provider Guide
 
@@ -479,21 +495,22 @@ During execution, the console shows:
 
 ### Issue: API key not found
 
-**Solution:** Configure your chosen provider's API key
+**Solution:** Configure your API key using the unified OPENAI_API_KEY
 ```bash
-# For OpenRouter
-export OPENROUTER_API_KEY=your_key_here
+# For all OpenAI-compatible providers (OpenRouter, OpenAI, etc.)
+export OPENAI_API_KEY=your_api_key
 
-# For OpenAI
-export OPENAI_API_KEY=your_key_here
-
-# For Ollama (usually no API key needed)
+# For Ollama (no API key needed)
 export LLM_PROVIDER=ollama
 export LLM_MODEL=llama2
 
-# For LM Studio (usually no API key needed)
+# For LM Studio (no API key needed)
 export LLM_PROVIDER=lm-studio
 export LLM_MODEL=local-model
+
+# For Bedrock (uses AWS credentials)
+export AWS_ACCESS_KEY_ID=your_aws_key
+export AWS_SECRET_ACCESS_KEY=your_aws_secret
 ```
 
 See the [Installation](#installation) section for detailed provider setup instructions.
@@ -569,17 +586,17 @@ jobs:
 
       - name: Run MCP evaluation
         env:
-          # Use OpenRouter by default
+          # Use OpenRouter (with unified OPENAI_API_KEY)
           LLM_PROVIDER: openrouter
           LLM_MODEL: google/gemini-2.5-flash
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
-          # Alternative: Use OpenAI
+          # Alternative: Use OpenAI direct
           # LLM_PROVIDER: openai
           # LLM_MODEL: gpt-4
           # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-          # Alternative: Use AWS Bedrock
+          # Alternative: Use AWS Bedrock (separate AWS credentials)
           # LLM_PROVIDER: bedrock
           # LLM_MODEL: anthropic.claude-3-sonnet-20240229-v1:0
           # AWS_REGION: us-east-1

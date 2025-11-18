@@ -17,7 +17,7 @@ os.environ["OPENROUTER_API_KEY"] = "dummy_key_for_testing"
 # Add project root to path to import evaluate_mcp
 sys.path.insert(0, str(Path(__file__).parent.parent / "mcp_llm_test"))
 
-from evaluate_mcp import generate_html_report
+from evaluation_modules import generate_html_report
 
 
 def test_html_template_exists():
@@ -152,5 +152,86 @@ def test_html_report_escapes_special_characters():
         assert "&lt;tags&gt;" in html_content  # <tags> should be escaped
 
     finally:
+        if os.path.exists(html_path):
+            os.unlink(html_path)
+
+
+def test_multi_model_report_has_export_buttons():
+    """Test that multi-model HTML report includes CSV/TSV export buttons."""
+    # Sample multi-model results
+    multi_model_results = [
+        {
+            "question": "What is TP53?",
+            "expected": "A tumor suppressor gene",
+            "models": {
+                "gpt-4": {
+                    "name": "GPT-4",
+                    "provider": "openai",
+                    "vanilla": {
+                        "response": "TP53 is a tumor suppressor gene.",
+                        "classification": "yes",
+                        "tokens_used": 100,
+                        "tool_calls": [],
+                        "conversation": [],
+                    },
+                    "web": {
+                        "response": "TP53 is a tumor suppressor gene.",
+                        "classification": "yes",
+                        "tokens_used": 120,
+                        "tool_calls": [],
+                        "conversation": [],
+                    },
+                    "tool": {
+                        "response": "TP53 is a tumor suppressor gene that encodes p53.",
+                        "classification": "yes",
+                        "tokens_used": 150,
+                        "tool_calls": [{"name": "get_gene_by_symbol"}],
+                        "conversation": [],
+                    },
+                },
+            },
+        }
+    ]
+
+    # Generate multi-model HTML report
+    html_path = generate_html_report(
+        multi_model_results,
+        multi_model=True,
+        evaluator_model="gpt-4",
+        evaluator_provider="openai",
+    )
+
+    try:
+        # Verify the file was created
+        assert os.path.exists(html_path), f"HTML file not created at {html_path}"
+
+        # Read the generated HTML
+        with open(html_path, "r") as f:
+            html_content = f.read()
+
+        # Verify export buttons are present
+        assert "Export CSV" in html_content
+        assert "Export TSV" in html_content
+        assert "onclick=\"exportResults('csv')\"" in html_content
+        assert "onclick=\"exportResults('tsv')\"" in html_content
+
+        # Verify export function is defined
+        assert "function exportResults(format)" in html_content
+        assert "function escapeField(field, delimiter)" in html_content
+
+        # Verify data attributes are present for export functionality
+        assert 'data-multi-model="true"' in html_content
+        assert "data-model-id=" in html_content
+        assert "data-model-name=" in html_content
+        assert "data-vanilla-rate=" in html_content
+        assert "data-web-rate=" in html_content
+        assert "data-tool-rate=" in html_content
+
+        # Verify multi-model comparison structure
+        assert "Multi-Model Comparison" in html_content
+        assert "GPT-4" in html_content
+
+    finally:
+        # Clean up the temporary HTML file
         if os.path.exists(html_path):
             os.unlink(html_path)
