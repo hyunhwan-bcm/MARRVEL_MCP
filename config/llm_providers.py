@@ -293,7 +293,7 @@ def create_llm_instance(
     api_base: str | None = None,
     **kwargs: Any,
 ) -> Any:
-    """Create an LLM instance for the specified provider with unified OpenAI-compatible configuration.
+    """Create an LLM instance for the specified provider with unified configuration.
 
     This is the main factory function for creating LLM instances. It implements the unified
     configuration spec:
