@@ -100,7 +100,7 @@ Access 100+ models through OpenRouter:
 export LLM_PROVIDER=openrouter
 export LLM_MODEL=google/gemini-2.5-flash
 export OPENAI_API_KEY=your_openrouter_api_key
-# OPENAI_API_BASE defaults to https://openrouter.ai/api/v1
+# OPENAI_API_BASE is automatically set to https://openrouter.ai/api/v1 for openrouter provider
 ```
 
 #### 2. OpenAI
@@ -111,7 +111,7 @@ Use OpenAI's official API:
 export LLM_PROVIDER=openai
 export LLM_MODEL=gpt-4
 export OPENAI_API_KEY=your_openai_api_key
-# OPENAI_API_BASE defaults to https://api.openai.com/v1
+# OPENAI_API_BASE uses OpenAI's default endpoint if not specified
 ```
 
 #### 3. Ollama (Local LLMs)
@@ -126,9 +126,10 @@ ollama pull llama2
 # Configure MARRVEL-MCP
 export LLM_PROVIDER=ollama
 export LLM_MODEL=llama2
-# OPENAI_API_BASE defaults to http://localhost:11434/v1
+# OPENAI_API_KEY not required (uses dummy key automatically)
+# OPENAI_API_BASE automatically set to http://localhost:11434/v1 for ollama provider
 
-# For remote Ollama:
+# For remote Ollama instance:
 export OPENAI_API_BASE=http://remote-server:11434/v1
 ```
 
@@ -140,9 +141,10 @@ Run models locally with LM Studio:
 # Start LM Studio and enable the local server
 export LLM_PROVIDER=lm-studio
 export LLM_MODEL=local-model
-# OPENAI_API_BASE defaults to http://localhost:1234/v1
+# OPENAI_API_KEY not required (uses dummy key automatically)
+# OPENAI_API_BASE automatically set to http://localhost:1234/v1 for lm-studio provider
 
-# For custom ports:
+# For custom port:
 export OPENAI_API_BASE=http://localhost:5678/v1
 ```
 
