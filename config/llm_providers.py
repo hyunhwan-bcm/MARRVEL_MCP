@@ -2,60 +2,75 @@
 LLM Provider Abstraction for Multi-Provider Testing Framework
 
 This module provides a unified interface for creating LLM instances across
-different providers: Bedrock (AWS), OpenAI, OpenRouter, Ollama, and LM Studio.
+different providers using a unified OpenAI-compatible protocol, with the
+exception of Amazon Bedrock which uses AWS-specific configuration.
 
-Design:
-- All providers except Bedrock use the OpenAI API (via langchain_openai.ChatOpenAI)
+Design Philosophy:
+- All providers except Bedrock use the unified OpenAI-compatible API
 - Bedrock uses AWS Boto3 (via langchain_aws.ChatBedrock)
-- Provider-specific configuration is handled through a common interface
-- Supports environment-based and explicit configuration
-- API base URLs can be overridden via environment variables for flexibility
+- Global defaults with per-model overrides for maximum flexibility
+- No provider-specific environment variables (except Bedrock)
 
 Supported Providers:
-1. bedrock: AWS Bedrock (uses boto3, langchain_aws)
-2. openai: OpenAI direct API (uses langchain_openai)
-   - Can be used with any OpenAI API-compatible service
-   - Override base URL with OPENAI_API_BASE environment variable
-3. openrouter: OpenRouter API (uses langchain_openai with custom base URL)
-   - Override base URL with OPENROUTER_API_BASE environment variable
-4. ollama: Ollama local/remote API (uses langchain_openai with custom base URL)
-   - Override base URL with OLLAMA_API_BASE environment variable
-5. lm-studio: LM Studio local API (uses langchain_openai with custom base URL)
-   - Default endpoint: http://localhost:1234/v1
-   - Override base URL with LM_STUDIO_API_BASE environment variable
+1. bedrock: AWS Bedrock (separate AWS-based configuration)
+   - Uses AWS credentials: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+   - Bedrock model specified via BEDROCK_MODEL_ID or per-model override
+2. All others: OpenAI-compatible API (openai, openrouter, ollama, lm-studio, groq,
+   mistral, deepseek, openrouter, vllm, llama.cpp, custom inference servers, etc.)
+   - Uses unified OpenAI-compatible configuration
+   - No automatic provider detection or validation
 
-Environment Variables:
-- {PROVIDER}_API_KEY: API key for the provider (OPENAI_API_KEY, OPENROUTER_API_KEY, etc.)
-- {PROVIDER}_API_BASE: Override the default API base URL for the provider
-- LLM_PROVIDER: Explicit provider selection (bedrock, openai, openrouter, ollama, lm-studio)
-- LLM_MODEL: Model ID when using explicit provider selection
+Environment Variables (Global Defaults for OpenAI-compatible):
+- OPENAI_API_KEY: API key for OpenAI-compatible providers (global default)
+- OPENAI_API_BASE: Server address for OpenAI-compatible providers (global default)
+- OPENAI_MODEL: Default model name (global default)
+
+Environment Variables (Bedrock only):
+- AWS_ACCESS_KEY_ID: AWS access key
+- AWS_SECRET_ACCESS_KEY: AWS secret key
+- AWS_REGION: AWS region (defaults to us-east-1)
+- BEDROCK_MODEL_ID: Default Bedrock model ID
+
+Per-Model Overrides (via function parameters):
+- api_key: Override OPENAI_API_KEY for this specific model
+- api_base: Override OPENAI_API_BASE for this specific model
+- model: Override model name for this specific model
+
+Resolution Rules:
+1. If provider is bedrock:
+   - Use AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION)
+   - Use BEDROCK_MODEL_ID or model parameter
+   - Ignore OPENAI_* variables
+
+2. Otherwise (OpenAI-compatible):
+   - Start from global defaults (OPENAI_API_KEY, OPENAI_API_BASE, OPENAI_MODEL)
+   - Apply per-model overrides (api_key, api_base, model) if provided
+   - No auto-detection of compatibility; trust the configuration
 
 Usage:
     from config.llm_providers import create_llm_instance, get_provider_config
 
-    # Create an LLM instance for OpenRouter
+    # Using global defaults (OPENAI_API_KEY, OPENAI_API_BASE, OPENAI_MODEL)
     llm = create_llm_instance(
         provider="openrouter",
         model_id="google/gemini-2.5-flash",
         temperature=0,
     )
 
-    # Use Ollama (local or remote)
+    # Using per-model overrides
     llm = create_llm_instance(
         provider="ollama",
         model_id="llama2",
         temperature=0,
+        api_base="http://localhost:11434/v1",  # Override for this model
     )
 
-    # Use LM Studio (dedicated provider)
+    # AWS Bedrock (separate configuration)
     llm = create_llm_instance(
-        provider="lm-studio",
-        model_id="local-model",
+        provider="bedrock",
+        model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
         temperature=0,
     )
-
-    # Get provider configuration
-    config = get_provider_config("openrouter")
 """
 
 from __future__ import annotations
@@ -78,62 +93,42 @@ class ProviderConfig:
     """Configuration for an LLM provider.
 
     Attributes:
-        name: Provider name (bedrock, openai, openrouter, ollama, lm-studio)
-        api_base: Default API base URL (None for Bedrock and default OpenAI)
-        api_base_env: Environment variable name for overriding API base URL
-        api_key_env: Environment variable name for API key
+        name: Provider name (bedrock, openai, openrouter, ollama, lm-studio, etc.)
+        default_api_base: Default API base URL for this provider type
+                         (None means use global OPENAI_API_BASE for OpenAI-compatible,
+                          or AWS SDK for Bedrock)
         supports_web_search: Whether the provider supports web search
         web_search_suffix: Suffix to append to model ID for web search (e.g., ":online")
-        use_openai_api: Whether to use OpenAI API compatibility
+        use_openai_api: Whether to use OpenAI API compatibility (False for Bedrock only)
     """
 
     name: ProviderType
-    api_base: str | None
-    api_base_env: str | None
-    api_key_env: str
+    default_api_base: str | None
     supports_web_search: bool = False
     web_search_suffix: str = ""
     use_openai_api: bool = True
 
 
 # Provider configurations
+# All OpenAI-compatible providers use global OPENAI_API_KEY and OPENAI_API_BASE
+# unless overridden per-model. Only Bedrock uses separate AWS credentials.
 PROVIDER_CONFIGS: Dict[ProviderType, ProviderConfig] = {
     "bedrock": ProviderConfig(
         name="bedrock",
-        api_base=None,  # Uses AWS SDK
-        api_base_env=None,
-        api_key_env="AWS_ACCESS_KEY_ID",  # Bedrock uses AWS credentials
+        default_api_base=None,  # Uses AWS SDK, not HTTP endpoint
         supports_web_search=False,
         use_openai_api=False,
     ),
     "openai": ProviderConfig(
         name="openai",
-        api_base=None,  # Uses default OpenAI endpoint
-        api_base_env="OPENAI_API_BASE",  # Can override base URL for OpenAI-compatible services
-        api_key_env="OPENAI_API_KEY",
+        default_api_base=None,  # Uses default OpenAI endpoint (https://api.openai.com/v1)
         supports_web_search=False,
     ),
     "openrouter": ProviderConfig(
         name="openrouter",
-        api_base="https://openrouter.ai/api/v1",
-        api_base_env="OPENROUTER_API_BASE",  # Can override for testing/proxies
-        api_key_env="OPENROUTER_API_KEY",
+        default_api_base="https://openrouter.ai/api/v1",
         supports_web_search=True,
         web_search_suffix=":online",
-    ),
-    "ollama": ProviderConfig(
-        name="ollama",
-        api_base="http://localhost:11434/v1",  # Default Ollama endpoint
-        api_base_env="OLLAMA_API_BASE",  # Can override for remote Ollama instances
-        api_key_env="OLLAMA_API_KEY",  # Optional, Ollama doesn't require auth by default
-        supports_web_search=False,
-    ),
-    "lm-studio": ProviderConfig(
-        name="lm-studio",
-        api_base="http://localhost:1234/v1",  # Default LM Studio endpoint
-        api_base_env="LM_STUDIO_API_BASE",  # Can override for custom ports
-        api_key_env="LM_STUDIO_API_KEY",  # LM Studio accepts any key
-        supports_web_search=False,
     ),
 }
 
@@ -158,54 +153,86 @@ def get_provider_config(provider: ProviderType) -> ProviderConfig:
     return PROVIDER_CONFIGS[provider]
 
 
-def get_api_base(provider: ProviderType) -> str | None:
-    """Get API base URL for a provider, checking environment variable override first.
+def get_api_base(provider: ProviderType, api_base_override: str | None = None) -> str | None:
+    """Get API base URL for a provider using unified OpenAI-compatible configuration.
+
+    Resolution order for OpenAI-compatible providers:
+    1. Per-model override (api_base_override parameter)
+    2. Global default (OPENAI_API_BASE environment variable)
+    3. Provider-specific default (from PROVIDER_CONFIGS)
+
+    For Bedrock: Returns None (uses AWS SDK, not HTTP endpoint)
 
     Args:
         provider: Provider type
+        api_base_override: Per-model API base override (optional)
 
     Returns:
-        API base URL from environment or default configuration, or None if not applicable
+        API base URL or None if not applicable
     """
     config = get_provider_config(provider)
 
-    # Check for environment variable override
-    if config.api_base_env:
-        env_base = os.getenv(config.api_base_env, "").strip()
-        if env_base:
-            return env_base
+    # Bedrock doesn't use HTTP endpoint
+    if not config.use_openai_api:
+        return None
 
-    # Return default from config
-    return config.api_base
+    # 1. Per-model override has highest priority
+    if api_base_override:
+        return api_base_override.strip()
+
+    # 2. Global OPENAI_API_BASE
+    global_base = os.getenv("OPENAI_API_BASE", "").strip()
+    if global_base:
+        return global_base
+
+    # 3. Provider-specific default
+    return config.default_api_base
 
 
-def get_api_key(provider: ProviderType) -> str | None:
-    """Get API key for a provider from environment variables.
+def get_api_key(provider: ProviderType, api_key_override: str | None = None) -> str | None:
+    """Get API key for a provider using unified OpenAI-compatible configuration.
+
+    Resolution order for OpenAI-compatible providers:
+    1. Per-model override (api_key_override parameter)
+    2. Global default (OPENAI_API_KEY environment variable)
+
+    For Bedrock: Not used (uses AWS credentials instead)
 
     Args:
         provider: Provider type
+        api_key_override: Per-model API key override (optional)
 
     Returns:
-        API key from environment or None if not found
+        API key or None if not found
     """
     config = get_provider_config(provider)
-    api_key = os.getenv(config.api_key_env, "").strip()
 
-    # Ollama and LM Studio don't require API keys by default
-    if provider == "ollama" and not api_key:
-        return "ollama"  # Dummy key for compatibility
+    # Bedrock uses AWS credentials, not API key
+    if not config.use_openai_api:
+        return None
 
-    if provider == "lm-studio" and not api_key:
-        return "lm-studio"  # Dummy key for compatibility
+    # 1. Per-model override has highest priority
+    if api_key_override:
+        return api_key_override.strip()
+
+    # 2. Global OPENAI_API_KEY
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
 
     return api_key if api_key else None
 
 
-def validate_provider_credentials(provider: ProviderType) -> bool:
+def validate_provider_credentials(
+    provider: ProviderType,
+    api_key_override: str | None = None,
+) -> bool:
     """Validate that required credentials are available for a provider.
+
+    For OpenAI-compatible providers: Checks OPENAI_API_KEY (or per-model override)
+    For Bedrock: Checks AWS credentials
 
     Args:
         provider: Provider type
+        api_key_override: Per-model API key override (optional)
 
     Returns:
         True if credentials are valid/available
@@ -215,25 +242,22 @@ def validate_provider_credentials(provider: ProviderType) -> bool:
     """
     config = get_provider_config(provider)
 
-    # Ollama and LM Studio don't require credentials
-    if provider in ("ollama", "lm-studio"):
-        return True
-
     # Bedrock requires AWS credentials
     if provider == "bedrock":
         if not os.getenv("AWS_ACCESS_KEY_ID") or not os.getenv("AWS_SECRET_ACCESS_KEY"):
             raise ValueError(
-                f"Missing AWS credentials for Bedrock. "
-                f"Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables."
+                "Missing AWS credentials for Bedrock. "
+                "Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables."
             )
         return True
 
-    # Other providers require API key
-    api_key = get_api_key(provider)
+    # Other OpenAI-compatible providers require API key
+    api_key = get_api_key(provider, api_key_override)
     if not api_key:
         raise ValueError(
-            f"{config.api_key_env} not found in environment variables. "
-            f"Please set it in a .env file or export it as an environment variable."
+            "OPENAI_API_KEY not found in environment variables. "
+            "Please set it in a .env file or export it as an environment variable, "
+            "or provide api_key parameter for per-model override."
         )
 
     return True
@@ -244,18 +268,25 @@ def create_llm_instance(
     model_id: str,
     temperature: float = 0,
     web_search: bool = False,
+    api_key: str | None = None,
+    api_base: str | None = None,
     **kwargs: Any,
 ) -> Any:
-    """Create an LLM instance for the specified provider.
+    """Create an LLM instance for the specified provider with unified configuration.
 
-    This is the main factory function for creating LLM instances. It handles
-    provider-specific configuration and returns the appropriate LangChain LLM object.
+    This is the main factory function for creating LLM instances. It implements the unified
+    configuration spec:
+    - All OpenAI-compatible providers use OPENAI_API_KEY and OPENAI_API_BASE by default
+    - Per-model overrides via api_key and api_base parameters
+    - Bedrock uses separate AWS credentials
 
     Args:
-        provider: Provider type (bedrock, openai, openrouter, ollama)
+        provider: Provider type (bedrock, openai, openrouter, ollama, lm-studio, etc.)
         model_id: Model identifier (provider-specific format)
         temperature: Temperature for sampling (0-1)
         web_search: Enable web search if supported by provider
+        api_key: Per-model API key override (overrides OPENAI_API_KEY)
+        api_base: Per-model API base URL override (overrides OPENAI_API_BASE)
         **kwargs: Additional provider-specific arguments
 
     Returns:
@@ -266,20 +297,14 @@ def create_llm_instance(
         ImportError: If required dependencies are not installed
 
     Examples:
-        >>> # OpenRouter (via OpenAI API)
+        >>> # Using global OPENAI_API_KEY and OPENAI_API_BASE
         >>> llm = create_llm_instance("openrouter", "google/gemini-2.5-flash")
 
-        >>> # OpenAI direct
-        >>> llm = create_llm_instance("openai", "gpt-4")
-
-        >>> # Ollama local
-        >>> llm = create_llm_instance("ollama", "llama2")
-
-        >>> # Bedrock (AWS)
+        >>> # AWS Bedrock (separate configuration)
         >>> llm = create_llm_instance("bedrock", "anthropic.claude-3-5-sonnet-20241022-v2:0")
     """
-    # Validate credentials
-    validate_provider_credentials(provider)
+    # Validate credentials (with per-model override support)
+    validate_provider_credentials(provider, api_key_override=api_key)
 
     config = get_provider_config(provider)
 
@@ -336,8 +361,9 @@ def create_llm_instance(
 
     # All other providers use OpenAI API
     if config.use_openai_api:
-        api_key = get_api_key(provider)
-        api_base = get_api_base(provider)
+        # Get API key and base using unified configuration with per-model overrides
+        resolved_api_key = get_api_key(provider, api_key_override=api_key)
+        resolved_api_base = get_api_base(provider, api_base_override=api_base)
 
         # Build kwargs for ChatOpenAI
         openai_kwargs: Dict[str, Any] = {
@@ -348,12 +374,12 @@ def create_llm_instance(
             **kwargs,
         }
 
-        # Add API key and base URL
-        openai_kwargs["openai_api_key"] = api_key
+        # Add API key
+        openai_kwargs["openai_api_key"] = resolved_api_key
 
-        # Set base URL if provider uses a custom endpoint or if overridden via env
-        if api_base:
-            openai_kwargs["openai_api_base"] = api_base
+        # Set base URL if specified (per-model override, global default, or provider default)
+        if resolved_api_base:
+            openai_kwargs["openai_api_base"] = resolved_api_base
 
         return ChatOpenAI(**openai_kwargs)
 
@@ -391,11 +417,7 @@ def infer_provider_from_model_id(model_id: str) -> ProviderType:
         return "openrouter"
 
     # OpenAI models use specific naming
-    if model_id.startswith("gpt-") or model_id.startswith("o1-"):
-        return "openai"
-
-    # Default to Ollama for simple names
-    return "ollama"
+    return "openai"
 
 
 __all__ = [

@@ -123,6 +123,10 @@ async def main():
         models_config_path if models_config_path else Path(__file__).parent / "models_config.yaml"
     )
 
+    # Extract evaluator overrides (api_key, api_base) from YAML config
+    evaluator_api_key_override = None
+    evaluator_api_base_override = None
+
     # Override evaluator configuration from YAML if provided
     if (
         yaml_evaluator_config
@@ -131,10 +135,14 @@ async def main():
     ):
         yaml_provider = yaml_evaluator_config["provider"]
         yaml_model = yaml_evaluator_config["model"]
+        evaluator_api_key_override = yaml_evaluator_config.get("api_key")
+        evaluator_api_base_override = yaml_evaluator_config.get("api_base")
 
         # Validate YAML evaluator provider before applying
         try:
-            validate_provider_credentials(yaml_provider)
+            validate_provider_credentials(
+                yaml_provider, api_key_override=evaluator_api_key_override
+            )
 
             # Apply YAML evaluator config
             evaluator_model = yaml_model
@@ -144,8 +152,12 @@ async def main():
         except Exception as e:
             print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
             print(
-                f"   Continuing with environment/default evaluator: {evaluator_provider} / {evaluator_model}"
+                f"   Continuing with environment/default evaluator: "
+                f"{evaluator_provider} / {evaluator_model}"
             )
+            # Reset overrides if validation failed
+            evaluator_api_key_override = None
+            evaluator_api_base_override = None
 
     # Validate provider credentials before proceeding
     try:
@@ -186,6 +198,8 @@ async def main():
         provider=evaluator_provider,
         model_id=evaluator_model,
         temperature=0,
+        api_key=evaluator_api_key_override,
+        api_base=evaluator_api_base_override,
     )
 
     # Display configuration - provider-agnostic messaging
@@ -194,10 +208,12 @@ async def main():
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
         print(
-            f"⚠️  Note: Not all models support web search. Check OpenRouter docs for compatibility."
+            f"⚠️  Note: Not all models support web search. "
+            f"Check OpenRouter docs for compatibility."
         )
         print(
-            f"   Models known to support :online - OpenAI (gpt-4, gpt-3.5-turbo, etc), Anthropic Claude"
+            f"   Models known to support :online - "
+            f"OpenAI (gpt-4, gpt-3.5-turbo, etc), Anthropic Claude"
         )
         print(f"   If you see empty responses, try a different model that supports web search.")
 
@@ -301,14 +317,16 @@ async def main():
                 print(f"     • {model['name']} ({model['id']})")
             print(f"   Test cases: {len(test_cases)}")
             print(f"   Modes per model: 3 (vanilla, web, MARRVEL-MCP)")
+            total_evals = len(models) * 3 * len(test_cases)
             print(
-                f"   Total evaluations: {len(models)} models × 3 modes × {len(test_cases)} tests = {len(models) * 3 * len(test_cases)}"
+                f"   Total evaluations: {len(models)} models × 3 modes × "
+                f"{len(test_cases)} tests = {total_evals}"
             )
             print(f"   Concurrency: {args.concurrency}")
-            print(f"   Timeout per test: {args.timeout} seconds ({args.timeout // 60} minutes)")
-            print(
-                f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}"
-            )
+            timeout_mins = args.timeout // 60
+            print(f"   Timeout per test: {args.timeout} seconds ({timeout_mins} minutes)")
+            cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
+            print(f"💾 Cache {cache_status}")
         except ValueError as e:
             print(f"❌ Error loading models configuration: {e}")
             return
@@ -324,19 +342,25 @@ async def main():
                 model_id = model_config["id"]
                 model_provider = model_config.get("provider", "openrouter")
 
+                # Extract per-model overrides from YAML config
+                api_key_override = model_config.get("api_key")
+                api_base_override = model_config.get("api_base")
+
                 # Validate provider credentials for each model
                 try:
-                    validate_provider_credentials(model_provider)
+                    validate_provider_credentials(model_provider, api_key_override=api_key_override)
                 except ValueError as e:
                     print(f"⚠️  Skipping model {model_id}: {e}")
                     continue
 
-                # Create base LLM instance
+                # Create base LLM instance with per-model overrides
                 model_llm_instances[model_id] = {
                     "llm": create_llm_instance(
                         provider=model_provider,
                         model_id=model_id,
                         temperature=0,
+                        api_key=api_key_override,
+                        api_base=api_base_override,
                     ),
                     "llm_web": None,  # Will be set below if web search is supported
                 }
@@ -349,6 +373,8 @@ async def main():
                         model_id=model_id,
                         temperature=0,
                         web_search=True,
+                        api_key=api_key_override,
+                        api_base=api_base_override,
                     )
                 else:
                     # Fall back to regular LLM
@@ -478,12 +504,15 @@ async def main():
                 active_metadata = [meta for meta in task_metadata if not meta.get("skip", False)]
 
                 print(
-                    f"\n🔍 Running {len(all_tasks)} tests SEQUENTIALLY (concurrency=1 for easier debugging)..."
+                    f"\n🔍 Running {len(all_tasks)} tests SEQUENTIALLY "
+                    f"(concurrency=1 for easier debugging)..."
                 )
                 print("   Errors will be shown immediately as they occur.")
                 if len(active_metadata) != len(all_tasks):
+                    skipped_count = len(task_metadata) - len(active_metadata)
                     print(
-                        f"   ⚠️  Note: {len(task_metadata) - len(active_metadata)} tests skipped (skip_vanilla or skip_web_search)"
+                        f"   ⚠️  Note: {skipped_count} tests skipped "
+                        f"(skip_vanilla or skip_web_search)"
                     )
 
                 task_results = []
@@ -519,9 +548,9 @@ async def main():
                             tool_calls = result.get("tool_calls", [])
                             if tool_calls:
                                 tool_names = [tc.get("name", "unknown") for tc in tool_calls]
-                                print(
-                                    f"   🔧 Tools called: {', '.join(tool_names)} ({len(tool_calls)} calls)"
-                                )
+                                tools_str = ", ".join(tool_names)
+                                num_calls = len(tool_calls)
+                                print(f"   🔧 Tools called: {tools_str} ({num_calls} calls)")
                             elif mode == "tool":
                                 print(f"   ⚠️  No tools called in TOOL mode")
 
@@ -567,20 +596,26 @@ async def main():
 
                 # Execute ALL tasks concurrently!
                 print(
-                    f"\n🔥 Executing {len(all_tasks)} tasks concurrently (concurrency limit: {args.concurrency})..."
+                    f"\n🔥 Executing {len(all_tasks)} tasks concurrently "
+                    f"(concurrency limit: {args.concurrency})..."
                 )
                 print(f"   This will run ALL models × modes × tests in parallel!")
                 if len(active_metadata) != len(all_tasks):
+                    skipped_count = len(task_metadata) - len(active_metadata)
                     print(
-                        f"   ⚠️  Note: {len(task_metadata) - len(active_metadata)} tests skipped (skip_vanilla or skip_web_search)"
+                        f"   ⚠️  Note: {skipped_count} tests skipped "
+                        f"(skip_vanilla or skip_web_search)"
                     )
                 pbar_global = atqdm(total=len(all_tasks), desc="All tests", unit="test")
 
                 def update_progress_bar():
                     """Update progress bar with current test statistics."""
-                    pbar_global.set_postfix_str(
-                        f"✓ {test_stats['yes']} | ✗ {test_stats['no']} | ⚠ {test_stats['failed']}"
+                    stats_str = (
+                        f"✓ {test_stats['yes']} | "
+                        f"✗ {test_stats['no']} | "
+                        f"⚠ {test_stats['failed']}"
                     )
+                    pbar_global.set_postfix_str(stats_str)
 
                 # Run all tasks concurrently using gather, which preserves order
                 # We'll update the progress bar as tasks complete using a callback
@@ -665,7 +700,8 @@ async def main():
 
             if exception_count > 0:
                 print(
-                    f"\n⚠️  Warning: {exception_count} task(s) failed with exceptions but execution continued."
+                    f"\n⚠️  Warning: {exception_count} task(s) failed with exceptions "
+                    f"but execution continued."
                 )
 
             # Map results back to their metadata indices (only non-skipped tasks have results)
@@ -831,10 +867,12 @@ async def main():
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
     elif args.with_web:
         print(
-            f"🚀 Running {len(test_cases)} test case(s) with THREE modes: vanilla, web search, and MARRVEL-MCP"
+            f"🚀 Running {len(test_cases)} test case(s) with THREE modes: "
+            f"vanilla, web search, and MARRVEL-MCP"
         )
         print(f"   Concurrency: {args.concurrency}")
-        print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
+        cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
+        print(f"💾 Cache {cache_status}")
 
         async with mcp_client:
             # Run vanilla mode tests
@@ -929,7 +967,8 @@ async def main():
     elif args.with_vanilla:
         print(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
         print(f"   Concurrency: {args.concurrency}")
-        print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
+        cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
+        print(f"💾 Cache {cache_status}")
 
         async with mcp_client:
             # Run vanilla mode tests
@@ -1001,7 +1040,8 @@ async def main():
     else:
         # Normal mode: run with tools only
         print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
-        print(f"💾 Cache {'enabled (--cache)' if use_cache else 'disabled - re-running all tests'}")
+        cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
+        print(f"💾 Cache {cache_status}")
 
         async with mcp_client:
             # Create progress bar

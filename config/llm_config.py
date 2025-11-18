@@ -110,25 +110,10 @@ def get_default_model_config() -> Tuple[str, ProviderType]:
         ('google/gemini-2.5-flash', 'openrouter')
     """
     # Check for explicit provider configuration first
-    provider_env = os.getenv("LLM_PROVIDER", "").strip().lower()
-    model_env = os.getenv("LLM_MODEL", "").strip()
+    provider_env = os.getenv("LLM_PROVIDER", DEFAULT_MODEL).strip().lower()
+    model_env = os.getenv("LLM_MODEL", DEFAULT_PROVIDER).strip()
 
-    if provider_env and model_env:
-        # Explicit provider and model specified
-        return (model_env, provider_env)  # type: ignore
-
-    # Check for legacy OpenRouter configuration
-    openrouter_model = os.getenv("OPENROUTER_MODEL", "").strip()
-    if openrouter_model:
-        return (openrouter_model, "openrouter")
-
-    # Check for generic model without explicit provider (try to infer)
-    if model_env:
-        inferred_provider = infer_provider_from_model_id(model_env)
-        return (model_env, inferred_provider)
-
-    # Fall back to default
-    return (DEFAULT_MODEL, DEFAULT_PROVIDER)
+    return (model_env, provider_env)  # type: ignore
 
 
 def get_evaluation_model_config() -> Tuple[str, ProviderType]:
@@ -158,20 +143,10 @@ def get_evaluation_model_config() -> Tuple[str, ProviderType]:
         ('google/gemini-2.5-pro', 'openrouter')
     """
     # Check for explicit evaluation configuration
-    provider_env = os.getenv("EVALUATION_PROVIDER", "").strip().lower()
-    model_env = os.getenv("EVALUATION_MODEL", "").strip()
+    provider_env = os.getenv("EVALUATION_PROVIDER", EVALUATION_MODEL).strip().lower()
+    model_env = os.getenv("EVALUATION_MODEL", EVALUATION_PROVIDER).strip()
 
-    if provider_env and model_env:
-        # Explicit provider and model specified
-        return (model_env, provider_env)  # type: ignore
-
-    # Check for model without explicit provider (try to infer)
-    if model_env:
-        inferred_provider = infer_provider_from_model_id(model_env)
-        return (model_env, inferred_provider)
-
-    # Fall back to default evaluation model
-    return (EVALUATION_MODEL, EVALUATION_PROVIDER)
+    return (model_env, provider_env)
 
 
 __all__ = [

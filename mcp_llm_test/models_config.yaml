@@ -3,11 +3,30 @@
 # This file defines the LLM models to test in multi-model comparison mode.
 # Each model will be evaluated across three modes: vanilla, web, and MARRVEL-MCP.
 #
+# Unified LLM Configuration:
+#   All providers except Bedrock use unified OpenAI-compatible configuration:
+#   - Global defaults: OPENAI_API_KEY, OPENAI_API_BASE, OPENAI_MODEL
+#   - Per-model overrides: api_key, api_base (optional fields below)
+#
+#   Bedrock uses separate AWS configuration:
+#   - AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+#   - BEDROCK_MODEL_ID (or specified per-model via "id" field)
+#
 # Provider Support:
-#   - bedrock: AWS Bedrock (uses boto3)
-#   - openai: OpenAI direct API
-#   - openrouter: OpenRouter API (uses OpenAI-compatible API)
-#   - ollama: Ollama local/remote (uses OpenAI-compatible API)
+#   - bedrock: AWS Bedrock (separate AWS-based configuration)
+#   - openai: OpenAI direct API (OpenAI-compatible)
+#   - openrouter: OpenRouter API (OpenAI-compatible)
+#   - ollama: Ollama local/remote (OpenAI-compatible)
+#   - lm-studio: LM Studio local (OpenAI-compatible)
+#   - groq: Groq API (OpenAI-compatible)
+#   - mistral: Mistral API (OpenAI-compatible)
+#   - deepseek: DeepSeek API (OpenAI-compatible)
+#   - vllm: vLLM server (OpenAI-compatible)
+#   - Any custom OpenAI-compatible inference server
+#
+# Per-Model Override Fields (optional):
+#   api_key: Override OPENAI_API_KEY for this specific model
+#   api_base: Override OPENAI_API_BASE for this specific model
 #
 # Usage:
 #   python evaluate_mcp.py --multi-model
@@ -16,6 +35,23 @@
 
 
 models:
+  # Example: Per-model override configuration
+  # Uncomment and modify to use different API keys or base URLs for specific models
+  #
+  # - name: "Custom Ollama Instance"
+  #   id: "llama2"
+  #   provider: "ollama"
+  #   enabled: false
+  #   api_base: "http://remote-server:11434/v1"  # Override OPENAI_API_BASE
+  #   description: "Ollama on a remote server"
+  #
+  # - name: "Custom OpenRouter with Different Key"
+  #   id: "google/gemini-2.5-flash"
+  #   provider: "openrouter"
+  #   enabled: false
+  #   api_key: "your-custom-api-key-here"  # Override OPENAI_API_KEY
+  #   description: "Using a different API key for this specific model"
+
   # OpenRouter - Anthropic Claude models
 
   # OpenRouter - Meta LLaMA models
