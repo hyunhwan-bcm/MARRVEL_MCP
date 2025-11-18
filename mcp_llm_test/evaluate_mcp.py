@@ -548,7 +548,7 @@ async def main():
                             tool_calls = result.get("tool_calls", [])
                             if tool_calls:
                                 tool_names = [tc.get("name", "unknown") for tc in tool_calls]
-                                tools_str = ', '.join(tool_names)
+                                tools_str = ", ".join(tool_names)
                                 num_calls = len(tool_calls)
                                 print(f"   🔧 Tools called: {tools_str} ({num_calls} calls)")
                             elif mode == "tool":

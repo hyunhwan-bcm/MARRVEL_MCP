@@ -130,16 +130,6 @@ PROVIDER_CONFIGS: Dict[ProviderType, ProviderConfig] = {
         supports_web_search=True,
         web_search_suffix=":online",
     ),
-    "ollama": ProviderConfig(
-        name="ollama",
-        default_api_base="http://localhost:11434/v1",
-        supports_web_search=False,
-    ),
-    "lm-studio": ProviderConfig(
-        name="lm-studio",
-        default_api_base="http://localhost:1234/v1",
-        supports_web_search=False,
-    ),
 }
 
 
@@ -228,13 +218,6 @@ def get_api_key(provider: ProviderType, api_key_override: str | None = None) -> 
     # 2. Global OPENAI_API_KEY
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
 
-    # Ollama and LM Studio don't require API keys by default
-    if not api_key:
-        if provider == "ollama":
-            return "ollama"  # Dummy key for compatibility
-        if provider == "lm-studio":
-            return "lm-studio"  # Dummy key for compatibility
-
     return api_key if api_key else None
 
 
@@ -266,10 +249,6 @@ def validate_provider_credentials(
                 "Missing AWS credentials for Bedrock. "
                 "Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables."
             )
-        return True
-
-    # Ollama and LM Studio don't require credentials
-    if provider in ("ollama", "lm-studio"):
         return True
 
     # Other OpenAI-compatible providers require API key
@@ -320,13 +299,6 @@ def create_llm_instance(
     Examples:
         >>> # Using global OPENAI_API_KEY and OPENAI_API_BASE
         >>> llm = create_llm_instance("openrouter", "google/gemini-2.5-flash")
-
-        >>> # Using per-model overrides
-        >>> llm = create_llm_instance(
-        ...     "ollama",
-        ...     "llama2",
-        ...     api_base="http://localhost:11434/v1"
-        ... )
 
         >>> # AWS Bedrock (separate configuration)
         >>> llm = create_llm_instance("bedrock", "anthropic.claude-3-5-sonnet-20241022-v2:0")
@@ -445,11 +417,7 @@ def infer_provider_from_model_id(model_id: str) -> ProviderType:
         return "openrouter"
 
     # OpenAI models use specific naming
-    if model_id.startswith("gpt-") or model_id.startswith("o1-"):
-        return "openai"
-
-    # Default to Ollama for simple names
-    return "ollama"
+    return "openai"
 
 
 __all__ = [
