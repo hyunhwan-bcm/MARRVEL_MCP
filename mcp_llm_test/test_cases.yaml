@@ -65,13 +65,13 @@
 
 - case:
     name: "gnomAD presence"
-    input: "Is Chr9:99694174 C>T found in gnomAD?"
-    expected: "Chr9:99694174 C>T is not found in gnomAD control populations."
+    input: "Is Chr9:102456456 C>T found in gnomAD?"
+    expected: "Chr9:102456456 C>T is not found in gnomAD control populations."
 
 - case:
     name: "gnomAD presence 2"
-    input: "Is Chr9:96937172 C>A found in gnomAD?"
-    expected: "Yes, Chr9:96937172 C>A is found in gnomAD control populations."
+    input: "Is Chr9:99699454 C>A found in gnomAD?"
+    expected: "Yes, Chr9:99699454 C>A is found in gnomAD control populations."
 
 - case:
     name: "LoF o/e score"
@@ -186,7 +186,7 @@
 - case:
     name: "PubMed search by disease name"
     input: "Search PubMed for articles about Rett syndrome. Limit to 3 results."
-    expected: "No more than 3 articles are found, all are about Rett syndrome and include accurate PubMed ids."
+    expected: "No more than 3 articles are found, all are about Rett syndrome and include accurate PubMed ids: [37628658, 29445033, 39331775]."
 
 - case:
     name: "PMC abstract lookup by PMC ID"
