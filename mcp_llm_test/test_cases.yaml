@@ -70,7 +70,7 @@
 
 - case:
     name: "gnomAD presence 2"
-    input: "Is Chr9:96937172 C>A found in gnomAD?"
+    input: "Is Chr9:99699454 C>A (hg19) found in gnomAD?"
     expected: "Yes, Chr9:96937172 C>A is found in gnomAD control populations."
 
 - case:
@@ -185,8 +185,8 @@
 
 - case:
     name: "PubMed search by disease name"
-    input: "Search PubMed for articles about Rett syndrome. Limit to 3 results."
-    expected: "No more than 3 articles are found, all are about Rett syndrome and include accurate PubMed ids."
+    input: "Search PubMed for high  articles about Rett syndrome. Limit to 3 results."
+    expected: "No more than 3 articles are found, all are about Rett syndrome and include PubMed ids [41244709, 41244585, 41239321]."
 
 - case:
     name: "PMC abstract lookup by PMC ID"
