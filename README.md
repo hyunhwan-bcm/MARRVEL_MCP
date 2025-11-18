@@ -75,98 +75,110 @@ MARRVEL-MCP supports **various MCP Tools** for genetics research including:
 
 ## LLM Provider Configuration
 
-MARRVEL-MCP supports multiple LLM providers through a unified OpenAI API-compatible interface. This makes it easy to use with various services including [AWS Bedrock](https://aws.amazon.com/bedrock/), [OpenRouter](https://openrouter.ai/), [OpenAI](https://openai.com/api/), [Ollama](https://ollama.com/), and [LM Studio](https://lmstudio.ai/).
+MARRVEL-MCP supports multiple LLM providers through a **unified OpenAI-compatible configuration**, with the exception of Amazon Bedrock which uses separate AWS credentials.
+
+### Unified Configuration Model
+
+All OpenAI-compatible providers (OpenRouter, OpenAI, Groq, Mistral, DeepSeek, Ollama, LM Studio, vLLM, llama.cpp, etc.) share the same global configuration:
+
+**Global Defaults:**
+- `OPENAI_API_KEY`: API key for OpenAI-compatible providers
+- `OPENAI_API_BASE`: Server address for OpenAI-compatible providers
+- `OPENAI_MODEL`: Default model name
+
+**Per-Model Overrides** (in YAML config or function parameters):
+- `api_key`: Override OPENAI_API_KEY for specific model
+- `api_base`: Override OPENAI_API_BASE for specific model
 
 ### Supported Providers
 
-All providers use the same environment variable pattern for easy configuration:
-- `{PROVIDER}_API_KEY`: API key for authentication
-- `{PROVIDER}_API_BASE`: Override the default API base URL (optional)
+#### 1. OpenRouter
 
-#### 1. Ollama (Local LLMs)
-
-Run LLMs locally with Ollama:
-
-```bash
-# Install and start Ollama
-# Visit https://ollama.ai for installation instructions
-
-# Pull a model
-ollama pull llama2
-
-# Configure MARRVEL-MCP
-export LLM_PROVIDER=ollama
-export LLM_MODEL=llama2
-# OLLAMA_API_BASE defaults to http://localhost:11434/v1
-```
-
-For remote Ollama instances:
-```bash
-export LLM_PROVIDER=ollama
-export LLM_MODEL=llama2
-export OLLAMA_API_BASE=http://remote-server:11434/v1
-```
-
-#### 2. LM Studio
-
-Run models locally with LM Studio:
-
-```bash
-# Start LM Studio and enable the local server
-# Default endpoint: http://localhost:1234/v1
-
-export LLM_PROVIDER=lm-studio
-export LLM_MODEL=local-model  # Use the model name from LM Studio
-# LM_STUDIO_API_BASE defaults to http://localhost:1234/v1
-```
-
-For custom ports:
-
-```bash
-export LLM_PROVIDER=lm-studio
-export LLM_MODEL=local-model
-export LM_STUDIO_API_BASE=http://localhost:5678/v1
-```
-
-#### 3. OpenRouter
-
-Access multiple model providers through OpenRouter:
+Access 100+ models through OpenRouter:
 
 ```bash
 export LLM_PROVIDER=openrouter
 export LLM_MODEL=google/gemini-2.5-flash
-export OPENROUTER_API_KEY=your_openrouter_key
+export OPENAI_API_KEY=your_openrouter_api_key
+# OPENAI_API_BASE defaults to https://openrouter.ai/api/v1
 ```
 
-#### 4. OpenAI Direct
+#### 2. OpenAI
 
 Use OpenAI's official API:
 
 ```bash
 export LLM_PROVIDER=openai
 export LLM_MODEL=gpt-4
-export OPENAI_API_KEY=your_openai_key
+export OPENAI_API_KEY=your_openai_api_key
+# OPENAI_API_BASE defaults to https://api.openai.com/v1
 ```
 
-#### 5. Other OpenAI-Compatible Services
+#### 3. Ollama (Local LLMs)
 
-Any service compatible with the OpenAI API can be used via the `openai` provider:
+Run LLMs locally with Ollama:
 
 ```bash
-export LLM_PROVIDER=openai
+# Install and start Ollama
+# Visit https://ollama.ai for installation instructions
+ollama pull llama2
+
+# Configure MARRVEL-MCP
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama2
+# OPENAI_API_BASE defaults to http://localhost:11434/v1
+
+# For remote Ollama:
+export OPENAI_API_BASE=http://remote-server:11434/v1
+```
+
+#### 4. LM Studio
+
+Run models locally with LM Studio:
+
+```bash
+# Start LM Studio and enable the local server
+export LLM_PROVIDER=lm-studio
+export LLM_MODEL=local-model
+# OPENAI_API_BASE defaults to http://localhost:1234/v1
+
+# For custom ports:
+export OPENAI_API_BASE=http://localhost:5678/v1
+```
+
+#### 5. AWS Bedrock (Separate Configuration)
+
+Bedrock uses AWS credentials, not OpenAI-compatible config:
+
+```bash
+export LLM_PROVIDER=bedrock
+export LLM_MODEL=anthropic.claude-3-5-sonnet-20241022-v2:0
+export AWS_ACCESS_KEY_ID=your_aws_access_key
+export AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+export AWS_REGION=us-east-1
+```
+
+#### 6. Other OpenAI-Compatible Services
+
+Any service compatible with the OpenAI API (Groq, Mistral, DeepSeek, vLLM, etc.):
+
+```bash
+export LLM_PROVIDER=openai  # Or create a custom provider type
 export LLM_MODEL=your-model-name
-export OPENAI_API_BASE=https://your-service.com/v1
 export OPENAI_API_KEY=your-api-key
+export OPENAI_API_BASE=https://your-service.com/v1
 ```
 
 ### Legacy Configuration
 
-For backward compatibility, you can still use the original OpenRouter-only configuration:
+For backward compatibility with the OpenRouter-only setup:
 
 ```bash
 export OPENROUTER_MODEL=google/gemini-2.5-flash
-export OPENROUTER_API_KEY=your_key
+export OPENAI_API_KEY=your_openrouter_key
 ```
+
+**Note:** This legacy format is deprecated. Please use `LLM_PROVIDER` and `LLM_MODEL` for new configurations.
 
 ## Documentation
 

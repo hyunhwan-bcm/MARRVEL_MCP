@@ -36,13 +36,26 @@ pip install -r requirements.txt
 
 The evaluation tool supports multiple LLM providers. Choose one based on your needs:
 
-### Provider Configuration
+### Unified Provider Configuration
 
-All providers use a consistent environment variable pattern:
-- `LLM_PROVIDER`: Provider type (openrouter, openai, bedrock, ollama, lm-studio)
+MARRVEL-MCP uses a **unified OpenAI-compatible configuration** for all providers except Bedrock:
+
+**Global Defaults (OpenAI-compatible providers):**
+- `OPENAI_API_KEY`: API key for all OpenAI-compatible providers
+- `OPENAI_API_BASE`: Server address for all OpenAI-compatible providers
+- `OPENAI_MODEL`: Default model name
+- `LLM_PROVIDER`: Provider type (openrouter, openai, ollama, lm-studio, etc.)
 - `LLM_MODEL`: Model ID for the specified provider
-- `{PROVIDER}_API_KEY`: API key for authentication (if required)
-- `{PROVIDER}_API_BASE`: Override the default API base URL (optional)
+
+**Bedrock (separate AWS configuration):**
+- `AWS_ACCESS_KEY_ID`: AWS access key
+- `AWS_SECRET_ACCESS_KEY`: AWS secret key
+- `AWS_REGION`: AWS region
+- `BEDROCK_MODEL_ID`: Default Bedrock model ID
+
+**Per-Model Overrides** (in models_config.yaml):
+- `api_key`: Override OPENAI_API_KEY for specific model
+- `api_base`: Override OPENAI_API_BASE for specific model
 
 ### Quick Setup Examples
 

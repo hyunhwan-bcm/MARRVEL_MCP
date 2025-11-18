@@ -123,6 +123,10 @@ async def main():
         models_config_path if models_config_path else Path(__file__).parent / "models_config.yaml"
     )
 
+    # Extract evaluator overrides (api_key, api_base) from YAML config
+    evaluator_api_key_override = None
+    evaluator_api_base_override = None
+
     # Override evaluator configuration from YAML if provided
     if (
         yaml_evaluator_config
@@ -131,10 +135,12 @@ async def main():
     ):
         yaml_provider = yaml_evaluator_config["provider"]
         yaml_model = yaml_evaluator_config["model"]
+        evaluator_api_key_override = yaml_evaluator_config.get("api_key")
+        evaluator_api_base_override = yaml_evaluator_config.get("api_base")
 
         # Validate YAML evaluator provider before applying
         try:
-            validate_provider_credentials(yaml_provider)
+            validate_provider_credentials(yaml_provider, api_key_override=evaluator_api_key_override)
 
             # Apply YAML evaluator config
             evaluator_model = yaml_model
@@ -146,6 +152,9 @@ async def main():
             print(
                 f"   Continuing with environment/default evaluator: {evaluator_provider} / {evaluator_model}"
             )
+            # Reset overrides if validation failed
+            evaluator_api_key_override = None
+            evaluator_api_base_override = None
 
     # Validate provider credentials before proceeding
     try:
@@ -186,6 +195,8 @@ async def main():
         provider=evaluator_provider,
         model_id=evaluator_model,
         temperature=0,
+        api_key=evaluator_api_key_override,
+        api_base=evaluator_api_base_override,
     )
 
     # Display configuration - provider-agnostic messaging
@@ -324,19 +335,25 @@ async def main():
                 model_id = model_config["id"]
                 model_provider = model_config.get("provider", "openrouter")
 
+                # Extract per-model overrides from YAML config
+                api_key_override = model_config.get("api_key")
+                api_base_override = model_config.get("api_base")
+
                 # Validate provider credentials for each model
                 try:
-                    validate_provider_credentials(model_provider)
+                    validate_provider_credentials(model_provider, api_key_override=api_key_override)
                 except ValueError as e:
                     print(f"⚠️  Skipping model {model_id}: {e}")
                     continue
 
-                # Create base LLM instance
+                # Create base LLM instance with per-model overrides
                 model_llm_instances[model_id] = {
                     "llm": create_llm_instance(
                         provider=model_provider,
                         model_id=model_id,
                         temperature=0,
+                        api_key=api_key_override,
+                        api_base=api_base_override,
                     ),
                     "llm_web": None,  # Will be set below if web search is supported
                 }
@@ -349,6 +366,8 @@ async def main():
                         model_id=model_id,
                         temperature=0,
                         web_search=True,
+                        api_key=api_key_override,
+                        api_base=api_base_override,
                     )
                 else:
                     # Fall back to regular LLM
