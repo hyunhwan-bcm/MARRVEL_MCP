@@ -41,9 +41,7 @@ async def test_retry_with_500_error():
         nonlocal call_count
         call_count += 1
         if call_count < 3:
-            raise httpx.HTTPStatusError(
-                "Server error", request=Mock(), response=mock_response
-            )
+            raise httpx.HTTPStatusError("Server error", request=Mock(), response=mock_response)
         return "success after retries"
 
     result = await retry_with_backoff(mock_func, max_retries=5, initial_delay=0.01)

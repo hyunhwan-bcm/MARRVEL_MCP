@@ -92,7 +92,7 @@ Retained only:
 
 ## Coverage Philosophy
 
-The essential test suite follows the **80/20 rule**: 
+The essential test suite follows the **80/20 rule**:
 - 20% of tests provide 80% of the value in catching real bugs
 - Focus on integration and critical path testing
 - Avoid exhaustive unit testing of edge cases that rarely occur in production
