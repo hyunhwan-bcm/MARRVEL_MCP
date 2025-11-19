@@ -214,16 +214,10 @@ Cache Behavior:
     )
 
     parser.add_argument(
-        "--multi-model",
-        action="store_true",
-        help="Run tests with multiple LLM models across all three modes (vanilla, web, MARRVEL-MCP). Each model * mode combination is tested. Results are shown in a grid format.",
-    )
-
-    parser.add_argument(
-        "--models-config",
+        "--output-dir",
         type=str,
         metavar="PATH",
-        help="Path to models configuration YAML file for --multi-model mode. Defaults to mcp-llm-test/models_config.yaml",
+        help="Directory to save test results (CSV, cache, HTML report). Defaults to test-output/<timestamp>",
     )
 
     return parser.parse_args()
