@@ -86,7 +86,7 @@ import logging
 # from langchain_aws import ChatBedrock
 
 
-ProviderType = Literal["bedrock", "openai", "openrouter", "ollama", "lm-studio"]
+ProviderType = Literal["bedrock", "openai", None]
 
 
 @dataclass
@@ -388,9 +388,13 @@ def create_llm_instance(
             openai_kwargs["openai_api_base"] = resolved_api_base
 
         # Always log what we're about to use (not just in trace mode)
+        if not resolved_api_base and provider != "openai":
+            logging.warning(
+                f"⚠ No API base resolved for provider '{provider}'. Set OPENAI_API_BASE or pass api_base override. Using library default endpoint (likely OpenAI) which may be incompatible."
+            )
         logging.warning(
             f"🔧 Creating LLM instance | provider={provider} model={effective_model_id} "
-            f"base={resolved_api_base or '(OpenAI default)'} web_search={web_search}"
+            f"base={resolved_api_base or '(library default)'} web_search={web_search}"
         )
 
         llm = ChatOpenAI(**openai_kwargs)
