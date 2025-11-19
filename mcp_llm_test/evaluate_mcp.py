@@ -30,10 +30,13 @@ This script has been refactored into modular components in the evaluation_module
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
 import sys
+import uuid
+from datetime import datetime
 from pathlib import Path
 
 # Add project root to the Python path
@@ -56,6 +59,7 @@ from marrvel_mcp import TokenLimitExceeded
 # Import all evaluation modules
 from evaluation_modules import (
     # Cache management
+    CACHE_DIR,
     clear_cache,
     # Evaluation
     get_langchain_response,
@@ -104,6 +108,17 @@ async def main():
         print("📢 Verbose mode enabled - showing detailed error messages")
     else:
         logging.basicConfig(level=logging.WARNING)
+
+    # Determine Run ID
+    if args.resume:
+        run_id = args.resume
+        print(f"🔄 Resuming run: {run_id}")
+        if args.retry_failed:
+            print("   Re-running failed tests")
+    else:
+        # Generate new unique ID: short UUID (8 chars)
+        run_id = str(uuid.uuid4())[:8]
+        print(f"🆔 Run ID: {run_id}")
 
     # Configure LLM with provider abstraction
     # Re-resolve model config inside main to respect any env var changes that occurred
@@ -219,7 +234,7 @@ async def main():
 
     # Clear cache if requested
     if args.clear:
-        clear_cache()
+        clear_cache(run_id if args.resume else None)
         return  # Exit without running any tests
 
     # Handle --prompt mode (ad-hoc question)
@@ -264,10 +279,38 @@ async def main():
 
         return  # Exit after handling prompt
 
-    # Load test cases
-    test_cases_path = Path(__file__).parent / "test_cases.yaml"
-    with open(test_cases_path, "r", encoding="utf-8") as f:
-        all_test_cases = yaml.safe_load(f)
+    # Load test cases with snapshotting and UUID generation
+    run_dir = CACHE_DIR / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_path = run_dir / "test_cases.yaml"
+
+    if args.resume:
+        if not snapshot_path.exists():
+            print(f"❌ Error: Snapshot not found for run {run_id}")
+            print(f"   Expected: {snapshot_path}")
+            return
+
+        print(f"📂 Loading test cases from snapshot: {snapshot_path}")
+        with open(snapshot_path, "r", encoding="utf-8") as f:
+            all_test_cases = yaml.safe_load(f)
+    else:
+        # Load from source
+        source_path = Path(__file__).parent / "test_cases.yaml"
+        with open(source_path, "r", encoding="utf-8") as f:
+            all_test_cases = yaml.safe_load(f)
+
+        # Generate deterministic UUIDs and inject into test cases
+        for tc in all_test_cases:
+            # Create a deterministic hash based on the test case content
+            # We use the 'case' dictionary which contains the definition
+            case_content = json.dumps(tc["case"], sort_keys=True)
+            tc_uuid = hashlib.md5(case_content.encode()).hexdigest()[:8]
+            tc["uuid"] = tc_uuid
+
+        # Save snapshot
+        print(f"📸 Saving test case snapshot to: {snapshot_path}")
+        with open(snapshot_path, "w", encoding="utf-8") as f:
+            yaml.dump(all_test_cases, f, sort_keys=False)
 
     # Filter test cases if subset is specified
     if args.subset:
@@ -290,7 +333,9 @@ async def main():
     semaphore = asyncio.Semaphore(args.concurrency)
 
     # Determine whether to use cache
-    use_cache = args.cache
+    # If resuming, default to using cache unless explicitly disabled (though we don't have a disable flag yet)
+    # For now, just OR it with the cache flag
+    use_cache = args.cache or bool(args.resume)
 
     # Handle --multi-model mode: test multiple models across all three modes
     if args.multi_model:
@@ -414,7 +459,10 @@ async def main():
                             mcp_client,
                             test_case,
                             llm_evaluator,
+                            run_id,
+                            test_case["uuid"],
                             use_cache=use_cache,
+                            retry_failed=args.retry_failed,
                             vanilla_mode=True,
                             web_mode=False,
                             model_id=model_id,
@@ -452,7 +500,10 @@ async def main():
                             mcp_client,
                             test_case,
                             llm_evaluator,
+                            run_id,
+                            test_case["uuid"],
                             use_cache=use_cache,
+                            retry_failed=args.retry_failed,
                             vanilla_mode=False,
                             web_mode=True,
                             model_id=model_id,
@@ -477,7 +528,10 @@ async def main():
                         mcp_client,
                         test_case,
                         llm_evaluator,
+                        run_id,
+                        test_case["uuid"],
                         use_cache=use_cache,
+                        retry_failed=args.retry_failed,
                         vanilla_mode=False,
                         web_mode=False,
                         model_id=model_id,
@@ -885,7 +939,10 @@ async def main():
                     mcp_client,
                     test_case,
                     llm_evaluator,
+                    run_id,
+                    test_case["uuid"],
                     use_cache=use_cache,
+                    retry_failed=args.retry_failed,
                     vanilla_mode=True,
                     pbar=pbar_vanilla,
                     llm_instance=llm,
@@ -906,7 +963,10 @@ async def main():
                     mcp_client,
                     test_case,
                     llm_evaluator,
+                    run_id,
+                    test_case["uuid"],
                     use_cache=use_cache,
+                    retry_failed=args.retry_failed,
                     web_mode=True,
                     pbar=pbar_web,
                     llm_instance=llm,
@@ -927,7 +987,10 @@ async def main():
                     mcp_client,
                     test_case,
                     llm_evaluator,
+                    run_id,
+                    test_case["uuid"],
                     use_cache=use_cache,
+                    retry_failed=args.retry_failed,
                     vanilla_mode=False,
                     pbar=pbar_tool,
                     llm_instance=llm,
@@ -981,7 +1044,10 @@ async def main():
                     mcp_client,
                     test_case,
                     llm_evaluator,
+                    run_id,
+                    test_case["uuid"],
                     use_cache=use_cache,
+                    retry_failed=args.retry_failed,
                     vanilla_mode=True,
                     pbar=pbar_vanilla,
                     llm_instance=llm,
@@ -1002,7 +1068,10 @@ async def main():
                     mcp_client,
                     test_case,
                     llm_evaluator,
+                    run_id,
+                    test_case["uuid"],
                     use_cache=use_cache,
+                    retry_failed=args.retry_failed,
                     vanilla_mode=False,
                     pbar=pbar_tool,
                     llm_instance=llm,
@@ -1053,7 +1122,10 @@ async def main():
                     mcp_client,
                     test_case,
                     llm_evaluator,
+                    run_id,
+                    test_case["uuid"],
                     use_cache=use_cache,
+                    retry_failed=args.retry_failed,
                     vanilla_mode=False,
                     pbar=pbar,
                     llm_instance=llm,

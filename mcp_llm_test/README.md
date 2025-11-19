@@ -78,28 +78,6 @@ export LLM_MODEL=gpt-4
 export OPENAI_API_KEY=your_openai_api_key
 ```
 
-#### Ollama (Local)
-Run LLMs locally:
-```bash
-# Install Ollama from https://ollama.ai
-ollama pull llama2
-
-export LLM_PROVIDER=ollama
-export LLM_MODEL=llama2
-# OPENAI_API_KEY not required (uses dummy key automatically)
-# OPENAI_API_BASE automatically set to http://localhost:11434/v1
-```
-
-#### LM Studio (Local)
-Use LM Studio for local inference:
-```bash
-# Start LM Studio with local server enabled
-export LLM_PROVIDER=lm-studio
-export LLM_MODEL=local-model
-# OPENAI_API_KEY not required (uses dummy key automatically)
-# OPENAI_API_BASE automatically set to http://localhost:1234/v1
-```
-
 #### AWS Bedrock
 Use AWS-managed foundation models:
 ```bash
@@ -107,14 +85,6 @@ export LLM_PROVIDER=bedrock
 export LLM_MODEL=anthropic.claude-3-sonnet-20240229-v1:0
 export AWS_REGION=us-east-1
 # AWS credentials from ~/.aws/credentials or environment
-```
-
-### Backward Compatibility
-
-For backward compatibility, you can still use `OPENROUTER_MODEL` without specifying `LLM_PROVIDER`:
-```bash
-export OPENAI_API_KEY=your_openrouter_api_key
-export OPENROUTER_MODEL=google/gemini-2.5-flash
 ```
 
 This will automatically use OpenRouter as the provider. Note that the unified config uses `OPENAI_API_KEY` for all OpenAI-compatible providers, including OpenRouter.

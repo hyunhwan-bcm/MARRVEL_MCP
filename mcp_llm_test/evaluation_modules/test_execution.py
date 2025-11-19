@@ -20,7 +20,10 @@ async def run_test_case(
     mcp_client: Client,
     test_case: Dict[str, Any],
     llm_evaluator,
+    run_id: str,
+    test_uuid: str,
     use_cache: bool = True,
+    retry_failed: bool = False,
     vanilla_mode: bool = False,
     web_mode: bool = False,
     model_id: str | None = None,
@@ -36,7 +39,11 @@ async def run_test_case(
         mcp_client: MCP client for tool calls
         test_case: Test case dictionary
         llm_evaluator: LLM instance to use for evaluation
+        llm_evaluator: LLM instance to use for evaluation
+        run_id: Unique identifier for the run
+        test_uuid: Unique identifier for the test case
         use_cache: Whether to use cached results (default: True)
+        retry_failed: Whether to re-run failed tests (default: False)
         vanilla_mode: If True, run without tool calling (default: False)
         web_mode: If True, run with web search enabled (default: False)
         model_id: Model identifier for model-specific cache (default: None)
@@ -51,28 +58,44 @@ async def run_test_case(
 
         # Check cache first if enabled
         if use_cache:
-            cached = load_cached_result(name, vanilla_mode, web_mode, model_id)
+            cached = load_cached_result(run_id, test_uuid, vanilla_mode, web_mode, model_id)
             if cached is not None:
                 # Check if cached result is a failure
                 classification = cached.get("classification", "")
-                is_failure = (
-                    classification.lower().startswith("no")
-                    or "error" in classification.lower()
-                    or "token" in classification.lower()
-                )
+                status = cached.get("status", "")
 
-                # If cached result was successful, reuse it
-                if not is_failure:
+                # Refined Retry Logic:
+                # 1. ERROR status -> Always retry (treat as missing)
+                if status == "ERROR" or "error" in str(classification).lower():
+                    if pbar:
+                        mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
+                        pbar.set_postfix_str(f"Retrying error ({mode_label}): {name[:40]}...")
+
+                # 2. Incorrect answer ("no") -> Retry only if retry_failed is True
+                elif str(classification).lower().startswith("no"):
+                    if retry_failed:
+                        if pbar:
+                            mode_label = (
+                                "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
+                            )
+                            pbar.set_postfix_str(f"Retrying failed ({mode_label}): {name[:40]}...")
+                    else:
+                        # Return cached failure
+                        if pbar:
+                            mode_label = (
+                                "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
+                            )
+                            pbar.set_postfix_str(f"Cached failure ({mode_label}): {name[:40]}...")
+                            pbar.update(1)
+                        return cached
+
+                # 3. Success ("yes") -> Always return cached
+                else:
                     if pbar:
                         mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
                         pbar.set_postfix_str(f"Cached ({mode_label}): {name[:40]}...")
                         pbar.update(1)
                     return cached
-
-                # Otherwise, re-run the failed test
-                if pbar:
-                    mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
-                    pbar.set_postfix_str(f"Re-running failed ({mode_label}): {name[:40]}...")
 
         if pbar:
             mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
@@ -137,7 +160,7 @@ async def run_test_case(
                 "metadata": metadata,
             }
             # Save to cache
-            save_cached_result(name, result, vanilla_mode, web_mode, model_id)
+            save_cached_result(run_id, test_uuid, result, vanilla_mode, web_mode, model_id)
             if pbar:
                 pbar.update(1)
             return result

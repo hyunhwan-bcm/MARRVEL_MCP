@@ -66,12 +66,12 @@
 - case:
     name: "gnomAD presence"
     input: "Is Chr9:99694174 C>T found in gnomAD?"
-    expected: "Chr9:99694174 C>T is not found in gnomAD control populations."
+    expected: "This variant is not found in gnomAD control populations."
 
 - case:
     name: "gnomAD presence 2"
-    input: "Is Chr9:96937172 C>A found in gnomAD?"
-    expected: "Yes, Chr9:96937172 C>A is found in gnomAD control populations."
+    input: "Is Chr9:99699454 C>A (hg19) found in gnomAD?"
+    expected: "Yes, this variant is found in gnomAD control populations."
 
 - case:
     name: "LoF o/e score"
@@ -180,13 +180,13 @@
 
 - case:
     name: "PubMed search by gene name"
-    input: "Search PubMed for recent articles about BRCA1 gene and breast cancer. Limit to 3 results."
-    expected: "Articles about BRCA1 and breast cancer are found."
+    input: "Search PubMed for articles about BRCA1. Limit to 3 results and provide abstracts."
+    expected: "No more than 3 articles are found, all are about BRCA1 and include PubMed ids [29687286, 35432218, 23867111]."
 
 - case:
     name: "PubMed search by disease name"
-    input: "Search PubMed for articles about Rett syndrome. Limit to 3 results."
-    expected: "No more than 3 articles are found, all are about Rett syndrome and include accurate PubMed ids."
+    input: "Search PubMed for articles about Rett syndrome. Limit to 3 results and provide abstracts."
+    expected: "No more than 3 articles are found, all are about Rett syndrome and include PubMed ids [37628658, 29445033, 39331775]."
 
 - case:
     name: "PMC abstract lookup by PMC ID"
