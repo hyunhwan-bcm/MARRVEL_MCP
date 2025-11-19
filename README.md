@@ -113,42 +113,7 @@ export LLM_MODEL=gpt-4
 export OPENAI_API_KEY=your_openai_api_key
 # OPENAI_API_BASE uses OpenAI's default endpoint if not specified
 ```
-
-#### 3. Ollama (Local LLMs)
-
-Run LLMs locally with Ollama:
-
-```bash
-# Install and start Ollama
-# Visit https://ollama.ai for installation instructions
-ollama pull llama2
-
-# Configure MARRVEL-MCP
-export LLM_PROVIDER=ollama
-export LLM_MODEL=llama2
-# OPENAI_API_KEY not required (uses dummy key automatically)
-# OPENAI_API_BASE automatically set to http://localhost:11434/v1 for ollama provider
-
-# For remote Ollama instance:
-export OPENAI_API_BASE=http://remote-server:11434/v1
-```
-
-#### 4. LM Studio
-
-Run models locally with LM Studio:
-
-```bash
-# Start LM Studio and enable the local server
-export LLM_PROVIDER=lm-studio
-export LLM_MODEL=local-model
-# OPENAI_API_KEY not required (uses dummy key automatically)
-# OPENAI_API_BASE automatically set to http://localhost:1234/v1 for lm-studio provider
-
-# For custom port:
-export OPENAI_API_BASE=http://localhost:5678/v1
-```
-
-#### 5. AWS Bedrock (Separate Configuration)
+#### 3. AWS Bedrock (Separate Configuration)
 
 Bedrock uses AWS credentials, not OpenAI-compatible config:
 
@@ -160,7 +125,7 @@ export AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 export AWS_REGION=us-east-1
 ```
 
-#### 6. Other OpenAI-Compatible Services
+#### 4. Other OpenAI-Compatible Services
 
 Any service compatible with the OpenAI API (Groq, Mistral, DeepSeek, vLLM, etc.):
 
@@ -170,17 +135,6 @@ export LLM_MODEL=your-model-name
 export OPENAI_API_KEY=your-api-key
 export OPENAI_API_BASE=https://your-service.com/v1
 ```
-
-### Legacy Configuration
-
-For backward compatibility with the OpenRouter-only setup:
-
-```bash
-export OPENROUTER_MODEL=google/gemini-2.5-flash
-export OPENAI_API_KEY=your_openrouter_key
-```
-
-**Note:** This legacy format is deprecated. Please use `LLM_PROVIDER` and `LLM_MODEL` for new configurations.
 
 ## Documentation
 
