@@ -725,8 +725,8 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
                     data_obj[ome]["alleleFrequency"] = (
                         data_obj[ome]["alleleCount"] / data_obj[ome]["alleleNum"]
                     )
-            data_obj["pos"] = (pos,)
-            data_obj["chr"] = (chr,)
+            data_obj["pos"] = pos
+            data_obj["chr"] = chr
         else:
             data_obj = {"message": "This variant does not appear in gnomad reference populations."}
         data = json.dumps(data_obj, indent=2)
