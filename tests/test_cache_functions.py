@@ -40,10 +40,11 @@ def temp_cache_dir(monkeypatch, tmp_path):
 
     yield test_cache_dir
 
-    # Cleanup
+    # Cleanup - handle directories and files
     if test_cache_dir.exists():
-        for file in test_cache_dir.glob("*"):
-            file.unlink()
+        import shutil
+        shutil.rmtree(test_cache_dir)
+        test_cache_dir.mkdir(parents=True, exist_ok=True)
 
 
 class TestCachePath:
@@ -51,37 +52,41 @@ class TestCachePath:
 
     def test_simple_name(self, temp_cache_dir):
         """Test cache path generation for simple test case name."""
-        test_name = "Simple Test"
-        cache_path = get_cache_path(test_name)
+        run_id = "test_run"
+        test_uuid = "simple_test_uuid"
+        cache_path = get_cache_path(run_id, test_uuid)
 
-        assert cache_path.parent == temp_cache_dir
-        assert cache_path.name == "Simple_Test.pkl"
+        # Check that the path is in the run-specific subdirectory
+        assert cache_path.parent == temp_cache_dir / run_id
+        assert cache_path.name == f"{test_uuid}.pkl"
         assert cache_path.suffix == ".pkl"
 
     def test_name_with_special_characters(self, temp_cache_dir):
-        """Test cache path generation sanitizes special characters."""
-        test_name = "Test: Gene for NM_001045477.4:c.187C>T"
-        cache_path = get_cache_path(test_name)
+        """Test cache path generation with UUID (no special character sanitization needed)."""
+        run_id = "test_run"
+        test_uuid = "test_uuid_with_special_chars"
+        cache_path = get_cache_path(run_id, test_uuid)
 
-        # Special characters should be replaced with underscores
-        assert ":" not in cache_path.name
-        assert ">" not in cache_path.name
-        assert cache_path.name.endswith(".pkl")
+        # UUIDs don't have special characters, they're already sanitized
+        assert cache_path.name == f"{test_uuid}.pkl"
+        assert cache_path.suffix == ".pkl"
 
     def test_name_with_multiple_spaces(self, temp_cache_dir):
-        """Test cache path generation handles multiple spaces."""
-        test_name = "Test   With   Multiple   Spaces"
-        cache_path = get_cache_path(test_name)
+        """Test cache path generation with UUID."""
+        run_id = "test_run"
+        test_uuid = "test_uuid_with_underscores"
+        cache_path = get_cache_path(run_id, test_uuid)
 
-        # Multiple spaces should become single underscores
-        assert cache_path.name == "Test___With___Multiple___Spaces.pkl"
+        # UUIDs are used directly as filenames
+        assert cache_path.name == f"{test_uuid}.pkl"
 
     def test_empty_name(self, temp_cache_dir):
-        """Test cache path generation for empty name."""
-        test_name = ""
-        cache_path = get_cache_path(test_name)
+        """Test cache path generation for empty UUID."""
+        run_id = "test_run"
+        test_uuid = ""
+        cache_path = get_cache_path(run_id, test_uuid)
 
-        assert cache_path.parent == temp_cache_dir
+        assert cache_path.parent == temp_cache_dir / run_id
         assert cache_path.name == ".pkl"
 
 
@@ -90,7 +95,8 @@ class TestSaveAndLoadCache:
 
     def test_save_and_load_simple_result(self, temp_cache_dir):
         """Test saving and loading a simple cached result."""
-        test_name = "Simple Test"
+        run_id = "test_run"
+        test_uuid = "simple_test_uuid"
         test_result = {
             "question": "What is 2+2?",
             "response": "4",
@@ -100,21 +106,22 @@ class TestSaveAndLoadCache:
         }
 
         # Save the result
-        save_cached_result(test_name, test_result)
+        save_cached_result(run_id, test_uuid, test_result)
 
         # Verify file was created
-        cache_path = get_cache_path(test_name)
+        cache_path = get_cache_path(run_id, test_uuid)
         assert cache_path.exists()
 
         # Load the result
-        loaded_result = load_cached_result(test_name)
+        loaded_result = load_cached_result(run_id, test_uuid)
 
         assert loaded_result is not None
         assert loaded_result == test_result
 
     def test_save_and_load_complex_result(self, temp_cache_dir):
         """Test saving and loading a complex cached result with nested data."""
-        test_name = "Complex Test"
+        run_id = "test_run"
+        test_uuid = "complex_test_uuid"
         test_result = {
             "question": "Complex question",
             "response": "Complex response",
@@ -131,10 +138,10 @@ class TestSaveAndLoadCache:
         }
 
         # Save the result
-        save_cached_result(test_name, test_result)
+        save_cached_result(run_id, test_uuid, test_result)
 
         # Load the result
-        loaded_result = load_cached_result(test_name)
+        loaded_result = load_cached_result(run_id, test_uuid)
 
         assert loaded_result is not None
         assert loaded_result == test_result
@@ -143,25 +150,27 @@ class TestSaveAndLoadCache:
 
     def test_load_nonexistent_cache(self, temp_cache_dir):
         """Test loading cache for non-existent test case."""
-        test_name = "Nonexistent Test"
-        loaded_result = load_cached_result(test_name)
+        run_id = "test_run"
+        test_uuid = "nonexistent_test_uuid"
+        loaded_result = load_cached_result(run_id, test_uuid)
 
         assert loaded_result is None
 
     def test_save_overwrites_existing_cache(self, temp_cache_dir):
         """Test that saving overwrites existing cache."""
-        test_name = "Overwrite Test"
+        run_id = "test_run"
+        test_uuid = "overwrite_test_uuid"
         result1 = {"response": "First response"}
         result2 = {"response": "Second response"}
 
         # Save first result
-        save_cached_result(test_name, result1)
-        loaded1 = load_cached_result(test_name)
+        save_cached_result(run_id, test_uuid, result1)
+        loaded1 = load_cached_result(run_id, test_uuid)
         assert loaded1 == result1
 
         # Save second result (should overwrite)
-        save_cached_result(test_name, result2)
-        loaded2 = load_cached_result(test_name)
+        save_cached_result(run_id, test_uuid, result2)
+        loaded2 = load_cached_result(run_id, test_uuid)
         assert loaded2 == result2
         assert loaded2 != result1
 
@@ -178,46 +187,59 @@ class TestClearCache:
 
     def test_clear_cache_with_files(self, temp_cache_dir):
         """Test clearing cache with multiple files."""
+        run_id = "test_run"
         # Create multiple cache files
-        test_cases = ["Test 1", "Test 2", "Test 3"]
-        for test_name in test_cases:
-            save_cached_result(test_name, {"response": f"Response for {test_name}"})
+        test_cases = [
+            ("test_uuid_1", {"response": "Response for test 1"}),
+            ("test_uuid_2", {"response": "Response for test 2"}),
+            ("test_uuid_3", {"response": "Response for test 3"}),
+        ]
+        for test_uuid, result in test_cases:
+            save_cached_result(run_id, test_uuid, result)
 
         # Verify files were created
-        assert len(list(temp_cache_dir.glob("*.pkl"))) == 3
+        run_dir = temp_cache_dir / run_id
+        assert len(list(run_dir.glob("*.pkl"))) == 3
 
-        # Clear cache
-        clear_cache()
+        # Clear cache for this run
+        clear_cache(run_id)
 
-        # Verify all files were deleted
-        assert len(list(temp_cache_dir.glob("*.pkl"))) == 0
+        # Verify all files were deleted (directory should be gone)
+        assert not run_dir.exists()
 
     def test_clear_cache_preserves_directory(self, temp_cache_dir):
-        """Test that clearing cache preserves the directory."""
+        """Test that clearing cache for a specific run removes the run directory."""
+        run_id = "test_run"
         # Create some cache files
-        save_cached_result("Test", {"response": "Response"})
+        save_cached_result(run_id, "test_uuid", {"response": "Response"})
 
-        # Clear cache
-        clear_cache()
+        # Clear cache for this run
+        clear_cache(run_id)
 
-        # Directory should still exist
+        # Run directory should not exist anymore
+        run_dir = temp_cache_dir / run_id
+        assert not run_dir.exists()
+        
+        # But the main cache directory should still exist
         assert temp_cache_dir.exists()
 
     def test_clear_cache_ignores_non_pkl_files(self, temp_cache_dir):
-        """Test that clearing cache only removes .pkl files."""
+        """Test that clearing cache removes run directory with .pkl files."""
+        run_id = "test_run"
         # Create a cache file
-        save_cached_result("Test", {"response": "Response"})
+        save_cached_result(run_id, "test_uuid", {"response": "Response"})
 
-        # Create a non-pkl file
-        other_file = temp_cache_dir / "other_file.txt"
+        # Create a non-pkl file in the run directory
+        run_dir = temp_cache_dir / run_id
+        other_file = run_dir / "other_file.txt"
         other_file.write_text("Some content")
 
-        # Clear cache
-        clear_cache()
+        # Clear cache for this run
+        clear_cache(run_id)
 
-        # Only .pkl files should be deleted
-        assert len(list(temp_cache_dir.glob("*.pkl"))) == 0
-        assert other_file.exists()
+        # The entire run directory should be deleted (including non-pkl files)
+        assert not run_dir.exists()
+        assert not other_file.exists()
 
 
 class TestCacheIntegration:
@@ -225,48 +247,52 @@ class TestCacheIntegration:
 
     def test_multiple_test_cases(self, temp_cache_dir):
         """Test caching multiple test cases independently."""
+        run_id = "test_run"
         test_cases = {
-            "Gene Query": {"response": "TP53"},
-            "Variant Query": {"response": "Pathogenic"},
-            "OMIM Query": {"response": "Disease info"},
+            "gene_query_uuid": {"response": "TP53"},
+            "variant_query_uuid": {"response": "Pathogenic"},
+            "omim_query_uuid": {"response": "Disease info"},
         }
 
         # Save all test cases
-        for name, result in test_cases.items():
-            save_cached_result(name, result)
+        for test_uuid, result in test_cases.items():
+            save_cached_result(run_id, test_uuid, result)
 
         # Verify all were saved
-        assert len(list(temp_cache_dir.glob("*.pkl"))) == 3
+        run_dir = temp_cache_dir / run_id
+        assert len(list(run_dir.glob("*.pkl"))) == 3
 
         # Load and verify each
-        for name, expected_result in test_cases.items():
-            loaded_result = load_cached_result(name)
+        for test_uuid, expected_result in test_cases.items():
+            loaded_result = load_cached_result(run_id, test_uuid)
             assert loaded_result == expected_result
 
     def test_cache_persistence(self, temp_cache_dir):
         """Test that cache persists across multiple operations."""
-        test_name = "Persistence Test"
+        run_id = "test_run"
+        test_uuid = "persistence_test_uuid"
         test_result = {"response": "Persistent response"}
 
         # Save result
-        save_cached_result(test_name, test_result)
+        save_cached_result(run_id, test_uuid, test_result)
 
         # Load multiple times
         for _ in range(5):
-            loaded_result = load_cached_result(test_name)
+            loaded_result = load_cached_result(run_id, test_uuid)
             assert loaded_result == test_result
 
     def test_cache_with_unicode_characters(self, temp_cache_dir):
-        """Test cache handles Unicode characters in test names and results."""
-        test_name = "Test with émojis 🧬 and ünïcode"
+        """Test cache handles Unicode characters in results (UUIDs don't have unicode)."""
+        run_id = "test_run"
+        test_uuid = "unicode_test_uuid"
         test_result = {
             "response": "Response with émojis 🧬 and ünïcode",
             "classification": "yes",
         }
 
         # Save and load
-        save_cached_result(test_name, test_result)
-        loaded_result = load_cached_result(test_name)
+        save_cached_result(run_id, test_uuid, test_result)
+        loaded_result = load_cached_result(run_id, test_uuid)
 
         assert loaded_result is not None
         assert loaded_result == test_result
