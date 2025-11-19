@@ -90,20 +90,52 @@ async def invoke_with_throttle_retry(
                 f"{error_name}: {error_msg[:200]}"
             )
 
-            # Check for throttling/rate limit indicators OR transient connection errors
-            transient_indicators = [
+            # Determine classification (throttling vs connection)
+            classification = None
+            name_lower = error_name.lower()
+
+            throttling_indicators = [
                 "throttling",
                 "rate limit",
                 "too many",
                 "reached max retries",
+            ]
+            connection_indicators = [
                 "apiconnectionerror",
                 "connection error",
                 "connecttimeout",
+                "timeout",
             ]
-            for indicator in transient_indicators:
-                if indicator in error_name.lower() or indicator in error_msg_lower:
-                    is_throttling = True
-                    break
+
+            if any(ind in name_lower or ind in error_msg_lower for ind in throttling_indicators):
+                classification = "throttling"
+            elif any(ind in name_lower or ind in error_msg_lower for ind in connection_indicators):
+                classification = "connection"
+
+            # Try to refine using SDK exception types if available
+            try:
+                import openai  # type: ignore
+
+                if isinstance(e, openai.APIConnectionError):
+                    classification = "connection"
+                if isinstance(e, openai.RateLimitError):
+                    classification = "throttling"
+            except Exception:
+                pass
+
+            if classification == "throttling":
+                is_throttling = True
+            elif classification == "connection":
+                # We will also retry connection errors but with capped backoff
+                is_throttling = True  # reuse same retry loop but adjust delay below
+                # Clamp delay growth for connection errors
+                max_delay = min(max_delay, 10.0)
+
+            if classification:
+                logging.warning(
+                    f"🔍 Transient error classified as '{classification}': {error_name} | Will retry"
+                )
+                logging.debug(f"Error message detail: {error_msg[:500]}")
 
             # Only retry on throttling/rate limit errors
             if is_throttling and attempt < max_retries:
