@@ -1429,7 +1429,7 @@ async def search_pubmed(
 
         sort = "relevance"
 
-        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?term={query}&sort={sort}"
+        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?term={query}&sort={sort}&retmax={max_results}"
 
         async def fetch_pmc_data():
             async with httpx.AsyncClient(timeout=15) as client:
@@ -1448,7 +1448,7 @@ async def search_pubmed(
             "total_results": total_count,
             "returned_results": len(pmIDs),
             "max_results": max_results,
-            "pmIDs": pmIDs[0:max_results],
+            "pmIDs": pmIDs,
         }
 
         return json.dumps(response, indent=2)
