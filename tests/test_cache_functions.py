@@ -43,6 +43,7 @@ def temp_cache_dir(monkeypatch, tmp_path):
     # Cleanup - handle directories and files
     if test_cache_dir.exists():
         import shutil
+
         shutil.rmtree(test_cache_dir)
         test_cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -219,7 +220,7 @@ class TestClearCache:
         # Run directory should not exist anymore
         run_dir = temp_cache_dir / run_id
         assert not run_dir.exists()
-        
+
         # But the main cache directory should still exist
         assert temp_cache_dir.exists()
 
