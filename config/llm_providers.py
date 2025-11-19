@@ -215,9 +215,13 @@ def get_api_key(provider: ProviderType, api_key_override: str | None = None) -> 
     if api_key_override:
         return api_key_override.strip()
 
-    # 2. Global OPENAI_API_KEY
+    # 2. Provider-specific environment variables
+    # For OpenRouter we allow either OPENROUTER_API_KEY (preferred) or OPENAI_API_KEY (backward compatibility)
+    if provider == "openrouter":
+        openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        if openrouter_key:
+            return openrouter_key
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
-
     return api_key if api_key else None
 
 
@@ -254,11 +258,12 @@ def validate_provider_credentials(
     # Other OpenAI-compatible providers require API key
     api_key = get_api_key(provider, api_key_override)
     if not api_key:
-        raise ValueError(
-            "OPENAI_API_KEY not found in environment variables. "
-            "Please set it in a .env file or export it as an environment variable, "
-            "or provide api_key parameter for per-model override."
-        )
+        missing_msg = (
+            "Missing API key for provider '{provider}'. "
+            "Set OPENAI_API_KEY or, for openrouter, OPENROUTER_API_KEY, "
+            "or pass api_key override."
+        ).format(provider=provider)
+        raise ValueError(missing_msg)
 
     return True
 

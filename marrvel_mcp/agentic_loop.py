@@ -90,16 +90,20 @@ async def invoke_with_throttle_retry(
                 f"{error_name}: {error_msg[:200]}"
             )
 
-            # Check for throttling/rate limit indicators
-            if "throttling" in error_name.lower() or "throttling" in error_msg_lower:
-                is_throttling = True
-            elif "rate" in error_msg_lower and "limit" in error_msg_lower:
-                is_throttling = True
-            elif "too many" in error_msg_lower:
-                is_throttling = True
-            elif "reached max retries" in error_msg_lower:
-                # Boto3 exhausted its retries - we should retry at application level
-                is_throttling = True
+            # Check for throttling/rate limit indicators OR transient connection errors
+            transient_indicators = [
+                "throttling",
+                "rate limit",
+                "too many",
+                "reached max retries",
+                "apiconnectionerror",
+                "connection error",
+                "connecttimeout",
+            ]
+            for indicator in transient_indicators:
+                if indicator in error_name.lower() or indicator in error_msg_lower:
+                    is_throttling = True
+                    break
 
             # Only retry on throttling/rate limit errors
             if is_throttling and attempt < max_retries:
