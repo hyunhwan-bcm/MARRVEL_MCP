@@ -140,13 +140,11 @@ async def main():
 
     # Load YAML evaluator config and override if specified
     # This applies to ALL test modes for consistency (not just multi-model mode)
-    models_config_path = Path(args.models_config) if args.models_config else None
+    models_config_path = None  # Removed --models-config argument during refactoring
     yaml_evaluator_config = load_evaluator_config_from_yaml(models_config_path)
 
     # Determine the actual YAML file path for logging
-    yaml_file_path = (
-        models_config_path if models_config_path else Path(__file__).parent / "models_config.yaml"
-    )
+    yaml_file_path = Path(__file__).parent / "models_config.yaml"
 
     # Extract evaluator overrides (api_key, api_base) from YAML config
     evaluator_api_key_override = None
