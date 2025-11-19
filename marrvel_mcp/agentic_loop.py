@@ -91,6 +91,14 @@ async def invoke_with_throttle_retry(
 
     for attempt in range(max_retries + 1):
         try:
+            # Log the actual endpoint being used
+            if attempt == 0:  # Only log on first attempt
+                endpoint = getattr(llm_instance, "openai_api_base", None) or getattr(
+                    llm_instance, "base_url", "default"
+                )
+                model_name = getattr(llm_instance, "model_name", "unknown")
+                logging.warning(f"🌐 Invoking LLM | model={model_name} endpoint={endpoint}")
+
             result = await llm_instance.ainvoke(messages)
             if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
                 logging.warning(
