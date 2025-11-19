@@ -80,6 +80,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Literal
 
 from langchain_openai import ChatOpenAI
+import logging
 
 # Optional import for Bedrock - will be imported only when needed
 # from langchain_aws import ChatBedrock
@@ -323,6 +324,8 @@ def create_llm_instance(
             pass
 
     # Bedrock uses a different LangChain class
+    trace_enabled = os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE")
+
     if provider == "bedrock":
         try:
             from langchain_aws import ChatBedrock
@@ -386,7 +389,31 @@ def create_llm_instance(
         if resolved_api_base:
             openai_kwargs["openai_api_base"] = resolved_api_base
 
-        return ChatOpenAI(**openai_kwargs)
+        # Always log what we're about to use (not just in trace mode)
+        logging.warning(
+            f"🔧 Creating LLM instance | provider={provider} model={effective_model_id} "
+            f"base={resolved_api_base or '(OpenAI default)'} web_search={web_search}"
+        )
+
+        llm = ChatOpenAI(**openai_kwargs)
+
+        if trace_enabled:
+            masked_key = (
+                (resolved_api_key[:6] + "..." + resolved_api_key[-4:])
+                if resolved_api_key and len(resolved_api_key) > 10
+                else "(short/none)"
+            )
+            logging.warning(
+                "[LLM-TRACE] Created OpenAI-compatible LLM | provider=%s model=%s web_search=%s base=%s key=%s retries=%s timeout=%s",
+                provider,
+                openai_kwargs.get("model"),
+                web_search,
+                resolved_api_base or "(default)",
+                masked_key,
+                openai_kwargs.get("max_retries"),
+                openai_kwargs.get("timeout"),
+            )
+        return llm
 
     raise ValueError(f"Provider {provider} configuration error: no compatible API")
 
