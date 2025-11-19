@@ -127,7 +127,7 @@ PROVIDER_CONFIGS: Dict[ProviderType, ProviderConfig] = {
     ),
     "openrouter": ProviderConfig(
         name="openrouter",
-        default_api_base="https://openrouter.ai/api/v1",
+        default_api_base=None,  # Uses OPENAI_API_BASE env var
         supports_web_search=True,
         web_search_suffix=":online",
     ),
@@ -159,8 +159,8 @@ def get_api_base(provider: ProviderType, api_base_override: str | None = None) -
 
     Resolution order for OpenAI-compatible providers:
     1. Per-model override (api_base_override parameter)
-    2. Global default (OPENAI_API_BASE environment variable)
-    3. Provider-specific default (from PROVIDER_CONFIGS)
+    2. Provider-specific default (from PROVIDER_CONFIGS)
+    3. Global default (OPENAI_API_BASE environment variable)
 
     For Bedrock: Returns None (uses AWS SDK, not HTTP endpoint)
 
@@ -181,13 +181,17 @@ def get_api_base(provider: ProviderType, api_base_override: str | None = None) -
     if api_base_override:
         return api_base_override.strip()
 
-    # 2. Global OPENAI_API_BASE
+    # 2. Provider-specific default (if configured)
+    if config.default_api_base:
+        return config.default_api_base
+
+    # 3. Global OPENAI_API_BASE fallback (for providers without specific default)
     global_base = os.getenv("OPENAI_API_BASE", "").strip()
     if global_base:
         return global_base
 
-    # 3. Provider-specific default
-    return config.default_api_base
+    # 4. None means use OpenAI's default endpoint
+    return None
 
 
 def get_api_key(provider: ProviderType, api_key_override: str | None = None) -> str | None:
@@ -216,12 +220,7 @@ def get_api_key(provider: ProviderType, api_key_override: str | None = None) -> 
     if api_key_override:
         return api_key_override.strip()
 
-    # 2. Provider-specific environment variables
-    # For OpenRouter we allow either OPENROUTER_API_KEY (preferred) or OPENAI_API_KEY (backward compatibility)
-    if provider == "openrouter":
-        openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
-        if openrouter_key:
-            return openrouter_key
+    # 2. Global OPENAI_API_KEY
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     return api_key if api_key else None
 
@@ -261,8 +260,7 @@ def validate_provider_credentials(
     if not api_key:
         missing_msg = (
             "Missing API key for provider '{provider}'. "
-            "Set OPENAI_API_KEY or, for openrouter, OPENROUTER_API_KEY, "
-            "or pass api_key override."
+            "Set OPENAI_API_KEY or pass api_key override."
         ).format(provider=provider)
         raise ValueError(missing_msg)
 
@@ -418,40 +416,6 @@ def create_llm_instance(
     raise ValueError(f"Provider {provider} configuration error: no compatible API")
 
 
-def infer_provider_from_model_id(model_id: str) -> ProviderType:
-    """Infer provider from model ID based on naming conventions.
-
-    This is a heuristic function to automatically detect the provider
-    from the model ID format.
-
-    Args:
-        model_id: Model identifier
-
-    Returns:
-        Inferred provider type
-
-    Examples:
-        >>> infer_provider_from_model_id("google/gemini-2.5-flash")
-        'openrouter'
-        >>> infer_provider_from_model_id("gpt-4")
-        'openai'
-        >>> infer_provider_from_model_id("anthropic.claude-3-5-sonnet-20241022-v2:0")
-        'bedrock'
-        >>> infer_provider_from_model_id("llama2")
-        'ollama'
-    """
-    # Bedrock models use dot notation and version suffixes
-    if "." in model_id and model_id.endswith(":0"):
-        return "bedrock"
-
-    # OpenRouter models use provider/model format
-    if "/" in model_id:
-        return "openrouter"
-
-    # OpenAI models use specific naming
-    return "openai"
-
-
 __all__ = [
     "ProviderType",
     "ProviderConfig",
@@ -461,5 +425,4 @@ __all__ = [
     "get_api_key",
     "validate_provider_credentials",
     "create_llm_instance",
-    "infer_provider_from_model_id",
 ]
