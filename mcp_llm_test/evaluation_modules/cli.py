@@ -141,6 +141,19 @@ Cache Behavior:
     )
 
     parser.add_argument(
+        "--resume",
+        type=str,
+        metavar="RUN_ID",
+        help="Resume a previous run by providing its Run ID. Skips successfully completed tests.",
+    )
+
+    parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Re-run failed tests when resuming a run. If not specified, failed tests are skipped (loaded from cache).",
+    )
+
+    parser.add_argument(
         "--subset",
         type=str,
         metavar="INDICES",
