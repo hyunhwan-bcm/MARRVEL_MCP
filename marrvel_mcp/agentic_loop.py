@@ -166,7 +166,8 @@ async def invoke_with_throttle_retry(
                 logging.warning(
                     f"🔍 Transient error classified as '{classification}': {error_name} | Will retry"
                 )
-                logging.debug(f"Error message detail: {error_msg[:500]}")
+                logging.warning(f"   ↳ Error detail: {error_msg[:300]}")
+                logging.debug(f"Error message detail (full): {error_msg[:500]}")
 
             if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
                 logging.warning(
@@ -185,8 +186,8 @@ async def invoke_with_throttle_retry(
                 sleep_time = min(delay + jitter, max_delay)
 
                 logging.warning(
-                    f"🔄 Throttling detected ({error_name}), retrying in {sleep_time:.2f}s "
-                    f"(attempt {attempt + 1}/{max_retries + 1})"
+                    f"🔄 Retry scheduled in {sleep_time:.2f}s "
+                    f"(attempt {attempt + 1}/{max_retries + 1}, classification={classification})"
                 )
                 await asyncio.sleep(sleep_time)
                 delay = min(delay * 2, max_delay)  # Exponential backoff with cap
