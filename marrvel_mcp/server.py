@@ -1417,7 +1417,7 @@ async def convert_rsid_to_variant(rsid: str) -> str:
 
 @mcp.tool(
     name="search_pubmed",
-    description="Search PubMed for biomedical literature on genes, variants, diseases, or drugs with titles, abstracts, and metadata",
+    description="Search PubMed for biomedical literature on genes, variants, diseases, or drugs with titles, abstracts, and metadata. Returns a list of PMIDs ordered by relevance.",
     meta={"category": "literature", "database": "PubMed", "version": "1.0"},
 )
 async def search_pubmed(
@@ -1427,45 +1427,28 @@ async def search_pubmed(
         if max_results < 1 or max_results > 100:
             return json.dumps({"error": "max_results must be between 1 and 100"}, indent=2)
 
-        pubmed = PubMed(tool="MARRVEL_MCP", email=email)
+        sort = "relevance"
 
-        try:
-            total_count = pubmed.getTotalResultsCount(query)
-        except Exception:
-            total_count = "unknown"
+        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?term={query}&sort={sort}"
 
-        results = pubmed.query(query, max_results=max_results)
+        async def fetch_pmc_data():
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return resp.content
 
-        articles = []
-        for article in results:
-            try:
-                article_data = {
-                    "pubmed_id": article.pubmed_id,
-                    "title": article.title,
-                    "abstract": article.abstract,
-                    "authors": (
-                        [str(author) for author in article.authors] if article.authors else []
-                    ),
-                    "journal": article.journal,
-                    "publication_date": (
-                        str(article.publication_date) if article.publication_date else None
-                    ),
-                    "doi": article.doi,
-                    "keywords": article.keywords if article.keywords else [],
-                    "methods": article.methods,
-                    "conclusions": article.conclusions,
-                    "results": article.results,
-                }
-                articles.append(article_data)
-            except Exception:
-                continue
+        xml = await retry_with_backoff(fetch_pmc_data)
+        root = etree.fromstring(xml)
+        total_count = root.find("./Count").text
+
+        pmIDs = [i.text for i in root.find("./IdList")]
 
         response = {
             "query": query,
             "total_results": total_count,
-            "returned_results": len(articles),
+            "returned_results": len(pmIDs),
             "max_results": max_results,
-            "articles": articles,
+            "pmIDs": pmIDs[0:max_results],
         }
 
         return json.dumps(response, indent=2)
