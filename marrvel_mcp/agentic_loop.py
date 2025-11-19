@@ -13,6 +13,7 @@ import asyncio
 import json
 import logging
 import random
+import os
 from typing import Any, Dict, List, Tuple
 
 from fastmcp.client import Client
@@ -72,9 +73,33 @@ async def invoke_with_throttle_retry(
     delay = initial_delay
     last_exception = None
 
+    # Allow override of connection-error specific max backoff via env var
+    # LLM_CONN_MAX_BACKOFF: caps exponential backoff for classified connection errors (default 15s)
+    try:
+        conn_max_backoff = float(os.getenv("LLM_CONN_MAX_BACKOFF", "15"))
+    except ValueError:
+        conn_max_backoff = 15.0
+
+    if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
+        logging.warning(
+            "[LLM-TRACE] Backoff settings initial_delay=%.2f max_delay=%.2f conn_max_backoff=%.2f max_retries=%d",
+            initial_delay,
+            max_delay,
+            conn_max_backoff,
+            max_retries,
+        )
+
     for attempt in range(max_retries + 1):
         try:
-            return await llm_instance.ainvoke(messages)
+            result = await llm_instance.ainvoke(messages)
+            if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
+                logging.warning(
+                    "[LLM-TRACE] Successful invoke attempt=%d tokens_in=%s tool_calls=%d",
+                    attempt + 1,
+                    getattr(result, "usage_metadata", {}).get("input_tokens", "?"),
+                    len(getattr(result, "tool_calls", []) or []),
+                )
+            return result
         except Exception as e:
             last_exception = e
 
@@ -126,16 +151,32 @@ async def invoke_with_throttle_retry(
             if classification == "throttling":
                 is_throttling = True
             elif classification == "connection":
-                # We will also retry connection errors but with capped backoff
-                is_throttling = True  # reuse same retry loop but adjust delay below
-                # Clamp delay growth for connection errors
-                max_delay = min(max_delay, 10.0)
+                # Retry connection errors (transient network issues) with capped backoff
+                is_throttling = True  # reuse same loop
+                # Clamp delay growth for connection errors using env-configurable limit
+                max_delay = min(max_delay, conn_max_backoff)
+                if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
+                    logging.warning(
+                        "[LLM-TRACE] Connection error backoff clamp applied max_delay=%.2f (conn_max_backoff=%.2f)",
+                        max_delay,
+                        conn_max_backoff,
+                    )
 
             if classification:
                 logging.warning(
                     f"🔍 Transient error classified as '{classification}': {error_name} | Will retry"
                 )
                 logging.debug(f"Error message detail: {error_msg[:500]}")
+
+            if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
+                logging.warning(
+                    "[LLM-TRACE] Invoke failure attempt=%d type=%s classification=%s will_retry=%s msg=%s",
+                    attempt + 1,
+                    error_name,
+                    classification or "unknown",
+                    is_throttling and attempt < max_retries,
+                    error_msg[:200],
+                )
 
             # Only retry on throttling/rate limit errors
             if is_throttling and attempt < max_retries:
