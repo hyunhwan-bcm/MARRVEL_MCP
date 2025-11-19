@@ -91,7 +91,14 @@ async def test_run_test_case_updates_progress_bar():
 
         # Run test case with progress bar (needs llm_evaluator now)
         result = await run_test_case(
-            semaphore, mock_client, test_case, mock_llm_evaluator, use_cache=False, pbar=mock_pbar
+            semaphore,
+            mock_client,
+            test_case,
+            mock_llm_evaluator,
+            run_id="test_run",
+            test_uuid="test_uuid",
+            use_cache=False,
+            pbar=mock_pbar,
         )
 
         # Verify progress bar was updated
@@ -130,7 +137,14 @@ async def test_run_test_case_with_cached_result():
         }
 
         result = await run_test_case(
-            semaphore, mock_client, test_case, mock_llm_evaluator, use_cache=True, pbar=mock_pbar
+            semaphore,
+            mock_client,
+            test_case,
+            mock_llm_evaluator,
+            run_id="test_run",
+            test_uuid="test_uuid",
+            use_cache=True,
+            pbar=mock_pbar,
         )
 
         # Verify progress bar was updated for cached result
@@ -165,7 +179,14 @@ async def test_run_test_case_handles_errors_with_progress():
         }
 
         result = await run_test_case(
-            semaphore, mock_client, test_case, mock_llm_evaluator, use_cache=False, pbar=mock_pbar
+            semaphore,
+            mock_client,
+            test_case,
+            mock_llm_evaluator,
+            run_id="test_run",
+            test_uuid="test_uuid",
+            use_cache=False,
+            pbar=mock_pbar,
         )
 
         # Verify error was logged to progress bar
