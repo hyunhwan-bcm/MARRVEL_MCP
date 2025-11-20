@@ -80,12 +80,18 @@ from dataclasses import dataclass
 from typing import Any, Dict, Literal
 
 from langchain_openai import ChatOpenAI
+import logging
 
 # Optional import for Bedrock - will be imported only when needed
 # from langchain_aws import ChatBedrock
 
 
-ProviderType = Literal["bedrock", "openai", "openrouter", "ollama", "lm-studio"]
+ProviderType = Literal[
+    "bedrock",
+    "openai",
+    "openrouter",
+    None,
+]
 
 
 @dataclass
@@ -113,17 +119,20 @@ class ProviderConfig:
 # All OpenAI-compatible providers use global OPENAI_API_KEY and OPENAI_API_BASE
 # unless overridden per-model. Only Bedrock uses separate AWS credentials.
 PROVIDER_CONFIGS: Dict[ProviderType, ProviderConfig] = {
+    # AWS Bedrock (non-OpenAI-compatible)
     "bedrock": ProviderConfig(
         name="bedrock",
-        default_api_base=None,  # Uses AWS SDK, not HTTP endpoint
+        default_api_base=None,
         supports_web_search=False,
         use_openai_api=False,
     ),
+    # Native OpenAI - uses library default unless overridden
     "openai": ProviderConfig(
         name="openai",
-        default_api_base=None,  # Uses default OpenAI endpoint (https://api.openai.com/v1)
+        default_api_base=None,
         supports_web_search=False,
     ),
+    # OpenRouter routing platform
     "openrouter": ProviderConfig(
         name="openrouter",
         default_api_base="https://openrouter.ai/api/v1",
@@ -158,8 +167,8 @@ def get_api_base(provider: ProviderType, api_base_override: str | None = None) -
 
     Resolution order for OpenAI-compatible providers:
     1. Per-model override (api_base_override parameter)
-    2. Global default (OPENAI_API_BASE environment variable)
-    3. Provider-specific default (from PROVIDER_CONFIGS)
+    2. Provider-specific default (from PROVIDER_CONFIGS)
+    3. Global default (OPENAI_API_BASE environment variable)
 
     For Bedrock: Returns None (uses AWS SDK, not HTTP endpoint)
 
@@ -180,13 +189,17 @@ def get_api_base(provider: ProviderType, api_base_override: str | None = None) -
     if api_base_override:
         return api_base_override.strip()
 
-    # 2. Global OPENAI_API_BASE
+    # 2. Provider-specific default (if configured)
+    if config.default_api_base:
+        return config.default_api_base
+
+    # 3. Global OPENAI_API_BASE fallback (for providers without specific default)
     global_base = os.getenv("OPENAI_API_BASE", "").strip()
     if global_base:
         return global_base
 
-    # 3. Provider-specific default
-    return config.default_api_base
+    # 4. None means use OpenAI's default endpoint
+    return None
 
 
 def get_api_key(provider: ProviderType, api_key_override: str | None = None) -> str | None:
@@ -215,10 +228,18 @@ def get_api_key(provider: ProviderType, api_key_override: str | None = None) -> 
     if api_key_override:
         return api_key_override.strip()
 
-    # 2. Global OPENAI_API_KEY
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    # 2. Provider-specific environment variables (e.g. OPENROUTER_API_KEY)
+    if provider == "openrouter":
+        openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        if openrouter_key:
+            return openrouter_key
 
-    return api_key if api_key else None
+    # 3. Global OPENAI_API_KEY (fallback)
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if api_key:
+        return api_key
+
+    return None
 
 
 def validate_provider_credentials(
@@ -254,11 +275,12 @@ def validate_provider_credentials(
     # Other OpenAI-compatible providers require API key
     api_key = get_api_key(provider, api_key_override)
     if not api_key:
-        raise ValueError(
-            "OPENAI_API_KEY not found in environment variables. "
-            "Please set it in a .env file or export it as an environment variable, "
-            "or provide api_key parameter for per-model override."
-        )
+        logging.debug("Provider '%s' missing API key during validation", provider)
+        missing_msg = (
+            "Missing API key for provider '{provider}'. "
+            "Set OPENAI_API_KEY or pass api_key override."
+        ).format(provider=provider)
+        raise ValueError(missing_msg)
 
     return True
 
@@ -318,6 +340,8 @@ def create_llm_instance(
             pass
 
     # Bedrock uses a different LangChain class
+    trace_enabled = os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE")
+
     if provider == "bedrock":
         try:
             from langchain_aws import ChatBedrock
@@ -374,50 +398,50 @@ def create_llm_instance(
             **kwargs,
         }
 
-        # Add API key
+        # Add API key (provide both parameter names for broader compatibility across versions)
         openai_kwargs["openai_api_key"] = resolved_api_key
+        openai_kwargs["api_key"] = resolved_api_key
 
         # Set base URL if specified (per-model override, global default, or provider default)
         if resolved_api_base:
             openai_kwargs["openai_api_base"] = resolved_api_base
 
-        return ChatOpenAI(**openai_kwargs)
+        # Always log what we're about to use (not just in trace mode)
+        if not resolved_api_base and provider != "openai":
+            logging.warning(
+                f"⚠ No API base resolved for provider '{provider}'. Set OPENAI_API_BASE or pass api_base override. Using library default endpoint (likely OpenAI) which may be incompatible."
+            )
+
+        masked_key = (
+            (resolved_api_key[:6] + "..." + resolved_api_key[-4:])
+            if resolved_api_key and len(resolved_api_key) > 10
+            else "(short/none)"
+        )
+        logging.debug(
+            "Creating LLM instance | provider=%s model=%s base=%s web_search=%s key=%s",
+            provider,
+            effective_model_id,
+            resolved_api_base or "(library default)",
+            web_search,
+            masked_key,
+        )
+
+        llm = ChatOpenAI(**openai_kwargs)
+
+        if trace_enabled:
+            logging.warning(
+                "[LLM-TRACE] Created OpenAI-compatible LLM | provider=%s model=%s web_search=%s base=%s key=%s retries=%s timeout=%s",
+                provider,
+                openai_kwargs.get("model"),
+                web_search,
+                resolved_api_base or "(default)",
+                masked_key,
+                openai_kwargs.get("max_retries"),
+                openai_kwargs.get("timeout"),
+            )
+        return llm
 
     raise ValueError(f"Provider {provider} configuration error: no compatible API")
-
-
-def infer_provider_from_model_id(model_id: str) -> ProviderType:
-    """Infer provider from model ID based on naming conventions.
-
-    This is a heuristic function to automatically detect the provider
-    from the model ID format.
-
-    Args:
-        model_id: Model identifier
-
-    Returns:
-        Inferred provider type
-
-    Examples:
-        >>> infer_provider_from_model_id("google/gemini-2.5-flash")
-        'openrouter'
-        >>> infer_provider_from_model_id("gpt-4")
-        'openai'
-        >>> infer_provider_from_model_id("anthropic.claude-3-5-sonnet-20241022-v2:0")
-        'bedrock'
-        >>> infer_provider_from_model_id("llama2")
-        'ollama'
-    """
-    # Bedrock models use dot notation and version suffixes
-    if "." in model_id and model_id.endswith(":0"):
-        return "bedrock"
-
-    # OpenRouter models use provider/model format
-    if "/" in model_id:
-        return "openrouter"
-
-    # OpenAI models use specific naming
-    return "openai"
 
 
 __all__ = [
@@ -429,5 +453,4 @@ __all__ = [
     "get_api_key",
     "validate_provider_credentials",
     "create_llm_instance",
-    "infer_provider_from_model_id",
 ]

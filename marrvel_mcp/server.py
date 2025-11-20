@@ -61,7 +61,7 @@ root.setLevel(logging.WARNING)
 
 API_BASE_URL = "https://marrvel.org/graphql"  # GraphQL endpoint
 API_REST_BASE_URL = "https://marrvel.org/data"  # REST endpoint
-API_TIMEOUT = 30.0
+API_TIMEOUT = 5.0
 VERIFY_SSL = False  # Set to True for production
 
 
@@ -70,7 +70,52 @@ VERIFY_SSL = False  # Set to True for production
 # ============================================================================
 
 
-async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 1.0):
+def _capture_error_details(
+    e: httpx.HTTPStatusError,
+    max_retries: int,
+    attempt: int = None,
+    body_truncate_length: int = 1000,
+) -> dict:
+    """
+    Capture detailed error information for logging.
+
+    Args:
+        e: HTTPStatusError exception
+        max_retries: Maximum number of retry attempts
+        attempt: Current attempt number (None for final failure)
+        body_truncate_length: Maximum length of response body to capture
+
+    Returns:
+        Dictionary containing error details
+    """
+    error_details = {
+        "status_code": e.response.status_code,
+        "url": str(e.request.url) if e.request else "unknown",
+        "method": e.request.method if e.request else "unknown",
+    }
+
+    if attempt is not None:
+        error_details["attempt"] = f"{attempt + 1}/{max_retries + 1}"
+    else:
+        error_details["total_attempts"] = max_retries + 1
+
+    # Capture response body and headers for 500 errors
+    if e.response.status_code == 500:
+        try:
+            response_text = e.response.text[:body_truncate_length]
+            error_details["response_body"] = response_text
+        except Exception:
+            error_details["response_body"] = "<unable to read response body>"
+
+        try:
+            error_details["response_headers"] = dict(e.response.headers)
+        except Exception:
+            error_details["response_headers"] = "<unable to read headers>"
+
+    return error_details
+
+
+async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 5.0):
     """
     Retry an async function with exponential backoff for rate limiting (429 errors) and server errors (500).
 
@@ -100,13 +145,30 @@ async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 
                     jitter = delay * 0.1 * (asyncio.get_event_loop().time() % 1.0)
                     sleep_time = delay + jitter
                     error_type = "Rate limited" if e.response.status_code == 429 else "Server error"
+
+                    # Capture detailed error information for debugging
+                    error_details = _capture_error_details(
+                        e, max_retries, attempt=attempt, body_truncate_length=1000
+                    )
+
                     logging.warning(
                         f"{error_type} ({e.response.status_code}), retrying in {sleep_time:.2f}s "
-                        f"(attempt {attempt + 1}/{max_retries})"
+                        f"(attempt {attempt + 1}/{max_retries + 1}) - Details: {error_details}"
                     )
                     await asyncio.sleep(sleep_time)
                     delay *= 2  # Exponential backoff
                     continue
+                else:
+                    # Log final failure with full details
+                    error_type = "Rate limited" if e.response.status_code == 429 else "Server error"
+                    error_details = _capture_error_details(
+                        e, max_retries, attempt=None, body_truncate_length=2000
+                    )
+
+                    logging.error(
+                        f"Exhausted all retries for {error_type} ({e.response.status_code}). "
+                        f"Details: {error_details}"
+                    )
             # For other HTTP errors, raise immediately
             raise
         except Exception as e:
@@ -149,6 +211,21 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
 
     async def _fetch():
         """Inner function to perform the actual fetch, wrapped by retry logic."""
+        # Log request details for debugging
+        request_type = "GraphQL" if is_graphql else "REST"
+        if is_graphql:
+            request_url = API_BASE_URL
+            # Log query preview (first 200 chars)
+            query_preview = (
+                query_or_endpoint[:200] if len(query_or_endpoint) > 200 else query_or_endpoint
+            )
+            logging.debug(
+                f"Making {request_type} request to {request_url}, query: {query_preview}..."
+            )
+        else:
+            request_url = f"{API_REST_BASE_URL}{query_or_endpoint}"
+            logging.debug(f"Making {request_type} request to {request_url}")
+
         async with httpx.AsyncClient(verify=verify, timeout=API_TIMEOUT) as client:
             if is_graphql:
                 # GraphQL API call (POST request)
@@ -911,7 +988,7 @@ async def search_hpo_terms(phenotype_query: str) -> str:
         search_url = "https://ontology.jax.org/api/hp/search"
         params = {"q": phenotype_query, "page": 0, "limit": 10}
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
             search_response = await client.get(search_url, params=params)
             search_response.raise_for_status()
             search_data = search_response.json()
@@ -971,7 +1048,7 @@ async def get_hpo_associated_genes(hpo_id: str) -> str:
         encoded_hpo_id = hpo_id.replace(":", "%3A")
         genes_url = f"https://ontology.jax.org/api/network/annotation/{encoded_hpo_id}"
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
             genes_response = await client.get(genes_url)
             genes_response.raise_for_status()
             genes_data = genes_response.json()
@@ -1338,7 +1415,7 @@ async def convert_rsid_to_variant(rsid: str) -> str:
         url = f"https://clinicaltables.nlm.nih.gov/api/snps/v3/search"
         params = {"terms": rsid, "ef": "38.chr,38.pos,38.alleles,38.gene"}
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
             data = response.json()
@@ -1432,7 +1509,7 @@ async def search_pubmed(
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?term={query}&sort={sort}&retmax={max_results}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1470,7 +1547,7 @@ async def get_pmc_abstract_by_pmcid(pmcid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1511,7 +1588,7 @@ async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1553,7 +1630,7 @@ async def get_pmc_tables_by_pmcid(pmcid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1648,7 +1725,7 @@ async def get_pmc_figure_captions_by_pmcid(pmcid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1706,7 +1783,7 @@ async def pmid_to_pmcid(pmid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=pmc&id={pmid}&retmode=json"
 
         async def fetch_pmid_data():
-            async with httpx.AsyncClient(timeout=10) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.json()

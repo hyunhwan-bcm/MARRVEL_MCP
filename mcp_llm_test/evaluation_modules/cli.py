@@ -202,6 +202,12 @@ Cache Behavior:
     )
 
     parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress debug/info/warning output. Only show errors. Overrides --verbose and --debug-timing.",
+    )
+
+    parser.add_argument(
         "--with-vanilla",
         action="store_true",
         help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",
@@ -214,16 +220,38 @@ Cache Behavior:
     )
 
     parser.add_argument(
-        "--multi-model",
-        action="store_true",
-        help="Run tests with multiple LLM models across all three modes (vanilla, web, MARRVEL-MCP). Each model * mode combination is tested. Results are shown in a grid format.",
+        "--output-dir",
+        type=str,
+        metavar="PATH",
+        help="Directory to save test results (CSV, cache, HTML report). Defaults to test-output/<timestamp>",
     )
 
     parser.add_argument(
-        "--models-config",
+        "--api-key",
         type=str,
-        metavar="PATH",
-        help="Path to models configuration YAML file for --multi-model mode. Defaults to mcp-llm-test/models_config.yaml",
+        metavar="KEY",
+        help="Per-run API key override (preferred over environment OPENAI_API_KEY / OPENROUTER_API_KEY).",
+    )
+
+    parser.add_argument(
+        "--api-base",
+        type=str,
+        metavar="URL",
+        help="Per-run API base override (e.g. https://openrouter.ai/api/v1). Does not modify environment.",
+    )
+
+    parser.add_argument(
+        "--provider",
+        type=str,
+        metavar="NAME",
+        help="Override provider for this run (allowed: openrouter, openai, bedrock).",
+    )
+
+    parser.add_argument(
+        "--model",
+        type=str,
+        metavar="MODEL_ID",
+        help="Override model for this run (e.g. meta-llama/llama-3.1-8b-instruct, gpt-4o).",
     )
 
     return parser.parse_args()

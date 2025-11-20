@@ -49,7 +49,7 @@ from __future__ import annotations
 import os
 from typing import Tuple
 
-from config.llm_providers import ProviderType, infer_provider_from_model_id
+from config.llm_providers import ProviderType
 
 
 # Default model: latest Gemini 2.5 variant with reliable tool support
@@ -110,10 +110,20 @@ def get_default_model_config() -> Tuple[str, ProviderType]:
         ('google/gemini-2.5-flash', 'openrouter')
     """
     # Check for explicit provider configuration first
-    provider_env = os.getenv("LLM_PROVIDER", DEFAULT_MODEL).strip().lower()
-    model_env = os.getenv("LLM_MODEL", DEFAULT_PROVIDER).strip()
+    provider_env = os.getenv("LLM_PROVIDER", "").strip().lower()
+    model_env = os.getenv("LLM_MODEL", "").strip()
 
-    return (model_env, provider_env)  # type: ignore
+    # If both are set, use them
+    if provider_env and model_env:
+        return (model_env, provider_env)  # type: ignore
+
+    # Check for backward compatible OPENROUTER_MODEL
+    openrouter_model = os.getenv("OPENROUTER_MODEL", "").strip()
+    if openrouter_model:
+        return (openrouter_model, "openrouter")
+
+    # Fall back to defaults
+    return (DEFAULT_MODEL, DEFAULT_PROVIDER)
 
 
 def get_evaluation_model_config() -> Tuple[str, ProviderType]:
@@ -143,10 +153,15 @@ def get_evaluation_model_config() -> Tuple[str, ProviderType]:
         ('google/gemini-2.5-pro', 'openrouter')
     """
     # Check for explicit evaluation configuration
-    provider_env = os.getenv("EVALUATION_PROVIDER", EVALUATION_MODEL).strip().lower()
-    model_env = os.getenv("EVALUATION_MODEL", EVALUATION_PROVIDER).strip()
+    provider_env = os.getenv("EVALUATION_PROVIDER", "").strip().lower()
+    model_env = os.getenv("EVALUATION_MODEL", "").strip()
 
-    return (model_env, provider_env)
+    # If both are set, use them
+    if provider_env and model_env:
+        return (model_env, provider_env)  # type: ignore
+
+    # Fall back to defaults
+    return (EVALUATION_MODEL, EVALUATION_PROVIDER)
 
 
 __all__ = [
