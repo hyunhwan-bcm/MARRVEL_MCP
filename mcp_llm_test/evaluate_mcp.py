@@ -480,6 +480,8 @@ async def main():
                 tri_mode=True,
                 evaluator_model=evaluator_model,
                 evaluator_provider=evaluator_provider,
+                tested_model=resolved_model,
+                tested_provider=provider,
             )
             open_in_browser(html_path)
         except Exception as e:
@@ -560,6 +562,8 @@ async def main():
                 dual_mode=True,
                 evaluator_model=evaluator_model,
                 evaluator_provider=evaluator_provider,
+                tested_model=resolved_model,
+                tested_provider=provider,
             )
             open_in_browser(html_path)
         except Exception as e:
@@ -610,6 +614,8 @@ async def main():
                 ordered_results,
                 evaluator_model=evaluator_model,
                 evaluator_provider=evaluator_provider,
+                tested_model=resolved_model,
+                tested_provider=provider,
             )
             open_in_browser(html_path)
         except Exception as e:

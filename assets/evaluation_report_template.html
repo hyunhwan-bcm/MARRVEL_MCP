@@ -301,14 +301,24 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                         </button>
                     </div>
                 </div>
-                {% if evaluator_model %}
-                <div class="mt-3 bg-white bg-opacity-10 rounded px-3 py-1.5 inline-block">
-                    <p class="text-blue-100 text-xs">
-                        <span class="font-semibold">Evaluator:</span> {{ evaluator_model }}
-                        {% if evaluator_provider %} ({{ evaluator_provider }}){% endif %}
-                    </p>
+                <div class="mt-3 flex gap-2 flex-wrap">
+                    {% if tested_model %}
+                    <div class="bg-white bg-opacity-10 rounded px-3 py-1.5 inline-block">
+                        <p class="text-blue-100 text-xs">
+                            <span class="font-semibold">Model:</span> {{ tested_model }}
+                            {% if tested_provider %} ({{ tested_provider }}){% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+                    {% if evaluator_model %}
+                    <div class="bg-white bg-opacity-10 rounded px-3 py-1.5 inline-block">
+                        <p class="text-blue-100 text-xs">
+                            <span class="font-semibold">Evaluator:</span> {{ evaluator_model }}
+                            {% if evaluator_provider %} ({{ evaluator_provider }}){% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
 
                 <!-- Success Rate Summary -->
                 {% if multi_model %}
