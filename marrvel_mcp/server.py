@@ -70,6 +70,51 @@ VERIFY_SSL = False  # Set to True for production
 # ============================================================================
 
 
+def _capture_error_details(
+    e: httpx.HTTPStatusError,
+    max_retries: int,
+    attempt: int = None,
+    body_truncate_length: int = 1000,
+) -> dict:
+    """
+    Capture detailed error information for logging.
+
+    Args:
+        e: HTTPStatusError exception
+        max_retries: Maximum number of retry attempts
+        attempt: Current attempt number (None for final failure)
+        body_truncate_length: Maximum length of response body to capture
+
+    Returns:
+        Dictionary containing error details
+    """
+    error_details = {
+        "status_code": e.response.status_code,
+        "url": str(e.request.url) if e.request else "unknown",
+        "method": e.request.method if e.request else "unknown",
+    }
+
+    if attempt is not None:
+        error_details["attempt"] = f"{attempt + 1}/{max_retries + 1}"
+    else:
+        error_details["total_attempts"] = max_retries + 1
+
+    # Capture response body and headers for 500 errors
+    if e.response.status_code == 500:
+        try:
+            response_text = e.response.text[:body_truncate_length]
+            error_details["response_body"] = response_text
+        except Exception:
+            error_details["response_body"] = "<unable to read response body>"
+
+        try:
+            error_details["response_headers"] = dict(e.response.headers)
+        except Exception:
+            error_details["response_headers"] = "<unable to read headers>"
+
+    return error_details
+
+
 async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 5.0):
     """
     Retry an async function with exponential backoff for rate limiting (429 errors) and server errors (500).
@@ -100,13 +145,30 @@ async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 
                     jitter = delay * 0.1 * (asyncio.get_event_loop().time() % 1.0)
                     sleep_time = delay + jitter
                     error_type = "Rate limited" if e.response.status_code == 429 else "Server error"
+
+                    # Capture detailed error information for debugging
+                    error_details = _capture_error_details(
+                        e, max_retries, attempt=attempt, body_truncate_length=1000
+                    )
+
                     logging.warning(
                         f"{error_type} ({e.response.status_code}), retrying in {sleep_time:.2f}s "
-                        f"(attempt {attempt + 1}/{max_retries})"
+                        f"(attempt {attempt + 1}/{max_retries + 1}) - Details: {error_details}"
                     )
                     await asyncio.sleep(sleep_time)
                     delay *= 2  # Exponential backoff
                     continue
+                else:
+                    # Log final failure with full details
+                    error_type = "Rate limited" if e.response.status_code == 429 else "Server error"
+                    error_details = _capture_error_details(
+                        e, max_retries, attempt=None, body_truncate_length=2000
+                    )
+
+                    logging.error(
+                        f"Exhausted all retries for {error_type} ({e.response.status_code}). "
+                        f"Details: {error_details}"
+                    )
             # For other HTTP errors, raise immediately
             raise
         except Exception as e:
@@ -149,6 +211,21 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
 
     async def _fetch():
         """Inner function to perform the actual fetch, wrapped by retry logic."""
+        # Log request details for debugging
+        request_type = "GraphQL" if is_graphql else "REST"
+        if is_graphql:
+            request_url = API_BASE_URL
+            # Log query preview (first 200 chars)
+            query_preview = (
+                query_or_endpoint[:200] if len(query_or_endpoint) > 200 else query_or_endpoint
+            )
+            logging.debug(
+                f"Making {request_type} request to {request_url}, query: {query_preview}..."
+            )
+        else:
+            request_url = f"{API_REST_BASE_URL}{query_or_endpoint}"
+            logging.debug(f"Making {request_type} request to {request_url}")
+
         async with httpx.AsyncClient(verify=verify, timeout=API_TIMEOUT) as client:
             if is_graphql:
                 # GraphQL API call (POST request)
