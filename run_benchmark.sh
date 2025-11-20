@@ -132,32 +132,16 @@ run_model_evaluation() {
     # Create model output directory
     mkdir -p "${model_dir}"
 
-    # Set up environment variables for this model
-    export LLM_PROVIDER="${provider}"
-    export LLM_MODEL="${model_id}"
-
-    # Set API credentials if provided
-    local api_key_arg=""
-    local api_base_arg=""
-    if [ -n "${api_key}" ]; then
-        api_key_arg="--api-key ${api_key}"
-    fi
-    if [ -n "${api_base}" ]; then
-        api_base_arg="--api-base ${api_base}"
-    fi
-
     # Run evaluation
     local start_time=$(date +%s)
     local exit_code=0
 
     python "${SCRIPT_DIR}/mcp_llm_test/evaluate_mcp.py" \
+        --provider "${provider}" \
+        --model "${model_id}" \
         --output-dir "${model_dir}" \
         --concurrency "${CONCURRENCY}" \
-        --timeout "${TIMEOUT}" \
-        --cache \
-        ${api_key_arg} \
-        ${api_base_arg} \
-        2>&1 | tee "${model_dir}/evaluation.log" || exit_code=$?
+        --timeout "${TIMEOUT}"
 
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))

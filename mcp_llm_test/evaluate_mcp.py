@@ -135,6 +135,20 @@ async def main():
     # after module import (e.g., in CI or wrapper scripts).
     resolved_model, provider = get_default_model_config()
 
+    # Apply explicit CLI overrides if provided (validated set: bedrock, openai, openrouter)
+    if getattr(args, "provider", None):
+        override_provider = args.provider.strip().lower()
+        if override_provider not in {"bedrock", "openai", "openrouter"}:
+            print(
+                f"❌ Error: Unsupported provider override '{override_provider}'. Allowed: bedrock, openai, openrouter"
+            )
+            return
+        provider = override_provider  # type: ignore
+        print(f"🔧 Provider explicitly set to: {provider}")
+    if getattr(args, "model", None):
+        resolved_model = args.model.strip()
+        print(f"🔧 Model explicitly set to: {resolved_model}")
+
     # Configure evaluator LLM (separate from models being tested)
     evaluator_model, evaluator_provider = get_evaluation_model_config()
 
@@ -182,9 +196,9 @@ async def main():
             evaluator_api_key_override = None
             evaluator_api_base_override = None
 
-    # Validate provider credentials before proceeding
+    # Validate provider credentials before proceeding (after overrides)
     try:
-        validate_provider_credentials(provider)
+        validate_provider_credentials(provider, api_key_override=getattr(args, "api_key", None))
     except ValueError as e:
         print(f"❌ Error: {e}")
         return

@@ -22,7 +22,6 @@ from config.llm_providers import (
     get_api_base,
     get_api_key,
     get_provider_config,
-    infer_provider_from_model_id,
     validate_provider_credentials,
 )
 

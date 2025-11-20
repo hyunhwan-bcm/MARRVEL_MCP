@@ -86,7 +86,12 @@ import logging
 # from langchain_aws import ChatBedrock
 
 
-ProviderType = Literal["bedrock", "openai", None]
+ProviderType = Literal[
+    "bedrock",
+    "openai",
+    "openrouter",
+    None,
+]
 
 
 @dataclass
@@ -114,20 +119,23 @@ class ProviderConfig:
 # All OpenAI-compatible providers use global OPENAI_API_KEY and OPENAI_API_BASE
 # unless overridden per-model. Only Bedrock uses separate AWS credentials.
 PROVIDER_CONFIGS: Dict[ProviderType, ProviderConfig] = {
+    # AWS Bedrock (non-OpenAI-compatible)
     "bedrock": ProviderConfig(
         name="bedrock",
-        default_api_base=None,  # Uses AWS SDK, not HTTP endpoint
+        default_api_base=None,
         supports_web_search=False,
         use_openai_api=False,
     ),
+    # Native OpenAI - uses library default unless overridden
     "openai": ProviderConfig(
         name="openai",
-        default_api_base=None,  # Uses default OpenAI endpoint (https://api.openai.com/v1)
+        default_api_base=None,
         supports_web_search=False,
     ),
+    # OpenRouter routing platform
     "openrouter": ProviderConfig(
         name="openrouter",
-        default_api_base=None,  # Uses OPENAI_API_BASE env var
+        default_api_base="https://openrouter.ai/api/v1",
         supports_web_search=True,
         web_search_suffix=":online",
     ),
@@ -220,16 +228,16 @@ def get_api_key(provider: ProviderType, api_key_override: str | None = None) -> 
     if api_key_override:
         return api_key_override.strip()
 
-    # 2. Global OPENAI_API_KEY (primary)
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if api_key:
-        return api_key
-
-    # 3. Backward compatibility: OPENROUTER_API_KEY for openrouter provider
+    # 2. Provider-specific environment variables (e.g. OPENROUTER_API_KEY)
     if provider == "openrouter":
         openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
         if openrouter_key:
             return openrouter_key
+
+    # 3. Global OPENAI_API_KEY (fallback)
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if api_key:
+        return api_key
 
     return None
 
@@ -266,7 +274,9 @@ def validate_provider_credentials(
 
     # Other OpenAI-compatible providers require API key
     api_key = get_api_key(provider, api_key_override)
+    print(f"investigating {api_key}")
     if not api_key:
+        print("error!")
         missing_msg = (
             "Missing API key for provider '{provider}'. "
             "Set OPENAI_API_KEY or pass api_key override."
@@ -389,8 +399,9 @@ def create_llm_instance(
             **kwargs,
         }
 
-        # Add API key
+        # Add API key (provide both parameter names for broader compatibility across versions)
         openai_kwargs["openai_api_key"] = resolved_api_key
+        openai_kwargs["api_key"] = resolved_api_key
 
         # Set base URL if specified (per-model override, global default, or provider default)
         if resolved_api_base:
@@ -401,19 +412,20 @@ def create_llm_instance(
             logging.warning(
                 f"⚠ No API base resolved for provider '{provider}'. Set OPENAI_API_BASE or pass api_base override. Using library default endpoint (likely OpenAI) which may be incompatible."
             )
-        logging.warning(
+
+        masked_key = (
+            (resolved_api_key[:6] + "..." + resolved_api_key[-4:])
+            if resolved_api_key and len(resolved_api_key) > 10
+            else "(short/none)"
+        )
+        print(
             f"🔧 Creating LLM instance | provider={provider} model={effective_model_id} "
-            f"base={resolved_api_base or '(library default)'} web_search={web_search}"
+            f"base={resolved_api_base or '(library default)'} web_search={web_search} key={masked_key}"
         )
 
         llm = ChatOpenAI(**openai_kwargs)
 
         if trace_enabled:
-            masked_key = (
-                (resolved_api_key[:6] + "..." + resolved_api_key[-4:])
-                if resolved_api_key and len(resolved_api_key) > 10
-                else "(short/none)"
-            )
             logging.warning(
                 "[LLM-TRACE] Created OpenAI-compatible LLM | provider=%s model=%s web_search=%s base=%s key=%s retries=%s timeout=%s",
                 provider,

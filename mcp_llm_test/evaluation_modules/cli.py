@@ -234,4 +234,18 @@ Cache Behavior:
         help="Per-run API base override (e.g. https://openrouter.ai/api/v1). Does not modify environment.",
     )
 
+    parser.add_argument(
+        "--provider",
+        type=str,
+        metavar="NAME",
+        help="Override provider for this run (allowed: openrouter, openai, bedrock).",
+    )
+
+    parser.add_argument(
+        "--model",
+        type=str,
+        metavar="MODEL_ID",
+        help="Override model for this run (e.g. meta-llama/llama-3.1-8b-instruct, gpt-4o).",
+    )
+
     return parser.parse_args()
