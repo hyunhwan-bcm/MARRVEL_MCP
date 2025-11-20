@@ -105,11 +105,9 @@ Examples:
   python evaluate_mcp.py --multi-model --models-config custom_models.yaml
 
   # Increase timeout for slow models or complex queries
-  python evaluate_mcp.py --timeout 1200  # 20 minutes per test
-  python evaluate_mcp.py --multi-model --timeout 900 --concurrency 2
 
   # Debug timeout issues (shows API call timing)
-  python evaluate_mcp.py --debug-timing --timeout 1200
+    python evaluate_mcp.py --debug-timing
 
   # Show detailed error messages when tests fail
   python evaluate_mcp.py --verbose --multi-model
@@ -175,15 +173,6 @@ Cache Behavior:
         help="Maximum number of concurrent test executions (default: 4 for most providers, 1 for Bedrock). "
         "Bedrock has strict rate limits and connection pool constraints (max 10 connections). "
         "Increase for faster execution if API rate limits allow, but be cautious with Bedrock.",
-    )
-
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=600,
-        metavar="SECONDS",
-        help="Timeout per test case in seconds (default: 600 = 10 minutes). "
-        "Increase this if you have complex queries or slow models that need more time.",
     )
 
     parser.add_argument(

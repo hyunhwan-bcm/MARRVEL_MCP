@@ -61,7 +61,7 @@ root.setLevel(logging.WARNING)
 
 API_BASE_URL = "https://marrvel.org/graphql"  # GraphQL endpoint
 API_REST_BASE_URL = "https://marrvel.org/data"  # REST endpoint
-API_TIMEOUT = 30.0
+API_TIMEOUT = 10.0
 VERIFY_SSL = False  # Set to True for production
 
 
@@ -911,7 +911,7 @@ async def search_hpo_terms(phenotype_query: str) -> str:
         search_url = "https://ontology.jax.org/api/hp/search"
         params = {"q": phenotype_query, "page": 0, "limit": 10}
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
             search_response = await client.get(search_url, params=params)
             search_response.raise_for_status()
             search_data = search_response.json()
@@ -971,7 +971,7 @@ async def get_hpo_associated_genes(hpo_id: str) -> str:
         encoded_hpo_id = hpo_id.replace(":", "%3A")
         genes_url = f"https://ontology.jax.org/api/network/annotation/{encoded_hpo_id}"
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
             genes_response = await client.get(genes_url)
             genes_response.raise_for_status()
             genes_data = genes_response.json()
@@ -1338,7 +1338,7 @@ async def convert_rsid_to_variant(rsid: str) -> str:
         url = f"https://clinicaltables.nlm.nih.gov/api/snps/v3/search"
         params = {"terms": rsid, "ef": "38.chr,38.pos,38.alleles,38.gene"}
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
             data = response.json()
@@ -1432,7 +1432,7 @@ async def search_pubmed(
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?term={query}&sort={sort}&retmax={max_results}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1470,7 +1470,7 @@ async def get_pmc_abstract_by_pmcid(pmcid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1541,7 +1541,7 @@ async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1613,7 +1613,7 @@ async def get_pmc_tables_by_pmcid(pmcid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1738,7 +1738,7 @@ async def get_pmc_figure_captions_by_pmcid(pmcid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={pmcid}"
 
         async def fetch_pmc_data():
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.content
@@ -1826,7 +1826,7 @@ async def pmid_to_pmcid(pmid: str) -> str:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&db=pmc&id={pmid}&retmode=json"
 
         async def fetch_pmid_data():
-            async with httpx.AsyncClient(timeout=10) as client:
+            async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.json()
