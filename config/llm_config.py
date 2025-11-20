@@ -49,7 +49,7 @@ from __future__ import annotations
 import os
 from typing import Tuple
 
-from config.llm_providers import ProviderType, infer_provider_from_model_id
+from config.llm_providers import ProviderType
 
 
 # Default model: latest Gemini 2.5 variant with reliable tool support

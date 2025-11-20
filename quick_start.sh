@@ -6,7 +6,7 @@
 set -euo pipefail
 
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║        MARRVEL-MCP Multi-Model Benchmark Quick Start          ║"
+echo "║           MCP LLM Testing Benchmark - Quick Start             ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -27,11 +27,13 @@ if not data:
     print("   Please edit mcp_llm_test/models_config.yaml and set enabled: true for at least one model")
     sys.exit(1)
 for model in data:
-    print(f"  ✓ {model[\"name\"]} ({model[\"provider\"]})")
+    name = model["name"]
+    provider = model["provider"]
+    print(f"  ✓ {name} ({provider})")
     if model.get("skip_vanilla"):
-        print(f"    - Skipping vanilla mode")
+        print("    - Skipping vanilla mode")
     if model.get("skip_web_search"):
-        print(f"    - Skipping web search mode")
+        print("    - Skipping web search mode")
 '
 
 if [ $? -ne 0 ]; then
