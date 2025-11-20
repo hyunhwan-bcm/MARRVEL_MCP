@@ -15,6 +15,17 @@ from .cache import load_cached_result, save_cached_result
 from .evaluation import evaluate_response, get_langchain_response, MAX_TOKENS
 
 
+def update_progress_bar_with_stats(pbar, test_stats: Dict[str, int] | None):
+    """Update progress bar with current test statistics."""
+    if pbar and test_stats is not None:
+        stats_str = (
+            f"✓ {test_stats.get('yes', 0)} | "
+            f"✗ {test_stats.get('no', 0)} | "
+            f"⚠ {test_stats.get('failed', 0)}"
+        )
+        pbar.set_postfix_str(stats_str)
+
+
 async def run_test_case(
     semaphore: asyncio.Semaphore,
     mcp_client: Client,
@@ -30,6 +41,7 @@ async def run_test_case(
     pbar=None,
     llm_instance=None,
     llm_web_instance=None,
+    test_stats: Dict[str, int] | None = None,
 ) -> Dict[str, Any]:
     """
     Runs a single test case and returns the results for the table.
@@ -50,6 +62,7 @@ async def run_test_case(
         pbar: Optional tqdm progress bar to update
         llm_instance: LLM instance to use (if None, uses global llm)
         llm_web_instance: Web-enabled LLM instance to use (if None, uses global llm_web)
+        test_stats: Optional dictionary to track test statistics (correct/incorrect/failed)
     """
     async with semaphore:
         name = test_case["case"]["name"]
@@ -81,19 +94,23 @@ async def run_test_case(
                             pbar.set_postfix_str(f"Retrying failed ({mode_label}): {name[:40]}...")
                     else:
                         # Return cached failure
+                        if test_stats is not None:
+                            test_stats["no"] += 1
                         if pbar:
                             mode_label = (
                                 "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
                             )
-                            pbar.set_postfix_str(f"Cached failure ({mode_label}): {name[:40]}...")
+                            update_progress_bar_with_stats(pbar, test_stats)
                             pbar.update(1)
                         return cached
 
                 # 3. Success ("yes") -> Always return cached
                 else:
+                    if test_stats is not None:
+                        test_stats["yes"] += 1
                     if pbar:
                         mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
-                        pbar.set_postfix_str(f"Cached ({mode_label}): {name[:40]}...")
+                        update_progress_bar_with_stats(pbar, test_stats)
                         pbar.update(1)
                     return cached
 
@@ -159,13 +176,27 @@ async def run_test_case(
                 "mode": "web" if web_mode else ("vanilla" if vanilla_mode else "tool"),
                 "metadata": metadata,
             }
+
+            # Update test statistics based on classification
+            if test_stats is not None:
+                classification_lower = str(classification).lower()
+                if classification_lower.startswith("yes"):
+                    test_stats["yes"] += 1
+                elif classification_lower.startswith("no"):
+                    test_stats["no"] += 1
+                else:
+                    test_stats["failed"] += 1
+
             # Save to cache
             save_cached_result(run_id, test_uuid, result, vanilla_mode, web_mode, model_id)
             if pbar:
+                update_progress_bar_with_stats(pbar, test_stats)
                 pbar.update(1)
             return result
         except TokenLimitExceeded as e:
             # Stop evaluation completely and mark as NO due to token exceed
+            if test_stats is not None:
+                test_stats["failed"] += 1
             if pbar:
                 pbar.write(
                     f"⚠️  Token limit exceeded for {name}: {e.token_count:,} > {MAX_TOKENS:,}"
@@ -180,12 +211,16 @@ async def run_test_case(
                 "tokens_used": e.token_count,
             }
             if pbar:
+                update_progress_bar_with_stats(pbar, test_stats)
                 pbar.update(1)
             # Don't cache failures
             return result
         except Exception as e:
             # Always log errors, not just when pbar exists
             import traceback
+
+            if test_stats is not None:
+                test_stats["failed"] += 1
 
             error_details = f"❌ Error in {name}: {e}"
 
@@ -219,6 +254,7 @@ async def run_test_case(
                 "conversation": [],
             }
             if pbar:
+                update_progress_bar_with_stats(pbar, test_stats)
                 pbar.update(1)
             # Don't cache errors
             return result
