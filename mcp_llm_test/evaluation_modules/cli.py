@@ -202,6 +202,12 @@ Cache Behavior:
     )
 
     parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress debug/info/warning output. Only show errors. Overrides --verbose and --debug-timing.",
+    )
+
+    parser.add_argument(
         "--with-vanilla",
         action="store_true",
         help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",

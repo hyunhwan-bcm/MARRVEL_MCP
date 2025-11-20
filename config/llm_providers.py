@@ -274,9 +274,8 @@ def validate_provider_credentials(
 
     # Other OpenAI-compatible providers require API key
     api_key = get_api_key(provider, api_key_override)
-    print(f"investigating {api_key}")
     if not api_key:
-        print("error!")
+        logging.debug("Provider '%s' missing API key during validation", provider)
         missing_msg = (
             "Missing API key for provider '{provider}'. "
             "Set OPENAI_API_KEY or pass api_key override."
@@ -418,9 +417,13 @@ def create_llm_instance(
             if resolved_api_key and len(resolved_api_key) > 10
             else "(short/none)"
         )
-        print(
-            f"🔧 Creating LLM instance | provider={provider} model={effective_model_id} "
-            f"base={resolved_api_base or '(library default)'} web_search={web_search} key={masked_key}"
+        logging.debug(
+            "Creating LLM instance | provider=%s model=%s base=%s web_search=%s key=%s",
+            provider,
+            effective_model_id,
+            resolved_api_base or "(library default)",
+            web_search,
+            masked_key,
         )
 
         llm = ChatOpenAI(**openai_kwargs)

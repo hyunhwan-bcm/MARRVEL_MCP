@@ -6,6 +6,7 @@ and opening them in a web browser.
 """
 
 import json
+import logging
 import os
 import re
 import tempfile
@@ -445,11 +446,11 @@ def generate_html_report(
 
     temp_html.write(html_content)
     temp_html.close()
-    print(f"\n--- HTML report saved to: {html_path} ---")
+    logging.info(f"HTML report saved to: {html_path}")
     return html_path
 
 
 def open_in_browser(html_path: str):
     """Open the HTML file in the default browser."""
     webbrowser.open(f"file://{os.path.abspath(html_path)}")
-    print(f"--- Opened {html_path} in browser ---")
+    logging.info(f"Opened {html_path} in browser")
