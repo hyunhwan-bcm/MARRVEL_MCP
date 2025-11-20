@@ -418,6 +418,7 @@ async def main():
         async with mcp_client:
             # Run vanilla mode tests
             vprint("\n🍦 Running VANILLA mode (no tools, no web search)...")
+            test_stats_vanilla = {"yes": 0, "no": 0, "failed": 0}
             pbar_vanilla = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
 
             vanilla_tasks = [
@@ -434,6 +435,7 @@ async def main():
                     pbar=pbar_vanilla,
                     llm_instance=llm,
                     llm_web_instance=llm_web,
+                    test_stats=test_stats_vanilla,
                 )
                 for test_case in test_cases
             ]
@@ -442,6 +444,7 @@ async def main():
 
             # Run web search mode tests
             vprint("\n🌐 Running WEB SEARCH mode (web search enabled via :online)...")
+            test_stats_web = {"yes": 0, "no": 0, "failed": 0}
             pbar_web = atqdm(total=len(test_cases), desc="Web search mode", unit="test")
 
             web_tasks = [
@@ -458,6 +461,7 @@ async def main():
                     pbar=pbar_web,
                     llm_instance=llm,
                     llm_web_instance=llm_web,
+                    test_stats=test_stats_web,
                 )
                 for test_case in test_cases
             ]
@@ -466,6 +470,7 @@ async def main():
 
             # Run tool mode tests
             vprint("\n🔧 Running MARRVEL-MCP mode (with specialized tools)...")
+            test_stats_tool = {"yes": 0, "no": 0, "failed": 0}
             pbar_tool = atqdm(total=len(test_cases), desc="Tool mode", unit="test")
 
             tool_tasks = [
@@ -482,6 +487,7 @@ async def main():
                     pbar=pbar_tool,
                     llm_instance=llm,
                     llm_web_instance=llm_web,
+                    test_stats=test_stats_tool,
                 )
                 for test_case in test_cases
             ]
@@ -525,6 +531,7 @@ async def main():
         async with mcp_client:
             # Run vanilla mode tests
             vprint("\n🍦 Running VANILLA mode (without tool calling)...")
+            test_stats_vanilla = {"yes": 0, "no": 0, "failed": 0}
             pbar_vanilla = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
 
             vanilla_tasks = [
@@ -541,6 +548,7 @@ async def main():
                     pbar=pbar_vanilla,
                     llm_instance=llm,
                     llm_web_instance=llm_web,
+                    test_stats=test_stats_vanilla,
                 )
                 for test_case in test_cases
             ]
@@ -549,6 +557,7 @@ async def main():
 
             # Run tool mode tests
             vprint("\n🔧 Running TOOL mode (with tool calling)...")
+            test_stats_tool = {"yes": 0, "no": 0, "failed": 0}
             pbar_tool = atqdm(total=len(test_cases), desc="Tool mode", unit="test")
 
             tool_tasks = [
@@ -565,6 +574,7 @@ async def main():
                     pbar=pbar_tool,
                     llm_instance=llm,
                     llm_web_instance=llm_web,
+                    test_stats=test_stats_tool,
                 )
                 for test_case in test_cases
             ]
@@ -604,7 +614,8 @@ async def main():
         vprint(f"💾 Cache {cache_status}")
 
         async with mcp_client:
-            # Create progress bar
+            # Create progress bar and test statistics
+            test_stats = {"yes": 0, "no": 0, "failed": 0}
             pbar = atqdm(total=len(test_cases), desc="Evaluating tests", unit="test")
 
             tasks = [
@@ -621,6 +632,7 @@ async def main():
                     pbar=pbar,
                     llm_instance=llm,
                     llm_web_instance=llm_web,
+                    test_stats=test_stats,
                 )
                 for test_case in test_cases
             ]
