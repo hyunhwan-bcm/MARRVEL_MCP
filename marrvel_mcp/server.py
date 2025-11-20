@@ -95,7 +95,7 @@ def _capture_error_details(
     }
 
     if attempt is not None:
-        error_details["attempt"] = f"{attempt + 1}/{max_retries}"
+        error_details["attempt"] = f"{attempt + 1}/{max_retries + 1}"
     else:
         error_details["total_attempts"] = max_retries + 1
 
@@ -153,7 +153,7 @@ async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 
 
                     logging.warning(
                         f"{error_type} ({e.response.status_code}), retrying in {sleep_time:.2f}s "
-                        f"(attempt {attempt + 1}/{max_retries}) - Details: {error_details}"
+                        f"(attempt {attempt + 1}/{max_retries + 1}) - Details: {error_details}"
                     )
                     await asyncio.sleep(sleep_time)
                     delay *= 2  # Exponential backoff
