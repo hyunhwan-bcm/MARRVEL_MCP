@@ -197,10 +197,13 @@ async def main():
         return
 
     # Create LLM instances using the provider abstraction
+    trace_enabled = os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE")
     llm = create_llm_instance(
         provider=provider,
         model_id=resolved_model,
         temperature=0,
+        api_key=getattr(args, "api_key", None),
+        api_base=getattr(args, "api_base", None),
     )
 
     # Create web-enabled LLM if provider supports it
@@ -211,6 +214,8 @@ async def main():
             model_id=resolved_model,
             temperature=0,
             web_search=True,
+            api_key=getattr(args, "api_key", None),
+            api_base=getattr(args, "api_base", None),
         )
     else:
         # Fall back to regular LLM if web search is not supported
@@ -227,6 +232,19 @@ async def main():
 
     # Display configuration - provider-agnostic messaging
     print(f"🔧 Model: {provider} / {resolved_model}")
+    if trace_enabled:
+        from config.llm_providers import get_api_base, get_api_key
+
+        resolved_base = getattr(args, "api_base", None) or get_api_base(provider)
+        resolved_key = getattr(args, "api_key", None) or get_api_key(provider)
+        masked_key = (
+            (resolved_key[:6] + "..." + resolved_key[-4:])
+            if resolved_key and len(resolved_key) > 10
+            else "(short/none)"
+        )
+        print(
+            f"[LLM-TRACE] provider={provider} model={resolved_model} base={resolved_base or '(default)'} key={masked_key} web_supported={provider_config.supports_web_search}"
+        )
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")

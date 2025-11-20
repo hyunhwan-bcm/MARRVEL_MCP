@@ -137,12 +137,13 @@ run_model_evaluation() {
     export LLM_MODEL="${model_id}"
 
     # Set API credentials if provided
+    local api_key_arg=""
+    local api_base_arg=""
     if [ -n "${api_key}" ]; then
-        export OPENAI_API_KEY="${api_key}"
+        api_key_arg="--api-key ${api_key}"
     fi
-
     if [ -n "${api_base}" ]; then
-        export OPENAI_API_BASE="${api_base}"
+        api_base_arg="--api-base ${api_base}"
     fi
 
     # Run evaluation
@@ -154,6 +155,8 @@ run_model_evaluation() {
         --concurrency "${CONCURRENCY}" \
         --timeout "${TIMEOUT}" \
         --cache \
+        ${api_key_arg} \
+        ${api_base_arg} \
         2>&1 | tee "${model_dir}/evaluation.log" || exit_code=$?
 
     local end_time=$(date +%s)
