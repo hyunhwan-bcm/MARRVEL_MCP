@@ -220,9 +220,18 @@ def get_api_key(provider: ProviderType, api_key_override: str | None = None) -> 
     if api_key_override:
         return api_key_override.strip()
 
-    # 2. Global OPENAI_API_KEY
+    # 2. Global OPENAI_API_KEY (primary)
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    return api_key if api_key else None
+    if api_key:
+        return api_key
+
+    # 3. Backward compatibility: OPENROUTER_API_KEY for openrouter provider
+    if provider == "openrouter":
+        openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        if openrouter_key:
+            return openrouter_key
+
+    return None
 
 
 def validate_provider_credentials(
