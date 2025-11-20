@@ -44,6 +44,9 @@ htmlcov/
 # Test output (but keep the README)
 test-output/
 
+# Benchmark test results
+test_results/
+
 # Logs
 *.log
 

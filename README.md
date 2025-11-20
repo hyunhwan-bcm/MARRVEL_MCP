@@ -139,6 +139,7 @@ export OPENAI_API_BASE=https://your-service.com/v1
 ## Documentation
 
 <!--- **[API Reference](./API_DOCUMENTATION.md)** - Complete tool documentation-->
+- **[Multi-Model Benchmark Testing](docs/BENCHMARK_WORKFLOW.md)** - New modular benchmark workflow
 - **[MCP LLM Evaluation](mcp_llm_test/README.md)** - CLI tool for testing MCP with LangChain
 - **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines
 

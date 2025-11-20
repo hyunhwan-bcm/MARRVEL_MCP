@@ -6,6 +6,7 @@ and opening them in a web browser.
 """
 
 import json
+import logging
 import os
 import re
 import tempfile
@@ -24,6 +25,8 @@ def generate_html_report(
     multi_model: bool = False,
     evaluator_model: str | None = None,
     evaluator_provider: str | None = None,
+    tested_model: str | None = None,
+    tested_provider: str | None = None,
 ) -> str:
     """Generate HTML report with modal popups, reordered columns, and success rate summary.
 
@@ -34,6 +37,8 @@ def generate_html_report(
         multi_model: If True, results contain multiple models across all three modes
         evaluator_model: Model ID used for evaluation/grading
         evaluator_provider: Provider used for evaluation model
+        tested_model: Model ID being tested (MCP model)
+        tested_provider: Provider of the model being tested
 
     Returns:
         Path to generated HTML file
@@ -393,6 +398,8 @@ def generate_html_report(
             results=enriched_results,
             evaluator_model=evaluator_model,
             evaluator_provider=evaluator_provider,
+            tested_model=tested_model,
+            tested_provider=tested_provider,
         )
     elif tri_mode:
         html_content = template.render(
@@ -407,6 +414,8 @@ def generate_html_report(
             results=enriched_results,
             evaluator_model=evaluator_model,
             evaluator_provider=evaluator_provider,
+            tested_model=tested_model,
+            tested_provider=tested_provider,
         )
     elif dual_mode:
         html_content = template.render(
@@ -419,6 +428,8 @@ def generate_html_report(
             results=enriched_results,
             evaluator_model=evaluator_model,
             evaluator_provider=evaluator_provider,
+            tested_model=tested_model,
+            tested_provider=tested_provider,
         )
     else:
         html_content = template.render(
@@ -429,15 +440,17 @@ def generate_html_report(
             results=enriched_results,
             evaluator_model=evaluator_model,
             evaluator_provider=evaluator_provider,
+            tested_model=tested_model,
+            tested_provider=tested_provider,
         )
 
     temp_html.write(html_content)
     temp_html.close()
-    print(f"\n--- HTML report saved to: {html_path} ---")
+    logging.info(f"HTML report saved to: {html_path}")
     return html_path
 
 
 def open_in_browser(html_path: str):
     """Open the HTML file in the default browser."""
     webbrowser.open(f"file://{os.path.abspath(html_path)}")
-    print(f"--- Opened {html_path} in browser ---")
+    logging.info(f"Opened {html_path} in browser")

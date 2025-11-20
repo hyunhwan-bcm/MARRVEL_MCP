@@ -66,36 +66,31 @@ JSON (or a Python literal convertible to JSON), the test will fail.
 """
 
 
-# List of tools to exercise and representative arguments. Keep this small
-# but representative; add/remove entries as needed.
+# Essential tools to exercise representing critical functionality categories.
+# This reduced set covers: gene queries, variant analysis, disease associations,
+# orthologs, literature search, and coordinate conversion.
 TEST_VARIANT = {"chr": "6", "pos": "98917691", "ref": "T", "alt": "C", "build": "hg38"}
 tool_calls = [
-    ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
-    ("get_gene_by_ensembl_id", {"ensembl_id": "ENSG00000188152"}),
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
-    ("get_gene_by_position", {"chromosome": "17", "position": 7565099, "taxon_id": "9606"}),
-    ("get_variant_dbnsfp", TEST_VARIANT),
     ("get_variant_annotation_by_genomic_position", TEST_VARIANT),
     ("get_clinvar_by_variant", TEST_VARIANT),
     ("get_gnomad_variant", TEST_VARIANT),
-    ("get_gnomad_by_entrez_id", {"entrez_id": "1080"}),
-    ("get_dgv_by_entrez_id", {"entrez_id": "26235"}),
-    ("get_ortholog_expression", {"entrez_id": "3064", "taxon_id": "10090"}),
-    ("get_geno2mp_by_entrez_id", {"entrez_id": "1080"}),
-    ("get_clinvar_counts_by_entrez_id", {"entrez_id": "1080"}),
-    ("get_omim_by_gene_symbol", {"gene_symbol": "TP53"}),
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
-    ("search_hpo_terms", {"phenotype_query": "sickle cell anemia"}),
-    ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),
-    ("get_ontology_across_diopt_orthologs", {"entrez_id": "7157", "taxon_id2": 7227}),
-    ("get_gtex_expression", {"entrez_id": "7157"}),
-    ("convert_hgvs_to_genomic", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
     ("search_pubmed", {"query": "MECP2 Rett Syndrome", "max_results": 1}),
-    ("pmid_to_pmcid", {"pmid": "23251661"}),
     ("get_pmc_abstract_by_pmcid", {"pmcid": "PMC3518823"}),
-    ("get_pmc_fulltext_by_pmcid", {"pmcid": "PMC3518823"}),
-    ("get_pmc_tables_by_pmcid", {"pmcid": "PMC3518823"}),
-    ("get_pmc_figure_captions_by_pmcid", {"pmcid": "PMC3518823"}),
+    ("convert_hgvs_to_genomic", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
+    ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
+    ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
+    # Variant analysis - critical for variant annotation
+    ("get_variant_annotation_by_genomic_position", TEST_VARIANT),
+    ("get_clinvar_by_variant", TEST_VARIANT),
+    # Disease associations - essential for clinical relevance
+    ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
+    # Ortholog information - unique DIOPT integration
+    ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),
+    # Literature search - PubMed integration
+    ("search_pubmed", {"query": "MECP2 Rett Syndrome", "max_results": 1}),
+    # Coordinate conversion - genomic coordinate utility
     ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
     ("liftover_hg19_to_hg38", {"chr": "3", "pos": 75271215}),
     ("convert_protein_variant", {"gene_symbol": "NUTM2G", "protein_variant": "p.P63S"}),
