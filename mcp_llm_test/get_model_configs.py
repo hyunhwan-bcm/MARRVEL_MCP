@@ -88,12 +88,19 @@ def extract_model_info(model):
     Returns:
         Dictionary with standardized fields for bash script consumption
     """
+    provider = model.get("provider", "openrouter")
+    api_base = model.get("api_base")
+
+    # Apply default api_base for openrouter if not specified
+    if provider == "openrouter" and not api_base:
+        api_base = "https://openrouter.ai/api/v1"
+
     return {
         "name": model.get("name", "Unknown"),
         "id": model.get("id", ""),
-        "provider": model.get("provider", "openrouter"),
+        "provider": provider,
         "api_key": model.get("api_key"),
-        "api_base": model.get("api_base"),
+        "api_base": api_base,
         "skip_vanilla": model.get("skip_vanilla", False),
         "skip_web_search": model.get("skip_web_search", False),
     }
