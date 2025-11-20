@@ -70,7 +70,7 @@ VERIFY_SSL = False  # Set to True for production
 # ============================================================================
 
 
-async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 1.0):
+async def retry_with_backoff(func, max_retries: int = 5, initial_delay: float = 5.0):
     """
     Retry an async function with exponential backoff for rate limiting (429 errors) and server errors (500).
 

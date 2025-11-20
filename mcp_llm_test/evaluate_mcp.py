@@ -94,20 +94,46 @@ async def main():
     # Parse command-line arguments
     args = parse_arguments()
 
-    # Configure logging based on --debug-timing flag or DEBUG environment variable
-    debug_enabled = args.debug_timing or os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
-    verbose_enabled = args.verbose
+    # Configure logging based on flags/environment
+    quiet_enabled = getattr(args, "quiet", False)
+    debug_enabled = (args.debug_timing and not quiet_enabled) or (
+        os.getenv("DEBUG", "").lower() in ("1", "true", "yes") and not quiet_enabled
+    )
+    verbose_enabled = args.verbose and not quiet_enabled
 
-    if debug_enabled:
+    if quiet_enabled:
+        logging.basicConfig(level=logging.ERROR, format="%(levelname)s - %(message)s")
+        # Suppress warnings and noisy third-party loggers
+        import warnings
+
+        warnings.filterwarnings("ignore")
+        # Propagate quiet intent to submodules that check env vars
+        os.environ["QUIET"] = "1"
+        for noisy in [
+            "langchain",
+            "httpx",
+            "urllib3",
+            "fastmcp",
+            "asyncio",
+        ]:
+            logging.getLogger(noisy).setLevel(logging.ERROR)
+    elif debug_enabled:
         logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
-        print("🐛 Debug logging enabled - showing detailed timing and diagnostic information")
+        logging.debug(
+            "🐛 Debug logging enabled - showing detailed timing and diagnostic information"
+        )
         if os.getenv("DEBUG"):
-            print("   (via DEBUG environment variable)")
+            logging.debug("(via DEBUG environment variable)")
     elif verbose_enabled:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
-        print("📢 Verbose mode enabled - showing detailed error messages")
+        logging.info("📢 Verbose mode enabled - showing detailed error messages")
     else:
         logging.basicConfig(level=logging.WARNING)
+
+    # Helper for conditional info output (suppressed in quiet mode)
+    def vprint(*a, **k):
+        if not quiet_enabled:
+            print(*a, **k)
 
     # Determine output directory and run ID
     if args.output_dir:
@@ -116,19 +142,19 @@ async def main():
         output_dir.mkdir(parents=True, exist_ok=True)
         # Extract or generate run ID from output directory name
         run_id = output_dir.name if not args.resume else args.resume
-        print(f"📁 Output directory: {output_dir}")
+        vprint(f"📁 Output directory: {output_dir}")
     elif args.resume:
         run_id = args.resume
         output_dir = CACHE_DIR / run_id
-        print(f"🔄 Resuming run: {run_id}")
+        vprint(f"🔄 Resuming run: {run_id}")
         if args.retry_failed:
-            print("   Re-running failed tests")
+            vprint("   Re-running failed tests")
     else:
         # Generate new unique ID: short UUID (8 chars)
         run_id = str(uuid.uuid4())[:8]
         output_dir = CACHE_DIR / run_id
-        print(f"🆔 Run ID: {run_id}")
-        print(f"📁 Output directory: {output_dir}")
+        vprint(f"🆔 Run ID: {run_id}")
+        vprint(f"📁 Output directory: {output_dir}")
 
     # Configure LLM with provider abstraction
     # Re-resolve model config inside main to respect any env var changes that occurred
@@ -139,15 +165,15 @@ async def main():
     if getattr(args, "provider", None):
         override_provider = args.provider.strip().lower()
         if override_provider not in {"bedrock", "openai", "openrouter"}:
-            print(
+            logging.error(
                 f"❌ Error: Unsupported provider override '{override_provider}'. Allowed: bedrock, openai, openrouter"
             )
             return
         provider = override_provider  # type: ignore
-        print(f"🔧 Provider explicitly set to: {provider}")
+        vprint(f"🔧 Provider explicitly set to: {provider}")
     if getattr(args, "model", None):
         resolved_model = args.model.strip()
-        print(f"🔧 Model explicitly set to: {resolved_model}")
+        vprint(f"🔧 Model explicitly set to: {resolved_model}")
 
     # Configure evaluator LLM (separate from models being tested)
     evaluator_model, evaluator_provider = get_evaluation_model_config()
@@ -184,12 +210,12 @@ async def main():
             # Apply YAML evaluator config
             evaluator_model = yaml_model
             evaluator_provider = yaml_provider
-            print(f"📊 Evaluator config loaded from YAML: {yaml_file_path}")
-            print(f"   Using: {yaml_provider} / {yaml_model} (applies to ALL test modes)")
+            vprint(f"📊 Evaluator config loaded from YAML: {yaml_file_path}")
+            vprint(f"   Using: {yaml_provider} / {yaml_model} (applies to ALL test modes)")
         except Exception as e:
-            print(f"⚠️  Warning: Failed to apply YAML evaluator config: {e}")
-            print(
-                f"   Continuing with environment/default evaluator: "
+            logging.warning(f"Failed to apply YAML evaluator config: {e}")
+            vprint(
+                f"⚠️  Continuing with environment/default evaluator: "
                 f"{evaluator_provider} / {evaluator_model}"
             )
             # Reset overrides if validation failed
@@ -200,14 +226,14 @@ async def main():
     try:
         validate_provider_credentials(provider, api_key_override=getattr(args, "api_key", None))
     except ValueError as e:
-        print(f"❌ Error: {e}")
+        logging.error(f"❌ Error validating provider credentials: {e}")
         return
 
     # Validate evaluator provider credentials
     try:
         validate_provider_credentials(evaluator_provider)
     except ValueError as e:
-        print(f"❌ Error: {e}")
+        logging.error(f"❌ Error validating evaluator credentials: {e}")
         return
 
     # Create LLM instances using the provider abstraction
@@ -245,7 +271,7 @@ async def main():
     )
 
     # Display configuration - provider-agnostic messaging
-    print(f"🔧 Model: {provider} / {resolved_model}")
+    vprint(f"🔧 Model: {provider} / {resolved_model}")
     if trace_enabled:
         from config.llm_providers import get_api_base, get_api_key
 
@@ -256,21 +282,21 @@ async def main():
             if resolved_key and len(resolved_key) > 10
             else "(short/none)"
         )
-        print(
+        logging.warning(
             f"[LLM-TRACE] provider={provider} model={resolved_model} base={resolved_base or '(default)'} key={masked_key} web_supported={provider_config.supports_web_search}"
         )
 
     if args.with_web:
-        print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
-        print(
+        vprint(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
+        vprint(
             f"⚠️  Note: Not all models support web search. "
             f"Check OpenRouter docs for compatibility."
         )
-        print(
+        vprint(
             f"   Models known to support :online - "
             f"OpenAI (gpt-4, gpt-3.5-turbo, etc), Anthropic Claude"
         )
-        print(f"   If you see empty responses, try a different model that supports web search.")
+        vprint(f"   If you see empty responses, try a different model that supports web search.")
 
     # Clear cache if requested
     if args.clear:
@@ -279,8 +305,8 @@ async def main():
 
     # Handle --prompt mode (ad-hoc question)
     if args.prompt:
-        print(f"🔍 Processing prompt: {args.prompt}")
-        print("=" * 80)
+        vprint(f"🔍 Processing prompt: {args.prompt}")
+        vprint("=" * 80)
 
         # Create MCP server and client
         mcp_server = create_server()
@@ -304,15 +330,16 @@ async def main():
                     "metadata": metadata,
                 }
 
-                print("\n📊 RESULT (JSON):")
-                print(json.dumps(result, indent=2))
-                print("\n" + "=" * 80)
+                vprint("\n📊 RESULT (JSON):")
+                if not quiet_enabled:
+                    print(json.dumps(result, indent=2))  # large JSON omitted in quiet mode
+                vprint("\n" + "=" * 80)
 
             except TokenLimitExceeded as e:
-                print(f"❌ Token limit exceeded: {e.token_count:,} > {100_000:,}")
-                print("   Please reduce the complexity of your question or context.")
+                logging.error(f"❌ Token limit exceeded: {e.token_count:,} > {100_000:,}")
+                vprint("   Please reduce the complexity of your question or context.")
             except Exception as e:
-                print(f"❌ Error processing prompt: {e}")
+                logging.error(f"❌ Error processing prompt: {e}")
                 import traceback
 
                 traceback.print_exc()
@@ -326,11 +353,12 @@ async def main():
 
     if args.resume:
         if not snapshot_path.exists():
-            print(f"❌ Error: Snapshot not found for run {run_id}")
-            print(f"   Expected: {snapshot_path}")
+            logging.error(f"❌ Error: Snapshot not found for run {run_id}")
+            if not quiet_enabled:
+                print(f"   Expected: {snapshot_path}")
             return
 
-        print(f"📂 Loading test cases from snapshot: {snapshot_path}")
+        vprint(f"📂 Loading test cases from snapshot: {snapshot_path}")
         with open(snapshot_path, "r", encoding="utf-8") as f:
             all_test_cases = yaml.safe_load(f)
     else:
@@ -348,7 +376,7 @@ async def main():
             tc["uuid"] = tc_uuid
 
         # Save snapshot
-        print(f"📸 Saving test case snapshot to: {snapshot_path}")
+        vprint(f"📸 Saving test case snapshot to: {snapshot_path}")
         with open(snapshot_path, "w", encoding="utf-8") as f:
             yaml.dump(all_test_cases, f, sort_keys=False)
 
@@ -357,10 +385,10 @@ async def main():
         try:
             subset_indices = parse_subset(args.subset, len(all_test_cases))
             test_cases = [all_test_cases[i] for i in subset_indices]
-            print(f"📋 Running subset: {len(test_cases)}/{len(all_test_cases)} test cases")
-            print(f"   Indices (1-based): {', '.join(str(i+1) for i in subset_indices)}")
+            vprint(f"📋 Running subset: {len(test_cases)}/{len(all_test_cases)} test cases")
+            vprint(f"   Indices (1-based): {', '.join(str(i+1) for i in subset_indices)}")
         except ValueError as e:
-            print(f"❌ Error parsing subset: {e}")
+            logging.error(f"❌ Error parsing subset: {e}")
             return
     else:
         test_cases = all_test_cases
@@ -379,17 +407,17 @@ async def main():
 
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
     if args.with_web:
-        print(
+        vprint(
             f"🚀 Running {len(test_cases)} test case(s) with THREE modes: "
             f"vanilla, web search, and MARRVEL-MCP"
         )
-        print(f"   Concurrency: {args.concurrency}")
+        vprint(f"   Concurrency: {args.concurrency}")
         cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
-        print(f"💾 Cache {cache_status}")
+        vprint(f"💾 Cache {cache_status}")
 
         async with mcp_client:
             # Run vanilla mode tests
-            print("\n🍦 Running VANILLA mode (no tools, no web search)...")
+            vprint("\n🍦 Running VANILLA mode (no tools, no web search)...")
             pbar_vanilla = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
 
             vanilla_tasks = [
@@ -413,7 +441,7 @@ async def main():
             pbar_vanilla.close()
 
             # Run web search mode tests
-            print("\n🌐 Running WEB SEARCH mode (web search enabled via :online)...")
+            vprint("\n🌐 Running WEB SEARCH mode (web search enabled via :online)...")
             pbar_web = atqdm(total=len(test_cases), desc="Web search mode", unit="test")
 
             web_tasks = [
@@ -437,7 +465,7 @@ async def main():
             pbar_web.close()
 
             # Run tool mode tests
-            print("\n🔧 Running MARRVEL-MCP mode (with specialized tools)...")
+            vprint("\n🔧 Running MARRVEL-MCP mode (with specialized tools)...")
             pbar_tool = atqdm(total=len(test_cases), desc="Tool mode", unit="test")
 
             tool_tasks = [
@@ -485,18 +513,18 @@ async def main():
             )
             open_in_browser(html_path)
         except Exception as e:
-            print(f"--- Error generating HTML or opening browser: {e} ---")
+            logging.error(f"Error generating HTML or opening browser: {e}")
 
     # Handle --with-vanilla mode: run both vanilla and tool modes
     elif args.with_vanilla:
-        print(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
-        print(f"   Concurrency: {args.concurrency}")
+        vprint(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
+        vprint(f"   Concurrency: {args.concurrency}")
         cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
-        print(f"💾 Cache {cache_status}")
+        vprint(f"💾 Cache {cache_status}")
 
         async with mcp_client:
             # Run vanilla mode tests
-            print("\n🍦 Running VANILLA mode (without tool calling)...")
+            vprint("\n🍦 Running VANILLA mode (without tool calling)...")
             pbar_vanilla = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
 
             vanilla_tasks = [
@@ -520,7 +548,7 @@ async def main():
             pbar_vanilla.close()
 
             # Run tool mode tests
-            print("\n🔧 Running TOOL mode (with tool calling)...")
+            vprint("\n🔧 Running TOOL mode (with tool calling)...")
             pbar_tool = atqdm(total=len(test_cases), desc="Tool mode", unit="test")
 
             tool_tasks = [
@@ -567,13 +595,13 @@ async def main():
             )
             open_in_browser(html_path)
         except Exception as e:
-            print(f"--- Error generating HTML or opening browser: {e} ---")
+            logging.error(f"Error generating HTML or opening browser: {e}")
 
     else:
         # Normal mode: run with tools only
-        print(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
+        vprint(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
         cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
-        print(f"💾 Cache {cache_status}")
+        vprint(f"💾 Cache {cache_status}")
 
         async with mcp_client:
             # Create progress bar
@@ -619,7 +647,7 @@ async def main():
             )
             open_in_browser(html_path)
         except Exception as e:
-            print(f"--- Error generating HTML or opening browser: {e} ---")
+            logging.error(f"Error generating HTML or opening browser: {e}")
 
 
 if __name__ == "__main__":
