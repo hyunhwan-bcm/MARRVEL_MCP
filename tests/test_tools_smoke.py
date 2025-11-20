@@ -66,8 +66,9 @@ JSON (or a Python literal convertible to JSON), the test will fail.
 """
 
 
-# List of tools to exercise and representative arguments. Keep this small
-# but representative; add/remove entries as needed.
+# Essential tools to exercise representing critical functionality categories.
+# This reduced set covers: gene queries, variant analysis, disease associations,
+# orthologs, literature search, and coordinate conversion.
 TEST_VARIANT = {"chr": "6", "pos": "98917691", "ref": "T", "alt": "C", "build": "hg38"}
 tool_calls = [
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
@@ -78,6 +79,19 @@ tool_calls = [
     ("search_pubmed", {"query": "MECP2 Rett Syndrome", "max_results": 1}),
     ("get_pmc_abstract_by_pmcid", {"pmcid": "PMC3518823"}),
     ("convert_hgvs_to_genomic", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
+    ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
+    ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
+    # Variant analysis - critical for variant annotation
+    ("get_variant_annotation_by_genomic_position", TEST_VARIANT),
+    ("get_clinvar_by_variant", TEST_VARIANT),
+    # Disease associations - essential for clinical relevance
+    ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
+    # Ortholog information - unique DIOPT integration
+    ("get_diopt_orthologs_by_entrez_id", {"entrez_id": "7157"}),
+    # Literature search - PubMed integration
+    ("search_pubmed", {"query": "MECP2 Rett Syndrome", "max_results": 1}),
+    # Coordinate conversion - genomic coordinate utility
+    ("liftover_hg38_to_hg19", {"chr": "3", "pos": 12345}),
 ]
 
 

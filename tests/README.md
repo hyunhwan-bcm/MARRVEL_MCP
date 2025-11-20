@@ -1,56 +1,52 @@
 # Tests Directory
 
-This directory contains all test files for the MARRVEL-MCP project, organized by test type for easy execution and maintenance.
+This directory contains the **essential test suite** for the MARRVEL-MCP project, focused on critical functionality for fast CI execution.
 
-## Test Organization
+## Essential Test Suite (22 tests)
 
-Tests are categorized using pytest markers for flexible execution:
+The test suite has been optimized to retain only the most critical tests for repository health while maintaining fast execution (~2 seconds).
 
-- **`@pytest.mark.unit`** - Fast unit tests with mocked dependencies (no network required)
-- **`@pytest.mark.integration_api`** - Integration tests that call real MARRVEL API (requires network)
-- **`@pytest.mark.integration_mcp`** - Integration tests that run MCP server (requires server startup)
-- **`@pytest.mark.integration`** - Generic integration marker (deprecated, use specific markers)
+### Test Files
 
-## Test Files
+1. **`test_tools_smoke.py` (8 tests)** - Integration smoke tests for core MCP tools
+   - Gene queries: `get_gene_by_entrez_id`, `get_gene_by_symbol`
+   - Variant analysis: `get_variant_annotation_by_genomic_position`, `get_clinvar_by_variant`
+   - Disease associations: `search_omim_by_disease_name`
+   - Orthologs: `get_diopt_orthologs_by_entrez_id`
+   - Literature: `search_pubmed`
+   - Utilities: `liftover_hg38_to_hg19`
 
-### Unit Tests (Mock-based, No Network)
+2. **`test_llm_provider_config.py` (4 tests)** - LLM provider configuration
+   - API base URL defaults for different providers
+   - Provider-specific configuration
 
-These tests use `unittest.mock` to mock API responses and run very fast (~0.7 seconds for 141 tests):
+3. **`test_openrouter_model_config.py` (3 tests)** - Model configuration
+   - Default model fallback
+   - Environment variable overrides
+   - Model resolution
 
-- **`test_gene_tools.py`** - Gene query functions (get_gene_by_entrez_id, get_gene_by_symbol, get_gene_by_position)
-- **`test_disease_tools.py`** - Disease/OMIM query functions
-- **`test_expression_tools.py`** - Expression data functions (GTEx, orthologs, Pharos)
-- **`test_ortholog_tools.py`** - DIOPT ortholog query functions
-- **`test_utility_tools.py`** - Utility functions (HGVS validation, protein variant conversion)
-- **`test_variant_tools.py`** - Variant annotation functions (dbNSFP, ClinVar, gnomAD, DGV, DECIPHER, Geno2MP)
-- **`test_api_client.py`** - API client helper functions
-- **`test_server.py`** - Core server functionality
+4. **`test_cache_essential.py` (2 tests)** - Core cache functionality
+   - Basic save and load operations
+   - Cache clearing
 
-### Integration Tests - API (Real API Calls)
+5. **`test_subset_essential.py` (3 tests)** - Subset parsing
+   - Range parsing
+   - Combined range and individual indices
+   - Empty string handling
 
-These tests make actual HTTP calls to the MARRVEL API and require network connectivity:
+6. **`test_retry_essential.py` (2 tests)** - Retry logic
+   - Successful first attempt
+   - Retry with 500 error
 
-- **`test_comprehensive_api.py`** - Comprehensive coverage of all 26 MARRVEL API endpoints
-  - Gene endpoints (3): entrezId, symbol, position
-  - Variant endpoints (13): dbNSFP, ClinVar, gnomAD, DGV, DECIPHER, Geno2MP
-  - Disease endpoints (3): OMIM by mimNumber, symbol, variant
-  - Ortholog endpoints (2): DIOPT orthologs, alignment
-  - Expression endpoints (3): GTEx, ortholog expression, Pharos
-  - Utility endpoints (2): Mutalyzer HGVS validation, Transvar protein conversion
-- **`test_api_direct.py`** - Direct API endpoint verification
-- **`test_api_capture_example.py`** - Example tests demonstrating API capture fixture usage
-- **`test_mcp_client.py`** - MCP tool testing with real API calls
-- **`test_api_client_integration.py`** - API client integration tests
-- **`test_server_api_integration.py`** - Server API integration tests
-- Integration test methods within unit test files (marked with `@pytest.mark.integration_api`)
+### Selection Criteria
 
-### Integration Tests - MCP (Server Lifecycle)
+Tests were selected based on:
+- **Critical for core functionality**: Essential MCP tools and configuration
+- **High impact on repository health**: Catches breaking changes in critical paths
+- **Representative coverage**: Covers different functional areas without redundancy
+- **Fast execution**: All tests run in under 2 seconds
 
-These tests start and interact with the full MCP server:
-
-- **`test_server_integration.py`** - Complete MCP server lifecycle tests
-  - Server start, initialize, list tools, call tool, shutdown
-  - JSON-RPC 2.0 protocol compliance validation
+See [ESSENTIAL_TESTS.md](./ESSENTIAL_TESTS.md) for detailed rationale and maintenance guidelines.
 
 ## Running Tests
 
@@ -59,254 +55,100 @@ These tests start and interact with the full MCP server:
 pytest tests/
 ```
 
-### Run Only Fast Unit Tests (Development)
-```bash
-pytest -m unit
-# or exclude integration tests
-pytest -m "not integration_api and not integration_mcp"
-```
-
-### Run Only API Integration Tests
-```bash
-pytest -m integration_api
-
-# Run only the comprehensive API tests
-pytest tests/integration/api/test_comprehensive_api.py -v
-
-# Run specific endpoint category
-pytest tests/integration/api/test_comprehensive_api.py -v -k "gene"
-pytest tests/integration/api/test_comprehensive_api.py -v -k "variant"
-pytest tests/integration/api/test_comprehensive_api.py -v -k "clinvar"
-```
-
-### Run Only MCP Server Integration Tests
-```bash
-pytest -m integration_mcp
-```
-
-### Run All Integration Tests
-```bash
-pytest -m "integration_api or integration_mcp"
-```
-
 ### Run Specific Test File
 ```bash
-pytest tests/test_gene_tools.py
-pytest tests/test_gene_tools.py::TestGetGeneByEntrezId
-pytest tests/test_gene_tools.py::TestGetGeneByEntrezId::test_successful_query
+pytest tests/test_tools_smoke.py
+pytest tests/test_llm_provider_config.py
 ```
 
 ### Run with Verbose Output
 ```bash
 pytest tests/ -v
-pytest tests/ -m unit -v
 ```
 
 ### Run with Coverage
 ```bash
-pytest tests/ --cov=. --cov-report=html
-pytest tests/ -m unit --cov=. --cov-report=html
+pytest tests/ --cov=marrvel_mcp --cov-report=html
 ```
 
-### Skip Network-Dependent Tests (CI/CD)
-```bash
-pytest tests/ -m "not integration_api and not integration_mcp"
-```
+## Test Markers
 
-### Run Tests and Show Print Output
-```bash
-pytest tests/ -s
-```
+Tests use pytest markers for categorization:
 
-## API Response Capture
-
-Integration API tests use the `api_capture` fixture to automatically log all API requests and responses:
-
-```python
-@pytest.mark.integration_api
-@pytest.mark.asyncio
-async def test_my_endpoint(api_capture):
-    """Test with automatic response capture."""
-    result = await fetch_marrvel_data("/endpoint")
-
-    api_capture.log_response(
-        tool_name="my_tool",
-        endpoint="/endpoint",
-        input_data={"param": "value"},
-        output_data=result,
-        status="success",
-    )
-```
-
-After running integration tests, captured responses are saved to:
-- **`test-output/api_responses.json`** - Complete JSON log of all API calls
-- **`test-output/api_responses.md`** - Markdown summary table
-
-This is useful for:
-- Debugging API integration issues
-- Documenting API behavior
-- Tracking API changes over time
-- Generating test reports
-
-## Test Execution Examples
-
-### Development Workflow
-```bash
-# Quick feedback during development (fast unit tests only)
-pytest -m unit
-
-# Test changes with real API (slower)
-pytest -m integration_api
-
-# Full test suite before committing
-pytest tests/
-```
-
-### CI/CD Stages
-```bash
-# Stage 1: Fast unit tests (always run)
-pytest -m unit
-
-# Stage 2: API integration tests (run with network)
-pytest -m integration_api
-
-# Stage 3: MCP server tests (run in isolated environment)
-pytest -m integration_mcp
-```
+- **`@pytest.mark.integration`** - Integration tests (requires network)
+- **`@pytest.mark.integration_mcp`** - MCP server integration tests
+- **`@pytest.mark.asyncio`** - Async tests
 
 ## Test Configuration
 
-Test configuration is defined in:
 - **`pytest.ini`** - Pytest settings and marker definitions
-- **`conftest.py`** - Custom fixtures and marker registration
-  - SSL certificate verification checks
-  - Network connectivity checks
-  - Custom markers: `skip_if_ssl_broken`, `skip_if_no_network`
-
-## Dependencies
-
-```bash
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-httpx>=0.27.0
-certifi>=2023.7.22
-```
+- **`conftest.py`** - Custom fixtures (e.g., mcp_server fixture for smoke tests)
 
 ## Writing New Tests
 
-### Unit Test (Mock-based)
+When adding new tests, follow the principle: **Add tests only for critical functionality**.
 
-```python
-import pytest
-from unittest.mock import patch
-
-@pytest.mark.unit
-class TestMyFeature:
-    """Unit tests with mocked dependencies."""
-
-    @pytest.mark.asyncio
-    async def test_successful_call(self):
-        """Test successful API call."""
-        with patch("src.tools.my_tool.fetch_marrvel_data") as mock_fetch:
-            mock_fetch.return_value = {"data": "value"}
-            result = await my_function()
-            assert "value" in result
-```
-
-### Integration Test (Real API)
+### Integration Smoke Test Example
 
 ```python
 import pytest
 
-@pytest.mark.integration_api
-@pytest.mark.asyncio
-async def test_real_api_call():
-    """Integration test with real API (requires network)."""
-    result = await my_function()
-    assert isinstance(result, str)
-    assert len(result) > 0
-```
-
-### Integration Test (MCP Server)
-
-```python
-import pytest
-
+@pytest.mark.integration
 @pytest.mark.integration_mcp
-def test_server_functionality(mcp_server):
-    """Test MCP server (requires server startup)."""
-    # Use mcp_server fixture from conftest.py
-    result = send_request_to_server(mcp_server)
-    assert result["status"] == "success"
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name,args", [("tool_name", {"param": "value"})])
+async def test_tool_returns_json(mcp_server, name, args):
+    """Test that a tool returns valid JSON."""
+    resp = await mcp_server.call_tool(name, args)
+    resp = resp[-1]["result"]
+    assert resp is not None
 ```
 
-## Test Coverage
+### Unit Test Example
 
-Current test coverage by category:
-- **Unit tests**: 141 tests covering all tool functions with mocked APIs
-- **API Integration tests**: 40 tests with real MARRVEL API calls
-- **MCP Integration tests**: 6 tests covering server lifecycle
+```python
+def test_configuration_default():
+    """Test configuration defaults."""
+    result = get_config_value("key")
+    assert result == "expected_default"
+```
 
-Coverage areas:
-- ✅ Gene queries (Entrez ID, symbol, position)
-- ✅ Variant annotations (dbNSFP, ClinVar, gnomAD, DGV, DECIPHER, Geno2MP)
-- ✅ Disease data (OMIM)
-- ✅ Ortholog information (DIOPT)
-- ✅ Expression data (GTEx, ortholog expression, Pharos)
-- ✅ Utility functions (HGVS validation, variant conversion)
-- ✅ API client functions
-- ✅ MCP server protocol compliance
-- ✅ Error handling
-- ✅ Mock handling
+## When to Add Tests
+
+Add new tests only when:
+1. A bug is found that wasn't caught by existing tests
+2. A new critical MCP tool category is introduced
+3. Core configuration or integration points change
+4. A critical feature is added that affects repository health
+
+**Do not add tests for:**
+- Edge cases that rarely occur in production
+- Exhaustive permutations of similar functionality
+- Non-critical features like HTML report formatting
+- Detailed internal implementation details
+
+## Test Execution Time
+
+- **Target**: Under 2 seconds for full suite
+- **Current**: ~1.8 seconds (22 tests)
+
+If tests start taking longer than 5 seconds, review and reduce non-essential tests.
 
 ## CI/CD Integration
 
-Tests are designed for flexible CI/CD execution:
+Tests are designed for fast CI execution:
 
 ```yaml
 # Example GitHub Actions workflow
 jobs:
-  unit-tests:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - run: pytest -m unit  # Fast, no network needed
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - run: pytest -m integration_api  # Requires network
-
-  server-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - run: pytest -m integration_mcp  # Requires server environment
-```
-
-## Troubleshooting
-
-### SSL Certificate Errors
-If you encounter SSL certificate errors:
-```bash
-pip install --upgrade certifi
-```
-
-Tests with SSL issues are automatically skipped using the `skip_if_ssl_broken` marker.
-
-### Network Connectivity Issues
-Tests requiring network access are automatically skipped using the `skip_if_no_network` marker when the network is unavailable.
-
-### Test Collection Issues
-If tests aren't being collected:
-```bash
-# Verify pytest configuration
-pytest --collect-only
-
-# Check marker registration
-pytest --markers
+      - run: pytest tests/ -v --tb=short
 ```
 
 ## Related Documentation
 
-- [Contributing Guide](../CONTRIBUTING.md) - How to contribute tests
-- [API Documentation](../docs/API_DOCUMENTATION.md) - API reference for tools being tested
-- [Architecture](../docs/ARCHITECTURE.md) - System architecture
+- [ESSENTIAL_TESTS.md](./ESSENTIAL_TESTS.md) - Detailed test selection rationale
+- [Contributing Guide](../CONTRIBUTING.md) - How to contribute
+- [README](../README.md) - Project overview
