@@ -71,7 +71,14 @@ JSON (or a Python literal convertible to JSON), the test will fail.
 # orthologs, literature search, and coordinate conversion.
 TEST_VARIANT = {"chr": "6", "pos": "98917691", "ref": "T", "alt": "C", "build": "hg38"}
 tool_calls = [
-    # Gene queries - essential for gene lookups
+    ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
+    ("get_variant_annotation_by_genomic_position", TEST_VARIANT),
+    ("get_clinvar_by_variant", TEST_VARIANT),
+    ("get_gnomad_variant", TEST_VARIANT),
+    ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
+    ("search_pubmed", {"query": "MECP2 Rett Syndrome", "max_results": 1}),
+    ("get_pmc_abstract_by_pmcid", {"pmcid": "PMC3518823"}),
+    ("convert_hgvs_to_genomic", {"hgvs_variant": "NM_000546.5:c.215C>G"}),
     ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
     # Variant analysis - critical for variant annotation

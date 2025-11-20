@@ -13,6 +13,7 @@ import asyncio
 import json
 import logging
 import random
+import os
 from typing import Any, Dict, List, Tuple
 
 from fastmcp.client import Client
@@ -72,9 +73,48 @@ async def invoke_with_throttle_retry(
     delay = initial_delay
     last_exception = None
 
+    # Allow override of connection-error specific max backoff via env var
+    # LLM_CONN_MAX_BACKOFF: caps exponential backoff for classified connection errors (default 15s)
+    try:
+        conn_max_backoff = float(os.getenv("LLM_CONN_MAX_BACKOFF", "15"))
+    except ValueError:
+        conn_max_backoff = 15.0
+
+    if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
+        logging.warning(
+            "[LLM-TRACE] Backoff settings initial_delay=%.2f max_delay=%.2f conn_max_backoff=%.2f max_retries=%d",
+            initial_delay,
+            max_delay,
+            conn_max_backoff,
+            max_retries,
+        )
+
     for attempt in range(max_retries + 1):
         try:
-            return await llm_instance.ainvoke(messages)
+            # Log the actual endpoint being used
+            if attempt == 0:  # Only log on first attempt
+                # Try multiple attributes where the endpoint might be stored
+                endpoint = (
+                    getattr(llm_instance, "openai_api_base", None)
+                    or getattr(llm_instance, "base_url", None)
+                    or (
+                        hasattr(llm_instance, "client")
+                        and getattr(llm_instance.client, "base_url", None)
+                    )
+                    or "https://api.openai.com/v1 (default)"
+                )
+                model_name = getattr(llm_instance, "model_name", "unknown")
+                logging.warning(f"🌐 Invoking LLM | model={model_name} endpoint={endpoint}")
+
+            result = await llm_instance.ainvoke(messages)
+            if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
+                logging.warning(
+                    "[LLM-TRACE] Successful invoke attempt=%d tokens_in=%s tool_calls=%d",
+                    attempt + 1,
+                    getattr(result, "usage_metadata", {}).get("input_tokens", "?"),
+                    len(getattr(result, "tool_calls", []) or []),
+                )
+            return result
         except Exception as e:
             last_exception = e
 
@@ -90,16 +130,69 @@ async def invoke_with_throttle_retry(
                 f"{error_name}: {error_msg[:200]}"
             )
 
-            # Check for throttling/rate limit indicators
-            if "throttling" in error_name.lower() or "throttling" in error_msg_lower:
+            # Determine classification (throttling vs connection)
+            classification = None
+            name_lower = error_name.lower()
+
+            throttling_indicators = [
+                "throttling",
+                "rate limit",
+                "too many",
+                "reached max retries",
+            ]
+            connection_indicators = [
+                "apiconnectionerror",
+                "connection error",
+                "connecttimeout",
+                "timeout",
+            ]
+
+            if any(ind in name_lower or ind in error_msg_lower for ind in throttling_indicators):
+                classification = "throttling"
+            elif any(ind in name_lower or ind in error_msg_lower for ind in connection_indicators):
+                classification = "connection"
+
+            # Try to refine using SDK exception types if available
+            try:
+                import openai  # type: ignore
+
+                if isinstance(e, openai.APIConnectionError):
+                    classification = "connection"
+                if isinstance(e, openai.RateLimitError):
+                    classification = "throttling"
+            except Exception:
+                pass
+
+            if classification == "throttling":
                 is_throttling = True
-            elif "rate" in error_msg_lower and "limit" in error_msg_lower:
-                is_throttling = True
-            elif "too many" in error_msg_lower:
-                is_throttling = True
-            elif "reached max retries" in error_msg_lower:
-                # Boto3 exhausted its retries - we should retry at application level
-                is_throttling = True
+            elif classification == "connection":
+                # Retry connection errors (transient network issues) with capped backoff
+                is_throttling = True  # reuse same loop
+                # Clamp delay growth for connection errors using env-configurable limit
+                max_delay = min(max_delay, conn_max_backoff)
+                if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
+                    logging.warning(
+                        "[LLM-TRACE] Connection error backoff clamp applied max_delay=%.2f (conn_max_backoff=%.2f)",
+                        max_delay,
+                        conn_max_backoff,
+                    )
+
+            if classification:
+                logging.warning(
+                    f"🔍 Transient error classified as '{classification}': {error_name} | Will retry"
+                )
+                logging.warning(f"   ↳ Error detail: {error_msg[:300]}")
+                logging.debug(f"Error message detail (full): {error_msg[:500]}")
+
+            if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
+                logging.warning(
+                    "[LLM-TRACE] Invoke failure attempt=%d type=%s classification=%s will_retry=%s msg=%s",
+                    attempt + 1,
+                    error_name,
+                    classification or "unknown",
+                    is_throttling and attempt < max_retries,
+                    error_msg[:200],
+                )
 
             # Only retry on throttling/rate limit errors
             if is_throttling and attempt < max_retries:
@@ -108,8 +201,8 @@ async def invoke_with_throttle_retry(
                 sleep_time = min(delay + jitter, max_delay)
 
                 logging.warning(
-                    f"🔄 Throttling detected ({error_name}), retrying in {sleep_time:.2f}s "
-                    f"(attempt {attempt + 1}/{max_retries + 1})"
+                    f"🔄 Retry scheduled in {sleep_time:.2f}s "
+                    f"(attempt {attempt + 1}/{max_retries + 1}, classification={classification})"
                 )
                 await asyncio.sleep(sleep_time)
                 delay = min(delay * 2, max_delay)  # Exponential backoff with cap

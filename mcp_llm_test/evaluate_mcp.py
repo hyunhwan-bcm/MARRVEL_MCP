@@ -135,18 +135,30 @@ async def main():
     # after module import (e.g., in CI or wrapper scripts).
     resolved_model, provider = get_default_model_config()
 
+    # Apply explicit CLI overrides if provided (validated set: bedrock, openai, openrouter)
+    if getattr(args, "provider", None):
+        override_provider = args.provider.strip().lower()
+        if override_provider not in {"bedrock", "openai", "openrouter"}:
+            print(
+                f"❌ Error: Unsupported provider override '{override_provider}'. Allowed: bedrock, openai, openrouter"
+            )
+            return
+        provider = override_provider  # type: ignore
+        print(f"🔧 Provider explicitly set to: {provider}")
+    if getattr(args, "model", None):
+        resolved_model = args.model.strip()
+        print(f"🔧 Model explicitly set to: {resolved_model}")
+
     # Configure evaluator LLM (separate from models being tested)
     evaluator_model, evaluator_provider = get_evaluation_model_config()
 
     # Load YAML evaluator config and override if specified
     # This applies to ALL test modes for consistency (not just multi-model mode)
-    models_config_path = Path(args.models_config) if args.models_config else None
+    models_config_path = None  # Removed --models-config argument during refactoring
     yaml_evaluator_config = load_evaluator_config_from_yaml(models_config_path)
 
     # Determine the actual YAML file path for logging
-    yaml_file_path = (
-        models_config_path if models_config_path else Path(__file__).parent / "models_config.yaml"
-    )
+    yaml_file_path = Path(__file__).parent / "models_config.yaml"
 
     # Extract evaluator overrides (api_key, api_base) from YAML config
     evaluator_api_key_override = None
@@ -184,9 +196,9 @@ async def main():
             evaluator_api_key_override = None
             evaluator_api_base_override = None
 
-    # Validate provider credentials before proceeding
+    # Validate provider credentials before proceeding (after overrides)
     try:
-        validate_provider_credentials(provider)
+        validate_provider_credentials(provider, api_key_override=getattr(args, "api_key", None))
     except ValueError as e:
         print(f"❌ Error: {e}")
         return
@@ -199,10 +211,13 @@ async def main():
         return
 
     # Create LLM instances using the provider abstraction
+    trace_enabled = os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE")
     llm = create_llm_instance(
         provider=provider,
         model_id=resolved_model,
         temperature=0,
+        api_key=getattr(args, "api_key", None),
+        api_base=getattr(args, "api_base", None),
     )
 
     # Create web-enabled LLM if provider supports it
@@ -213,6 +228,8 @@ async def main():
             model_id=resolved_model,
             temperature=0,
             web_search=True,
+            api_key=getattr(args, "api_key", None),
+            api_base=getattr(args, "api_base", None),
         )
     else:
         # Fall back to regular LLM if web search is not supported
@@ -229,6 +246,19 @@ async def main():
 
     # Display configuration - provider-agnostic messaging
     print(f"🔧 Model: {provider} / {resolved_model}")
+    if trace_enabled:
+        from config.llm_providers import get_api_base, get_api_key
+
+        resolved_base = getattr(args, "api_base", None) or get_api_base(provider)
+        resolved_key = getattr(args, "api_key", None) or get_api_key(provider)
+        masked_key = (
+            (resolved_key[:6] + "..." + resolved_key[-4:])
+            if resolved_key and len(resolved_key) > 10
+            else "(short/none)"
+        )
+        print(
+            f"[LLM-TRACE] provider={provider} model={resolved_model} base={resolved_base or '(default)'} key={masked_key} web_supported={provider_config.supports_web_search}"
+        )
 
     if args.with_web:
         print(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
