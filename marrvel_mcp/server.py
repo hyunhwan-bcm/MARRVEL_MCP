@@ -1499,36 +1499,6 @@ async def get_pmc_abstract_by_pmcid(pmcid: str) -> str:
 
 
 @mcp.tool(
-    name="get_pmc_abstract_by_pmid",
-    description="Retrieve abstract only from a PubMed Central (PMC) article by PubMed ID (PMID) for quick summary",
-    meta={"category": "literature", "database": "PMC", "version": "1.0"},
-)
-async def get_pmc_abstract_by_pmid(pmid: str) -> str:
-    try:
-        # First convert PMID to PMCID
-        pmcid_result = await pmid_to_pmcid(pmid)
-        pmcid_data = json.loads(pmcid_result)
-
-        if not pmcid_data.get("pmcid"):
-            return json.dumps(
-                {
-                    "pmid": pmid,
-                    "abstract": "",
-                    "error": "Could not convert PMID to PMCID - article may not be open access",
-                },
-                indent=2,
-            )
-
-        # Get abstract using PMCID
-        result = await get_pmc_abstract_by_pmcid(pmcid_data["pmcid"])
-        result_data = json.loads(result)
-        result_data["pmid"] = pmid
-        return json.dumps(result_data, indent=2)
-    except Exception as e:
-        return json.dumps({"pmid": pmid, "abstract": "", "error": str(e)}, indent=2)
-
-
-@mcp.tool(
     name="get_pmc_fulltext_by_pmcid",
     description="Retrieve full text of a PubMed Central (PMC) open-access article by PMC ID for detailed content analysis",
     meta={"category": "literature", "database": "PMC", "version": "1.0"},
@@ -1568,36 +1538,6 @@ async def get_pmc_fulltext_by_pmcid(pmcid: str) -> str:
         )
     except Exception as e:
         return json.dumps({"pmcid": pmcid, "fulltext": "", "error": str(e)}, indent=2)
-
-
-@mcp.tool(
-    name="get_pmc_fulltext_by_pmid",
-    description="Retrieve full text of a PubMed Central (PMC) open-access article by PubMed ID (PMID) for detailed content analysis",
-    meta={"category": "literature", "database": "PMC", "version": "1.0"},
-)
-async def get_pmc_fulltext_by_pmid(pmid: str) -> str:
-    try:
-        # First convert PMID to PMCID
-        pmcid_result = await pmid_to_pmcid(pmid)
-        pmcid_data = json.loads(pmcid_result)
-
-        if not pmcid_data.get("pmcid"):
-            return json.dumps(
-                {
-                    "pmid": pmid,
-                    "fulltext": "",
-                    "error": "Could not convert PMID to PMCID - article may not be open access",
-                },
-                indent=2,
-            )
-
-        # Get fulltext using PMCID
-        result = await get_pmc_fulltext_by_pmcid(pmcid_data["pmcid"])
-        result_data = json.loads(result)
-        result_data["pmid"] = pmid
-        return json.dumps(result_data, indent=2)
-    except Exception as e:
-        return json.dumps({"pmid": pmid, "fulltext": "", "error": str(e)}, indent=2)
 
 
 @mcp.tool(
@@ -1696,36 +1636,6 @@ async def get_pmc_tables_by_pmcid(pmcid: str) -> str:
 
 
 @mcp.tool(
-    name="get_pmc_tables_by_pmid",
-    description="Extract tables with captions from a PubMed Central (PMC) article by PubMed ID (PMID). Returns list of tables in markdown format with captions.",
-    meta={"category": "literature", "database": "PMC", "version": "1.0"},
-)
-async def get_pmc_tables_by_pmid(pmid: str) -> str:
-    try:
-        # First convert PMID to PMCID
-        pmcid_result = await pmid_to_pmcid(pmid)
-        pmcid_data = json.loads(pmcid_result)
-
-        if not pmcid_data.get("pmcid"):
-            return json.dumps(
-                {
-                    "pmid": pmid,
-                    "tables": [],
-                    "error": "Could not convert PMID to PMCID - article may not be open access",
-                },
-                indent=2,
-            )
-
-        # Get tables using PMCID
-        result = await get_pmc_tables_by_pmcid(pmcid_data["pmcid"])
-        result_data = json.loads(result)
-        result_data["pmid"] = pmid
-        return json.dumps(result_data, indent=2)
-    except Exception as e:
-        return json.dumps({"pmid": pmid, "tables": [], "error": str(e)}, indent=2)
-
-
-@mcp.tool(
     name="get_pmc_figure_captions_by_pmcid",
     description="Extract figure captions from a PubMed Central (PMC) article by PMC ID for understanding visual content",
     meta={"category": "literature", "database": "PMC", "version": "1.0"},
@@ -1781,36 +1691,6 @@ async def get_pmc_figure_captions_by_pmcid(pmcid: str) -> str:
         )
     except Exception as e:
         return json.dumps({"pmcid": pmcid, "figures": [], "error": str(e)}, indent=2)
-
-
-@mcp.tool(
-    name="get_pmc_figure_captions_by_pmid",
-    description="Extract figure captions from a PubMed Central (PMC) article by PubMed ID (PMID) for understanding visual content",
-    meta={"category": "literature", "database": "PMC", "version": "1.0"},
-)
-async def get_pmc_figure_captions_by_pmid(pmid: str) -> str:
-    try:
-        # First convert PMID to PMCID
-        pmcid_result = await pmid_to_pmcid(pmid)
-        pmcid_data = json.loads(pmcid_result)
-
-        if not pmcid_data.get("pmcid"):
-            return json.dumps(
-                {
-                    "pmid": pmid,
-                    "figures": [],
-                    "error": "Could not convert PMID to PMCID - article may not be open access",
-                },
-                indent=2,
-            )
-
-        # Get figure captions using PMCID
-        result = await get_pmc_figure_captions_by_pmcid(pmcid_data["pmcid"])
-        result_data = json.loads(result)
-        result_data["pmid"] = pmid
-        return json.dumps(result_data, indent=2)
-    except Exception as e:
-        return json.dumps({"pmid": pmid, "figures": [], "error": str(e)}, indent=2)
 
 
 @mcp.tool(
