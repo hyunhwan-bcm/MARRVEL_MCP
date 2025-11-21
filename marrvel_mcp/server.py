@@ -88,6 +88,119 @@ def create_http_client(verify=None, timeout=None):
 # ============================================================================
 
 
+async def retry_with_backoff(
+    func,
+    max_retries: int = 3,
+    initial_delay: float = 1.0,
+    backoff_factor: float = 2.0,
+):
+    """
+    Retry an async function with exponential backoff and enhanced error logging.
+
+    This function wraps an async callable and retries it on failure with exponential
+    backoff. It provides detailed logging for HTTP errors, especially for 500 errors
+    where full request/response details are logged.
+
+    Args:
+        func: Async callable to retry
+        max_retries: Maximum number of retry attempts (default: 3)
+        initial_delay: Initial delay in seconds before first retry (default: 1.0)
+        backoff_factor: Multiplier for delay after each retry (default: 2.0)
+
+    Returns:
+        The return value of the successful function call
+
+    Raises:
+        The last exception encountered if all retries are exhausted
+
+    Logging behavior:
+        - 500 errors: WARNING level with full request/response details including body and headers
+        - 429 errors: WARNING level with basic info (no response body)
+        - Final failure: ERROR level with complete diagnostic information
+    """
+    delay = initial_delay
+    last_exception = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            return await func()
+        except httpx.HTTPStatusError as e:
+            last_exception = e
+            status_code = e.response.status_code
+
+            # Build detailed error information
+            error_details = []
+            error_details.append(f"URL: {e.request.url}")
+            error_details.append(f"Method: {e.request.method}")
+
+            # For 500 errors, include response body and headers
+            if status_code == 500:
+                error_details.append(f"Response body: {e.response.text}")
+                # Handle both real headers and mock objects
+                try:
+                    headers_dict = dict(e.response.headers)
+                except (TypeError, AttributeError):
+                    # If headers is a Mock or doesn't support dict(), try to get the value directly
+                    headers_dict = e.response.headers
+                error_details.append(f"Response headers: {headers_dict}")
+
+            details_str = "\n  ".join(error_details)
+
+            if attempt < max_retries:
+                # Log retry attempts at WARNING level
+                if status_code == 500:
+                    logging.warning(
+                        f"Server error (500) on attempt {attempt + 1}/{max_retries + 1}. "
+                        f"Retrying in {delay}s. Details:\n  {details_str}"
+                    )
+                elif status_code == 429:
+                    logging.warning(
+                        f"Rate limited (429) on attempt {attempt + 1}/{max_retries + 1}. "
+                        f"Retrying in {delay}s. Details:\n  {details_str}"
+                    )
+                else:
+                    logging.warning(
+                        f"HTTP error ({status_code}) on attempt {attempt + 1}/{max_retries + 1}. "
+                        f"Retrying in {delay}s. Details:\n  {details_str}"
+                    )
+
+                # Wait before retrying
+                await asyncio.sleep(delay)
+                delay *= backoff_factor
+            else:
+                # Final failure - log at ERROR level
+                if status_code == 500:
+                    logging.error(
+                        f"Exhausted all retries after {max_retries + 1} attempts. "
+                        f"Server error (500). Details:\n  {details_str}"
+                    )
+                else:
+                    logging.error(
+                        f"Exhausted all retries after {max_retries + 1} attempts. "
+                        f"HTTP error ({status_code}). Details:\n  {details_str}"
+                    )
+                raise
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries:
+                logging.warning(
+                    f"Error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}. "
+                    f"Retrying in {delay}s"
+                )
+                await asyncio.sleep(delay)
+                delay *= backoff_factor
+            else:
+                logging.error(
+                    f"Exhausted all retries after {max_retries + 1} attempts. "
+                    f"Final error: {str(e)}"
+                )
+                raise
+
+    # This should not be reached, but just in case
+    if last_exception:
+        raise last_exception
+
+
 async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) -> str:
     """
     Fetch data from MARRVEL API with proper error handling and retry logic.
