@@ -272,6 +272,45 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
             }
             return field;
         }
+
+        // Open GitHub issue creation page with pre-filled content
+        function createGitHubIssue(id, question, expected, mode) {
+            const preElement = document.getElementById('json-content-' + id);
+            const jsonContent = preElement ? preElement.textContent : '';
+
+            // Get mode label
+            let modeLabel = '';
+            if (mode === 'vanilla') modeLabel = 'Vanilla Mode';
+            else if (mode === 'web') modeLabel = 'Web Search Mode';
+            else if (mode === 'tool') modeLabel = 'MARRVEL-MCP Mode';
+            else modeLabel = 'Test Case';
+
+            // Format as GitHub Issue markdown
+            const body = `## Test Case Failure Report
+
+### Question
+${question}
+
+### Expected Answer
+${expected}
+
+### Mode
+${modeLabel}
+
+### Full Conversation JSON
+\`\`\`json
+${jsonContent}
+\`\`\`
+`;
+
+            // GitHub repository URL
+            const repoUrl = 'https://github.com/hyunhwan-bcm/MARRVEL_MCP';
+            const title = encodeURIComponent(`[Test Failure] ${question.substring(0, 50)}${question.length > 50 ? '...' : ''}`);
+            const encodedBody = encodeURIComponent(body);
+
+            // Open GitHub new issue page
+            window.open(`${repoUrl}/issues/new?title=${title}&body=${encodedBody}&labels=test-failure`, '_blank');
+        }
     </script>
 </head>
 <body class="min-h-screen py-8 px-4">
@@ -508,6 +547,12 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
                                         Copy JSON
                                     </button>
+                                    <button onclick="createGitHubIssue('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla', `{{ result.question | replace('`', '\\`') | replace('\n', ' ') }}`, `{{ result.expected | replace('`', '\\`') | replace('\n', ' ') }}`, 'vanilla')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Create GitHub Issue
+                                    </button>
                                     <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-vanilla')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
@@ -535,6 +580,12 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
                                         Copy JSON
                                     </button>
+                                    <button onclick="createGitHubIssue('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web', `{{ result.question | replace('`', '\\`') | replace('\n', ' ') }}`, `{{ result.expected | replace('`', '\\`') | replace('\n', ' ') }}`, 'web')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Create GitHub Issue
+                                    </button>
                                     <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-web')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
@@ -554,6 +605,12 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                 <div class="mt-4 flex justify-end gap-2">
                                     <button id="copy-btn-{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool" onclick="copyToClipboard('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
                                         Copy JSON
+                                    </button>
+                                    <button onclick="createGitHubIssue('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool', `{{ result.question | replace('`', '\\`') | replace('\n', ' ') }}`, `{{ result.expected | replace('`', '\\`') | replace('\n', ' ') }}`, 'tool')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Create GitHub Issue
                                     </button>
                                     <button onclick="closeModal('{{ result.idx }}-{{ model_id|replace('/', '_')|replace('.', '_') }}-tool')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
@@ -739,6 +796,12 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                         </svg>
                                         Copy JSON
                                     </button>
+                                    <button onclick="createGitHubIssue('vanilla-{{ result.idx }}', `{{ result.question | replace('`', '\\`') | replace('\n', ' ') }}`, `{{ result.expected | replace('`', '\\`') | replace('\n', ' ') }}`, 'vanilla')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Create GitHub Issue
+                                    </button>
                                     <button onclick="closeModal('vanilla-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
@@ -763,6 +826,12 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                         </svg>
                                         Copy JSON
                                     </button>
+                                    <button onclick="createGitHubIssue('web-{{ result.idx }}', `{{ result.question | replace('`', '\\`') | replace('\n', ' ') }}`, `{{ result.expected | replace('`', '\\`') | replace('\n', ' ') }}`, 'web')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Create GitHub Issue
+                                    </button>
                                     <button onclick="closeModal('web-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
@@ -786,6 +855,12 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                             <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
                                         </svg>
                                         Copy JSON
+                                    </button>
+                                    <button onclick="createGitHubIssue('tool-{{ result.idx }}', `{{ result.question | replace('`', '\\`') | replace('\n', ' ') }}`, `{{ result.expected | replace('`', '\\`') | replace('\n', ' ') }}`, 'tool')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Create GitHub Issue
                                     </button>
                                     <button onclick="closeModal('tool-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
@@ -902,9 +977,22 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button onclick="closeModal('vanilla-{{ result.idx }}')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
                                 </div>
                                 <div class="max-h-96 overflow-y-auto">
-                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.vanilla.conversation | tojson_pretty }}</pre>
+                                    <pre id="json-content-vanilla-{{ result.idx }}" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.vanilla.conversation | tojson_pretty }}</pre>
                                 </div>
-                                <div class="mt-4 flex justify-end">
+                                <div class="mt-4 flex justify-end gap-2">
+                                    <button id="copy-btn-vanilla-{{ result.idx }}" onclick="copyToClipboard('vanilla-{{ result.idx }}')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                                            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                                        </svg>
+                                        Copy JSON
+                                    </button>
+                                    <button onclick="createGitHubIssue('vanilla-{{ result.idx }}', `{{ result.question | replace('`', '\\`') | replace('\n', ' ') }}`, `{{ result.expected | replace('`', '\\`') | replace('\n', ' ') }}`, 'vanilla')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Create GitHub Issue
+                                    </button>
                                     <button onclick="closeModal('vanilla-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
@@ -919,9 +1007,22 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                     <button onclick="closeModal('tool-{{ result.idx }}')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
                                 </div>
                                 <div class="max-h-96 overflow-y-auto">
-                                    <pre class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.tool.conversation | tojson_pretty }}</pre>
+                                    <pre id="json-content-tool-{{ result.idx }}" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.tool.conversation | tojson_pretty }}</pre>
                                 </div>
-                                <div class="mt-4 flex justify-end">
+                                <div class="mt-4 flex justify-end gap-2">
+                                    <button id="copy-btn-tool-{{ result.idx }}" onclick="copyToClipboard('tool-{{ result.idx }}')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                                            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                                        </svg>
+                                        Copy JSON
+                                    </button>
+                                    <button onclick="createGitHubIssue('tool-{{ result.idx }}', `{{ result.question | replace('`', '\\`') | replace('\n', ' ') }}`, `{{ result.expected | replace('`', '\\`') | replace('\n', ' ') }}`, 'tool')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Create GitHub Issue
+                                    </button>
                                     <button onclick="closeModal('tool-{{ result.idx }}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
                                     </button>
@@ -1014,7 +1115,13 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                                             <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
                                             <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
                                         </svg>
-                                        Copy to Clipboard
+                                        Copy JSON
+                                    </button>
+                                    <button onclick="createGitHubIssue({{ result.idx }}, `{{ result.question | replace('`', '\\`') | replace('\n', ' ') }}`, `{{ result.expected | replace('`', '\\`') | replace('\n', ' ') }}`, 'tool')" class="inline-flex items-center gap-x-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Create GitHub Issue
                                     </button>
                                     <button onclick="closeModal({{ result.idx }})" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                                         Close
