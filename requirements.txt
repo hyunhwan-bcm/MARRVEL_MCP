@@ -1,6 +1,7 @@
 # FastMCP server for MARRVEL
 fastmcp[mcp]>=0.3.0
 httpx>=0.27.0
+httpx-retry>=0.1.0
 
 # SSL certificate management
 certifi>=2023.7.22
