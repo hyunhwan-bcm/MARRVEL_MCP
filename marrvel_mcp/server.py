@@ -1239,7 +1239,7 @@ async def convert_protein_variant(gene_symbol: str, protein_variant: str) -> str
                 c["ref"] = ref
                 c["alt"] = alt
                 del c["coord"]
-            except:
+            except Exception:
                 c["error"] = "Could not map location"
 
         data = json.dumps(data_obj, indent=2)
