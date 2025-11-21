@@ -135,12 +135,18 @@ async def retry_with_backoff(
 
             # For 500 errors, include response body and headers
             if status_code == 500:
-                error_details.append(f"Response body: {e.response.text}")
+                # Preview response body (max 500 chars to avoid logging large responses)
+                response_text = str(e.response.text)
+                if len(response_text) > 500:
+                    response_text = response_text[:500] + "... (truncated)"
+                error_details.append(f"Response body: {response_text}")
+
                 # Handle both real headers and mock objects
-                try:
+                if hasattr(e.response.headers, "__iter__") and hasattr(e.response.headers, "items"):
+                    # Real httpx headers object
                     headers_dict = dict(e.response.headers)
-                except (TypeError, AttributeError):
-                    # If headers is a Mock or doesn't support dict(), try to get the value directly
+                else:
+                    # Mock object or other type
                     headers_dict = e.response.headers
                 error_details.append(f"Response headers: {headers_dict}")
 
@@ -195,10 +201,6 @@ async def retry_with_backoff(
                     f"Final error: {str(e)}"
                 )
                 raise
-
-    # This should not be reached, but just in case
-    if last_exception:
-        raise last_exception
 
 
 async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) -> str:
