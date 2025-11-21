@@ -1242,11 +1242,11 @@ async def convert_protein_variant(gene_symbol: str, protein_variant: str) -> str
 
 
 @mcp.tool(
-    name="get_variant_annotation_by_genomic_position",
-    description="Get protein change and transcript annotation for a variant at genomic coordinates. Takes chr, pos, ref, alt (from convert_hgvs_to_genomic output) and returns mostAgreed transcript with protein change in coord.annot field (e.g., p.P63S). Use this AFTER convert_hgvs_to_genomic to get protein changes from cDNA variants.",
+    name="get_protein_change_by_genomic_position",
+    description="Get protein change (e.g., p.P63S) and transcript annotation for a variant at genomic coordinates. Takes chr, pos, ref, alt (from convert_hgvs_to_genomic output) and returns mostAgreed transcript with protein change in coord.annot field. To find which gene a variant is in, use get_gene_by_position instead.",
     meta={"category": "utility", "service": "Transvar", "version": "1.0"},
 )
-async def get_variant_annotation_by_genomic_position(chr: str, pos: int, ref: str, alt: str) -> str:
+async def get_protein_change_by_genomic_position(chr: str, pos: int, ref: str, alt: str) -> str:
     """
     Get variant annotation from genomic coordinates using Transvar.
 
