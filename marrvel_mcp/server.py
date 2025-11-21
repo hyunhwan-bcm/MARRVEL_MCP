@@ -67,6 +67,7 @@ VERIFY_SSL = False  # Set to True for production
 
 # Configure HTTP transport with automatic retry logic for transient errors
 _http_transport = httpx.AsyncHTTPTransport(
+    verify=ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False,
     retries=3,  # Retry up to 3 times for transient failures
 )
 
