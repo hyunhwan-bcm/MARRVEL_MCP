@@ -1194,7 +1194,16 @@ async def convert_hgvs_to_genomic(hgvs_variant: str) -> str:
         data = json.dumps(data_obj, indent=2)
         return data
     except httpx.HTTPError as e:
-        return json.dumps({"error": f"Error converting HGVS variant: {str(e)}"}, indent=2)
+        # Build error message with fallback if str(e) is empty
+        error_str = str(e).strip()
+        error_msg = error_str if error_str else f"{type(e).__name__}: HTTP request failed"
+        error_details = {"error": f"Error converting HGVS variant: {error_msg}"}
+        # Add more context if available
+        if hasattr(e, 'response') and e.response is not None:
+            error_details["status_code"] = e.response.status_code
+        if hasattr(e, 'request') and e.request is not None:
+            error_details["url"] = str(e.request.url)
+        return json.dumps(error_details, indent=2)
     except Exception as e:
         return json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, indent=2)
 
