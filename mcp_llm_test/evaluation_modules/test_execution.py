@@ -147,16 +147,13 @@ async def run_test_case(
 
         try:
             langchain_response, tool_history, full_conversation, tokens_used, metadata = (
-                await asyncio.wait_for(
-                    get_langchain_response(
-                        mcp_client,
-                        user_input,
-                        vanilla_mode,
-                        web_mode,
-                        llm_instance,
-                        llm_web_instance,
-                    ),
-                    timeout=per_test_timeout,
+                await get_langchain_response(
+                    mcp_client,
+                    user_input,
+                    vanilla_mode,
+                    web_mode,
+                    llm_instance,
+                    llm_web_instance,
                 )
             )
 
