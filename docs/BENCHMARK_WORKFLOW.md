@@ -5,6 +5,7 @@ This document describes the new modular benchmark testing workflow that replaces
 ## Overview
 
 The new workflow separates concerns:
+
 1. **Model configuration** - Define models in `models_config.yaml`
 2. **Single model testing** - `evaluate_mcp.py` tests one model at a time
 3. **Orchestration** - `run_benchmark.sh` iterates through models
@@ -34,19 +35,21 @@ models:
 # Resume previous run (skip completed models)
 RESUME=true ./run_benchmark.sh
 
-# Custom configuration
-CONCURRENCY=2 TIMEOUT=900 ./run_benchmark.sh
+# Custom configuration (override concurrency)
+CONCURRENCY=2 ./run_benchmark.sh
 ```
 
 ### 3. View Results
 
 Results are saved to `test_results/<model_id>/`:
+
 - `cache.json` - Test results cache
 - `test_cases.yaml` - Test case snapshot
 - `evaluation.log` - Execution log
 - HTML report (opened automatically)
 
 Aggregated results:
+
 - `test_results/summary.csv` - Detailed CSV
 - `test_results/summary.md` - Markdown summary table
 - `test_results/comparison.png` - Performance comparison chart
@@ -59,12 +62,12 @@ Aggregated results:
 - `MODELS_CONFIG=path` - Custom models config file (default: `mcp_llm_test/models_config.yaml`)
 - `OUTPUT_DIR=path` - Base results directory (default: `test_results`)
 - `CONCURRENCY=N` - Concurrent tests per model (default: 1)
-- `TIMEOUT=N` - Timeout per test in seconds (default: 600)
 - `ANALYZE=false` - Skip automatic analysis (default: true)
 
 ### LLM Configuration
 
 The benchmark script sets these automatically per model:
+
 - `LLM_PROVIDER` - Provider name (openrouter, bedrock, openai, ollama)
 - `LLM_MODEL` - Model identifier
 - `OPENAI_API_KEY` - API key (if specified in config)
@@ -72,7 +75,7 @@ The benchmark script sets these automatically per model:
 
 ## Directory Structure
 
-```
+```text
 test_results/
 ├── meta-llama_llama-3.1-8b-instruct/     # Model results
 │   ├── cache.json                         # Test results cache
@@ -106,15 +109,15 @@ export LLM_MODEL=us.anthropic.claude-3-5-haiku-20241022-v1:0
 
 # Run evaluation
 python mcp_llm_test/evaluate_mcp.py \
-    --output-dir test_results/my-test \
-    --concurrency 1 \
-    --timeout 600 \
-    --cache
+  --output-dir test_results/my-test \
+  --concurrency 1 \
+  --cache
 ```
 
 ## Comparison with Old Workflow
 
 ### Old Workflow (--multi-model)
+
 - ❌ All models tested in one Python process
 - ❌ Complex nested async code
 - ❌ Hard to resume on failure
@@ -122,6 +125,7 @@ python mcp_llm_test/evaluate_mcp.py \
 - ❌ Results embedded in single HTML
 
 ### New Workflow (run_benchmark.sh)
+
 - ✅ Each model tested independently
 - ✅ Simple sequential/parallel bash orchestration
 - ✅ Resume by skipping completed models
@@ -159,8 +163,8 @@ Use the `--subset` argument when testing individual models:
 
 ```bash
 python mcp_llm_test/evaluate_mcp.py \
-    --output-dir test_results/quick-test \
-    --subset "1-5"  # Only run first 5 tests
+  --output-dir test_results/quick-test \
+  --subset "1-5"  # Only run first 5 tests
 ```
 
 ## Troubleshooting
@@ -180,6 +184,7 @@ Install matplotlib: `pip install matplotlib`
 ### Cache Issues
 
 To clear cache for a specific model:
+
 ```bash
 rm -rf test_results/<model_id>/cache.json
 ```
