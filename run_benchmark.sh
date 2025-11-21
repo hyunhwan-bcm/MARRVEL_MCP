@@ -13,7 +13,6 @@
 #   MODELS_CONFIG       - Path to models_config.yaml (default: mcp_llm_test/models_config.yaml)
 #   OUTPUT_DIR          - Base directory for results (default: test_results)
 #   CONCURRENCY         - Number of concurrent test executions per model (default: 1)
-#   TIMEOUT             - Timeout per test case in seconds (default: 600)
 #   ANALYZE             - Generate summary tables and plots after testing (default: true)
 #
 # Usage:
@@ -34,7 +33,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODELS_CONFIG="${MODELS_CONFIG:-${SCRIPT_DIR}/mcp_llm_test/models_config.yaml}"
 OUTPUT_DIR="${OUTPUT_DIR:-${SCRIPT_DIR}/test_results}"
 CONCURRENCY="${CONCURRENCY:-1}"
-TIMEOUT="${TIMEOUT:-600}"
 RESUME="${RESUME:-false}"
 ANALYZE="${ANALYZE:-true}"
 
@@ -140,8 +138,7 @@ run_model_evaluation() {
         --provider "${provider}" \
         --model "${model_id}" \
         --output-dir "${model_dir}" \
-        --concurrency "${CONCURRENCY}" \
-        --timeout "${TIMEOUT}"
+        --concurrency "${CONCURRENCY}"
 
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
@@ -166,7 +163,6 @@ main() {
     echo "  Models config: ${MODELS_CONFIG}"
     echo "  Output directory: ${OUTPUT_DIR}"
     echo "  Concurrency: ${CONCURRENCY}"
-    echo "  Timeout: ${TIMEOUT}s"
     echo "  Resume mode: ${RESUME}"
     echo "  Auto-analyze: ${ANALYZE}"
     echo ""
