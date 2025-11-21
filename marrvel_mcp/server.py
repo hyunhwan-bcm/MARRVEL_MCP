@@ -65,20 +65,29 @@ API_REST_BASE_URL = "https://marrvel.org/data"  # REST endpoint
 API_TIMEOUT = 10.0
 VERIFY_SSL = False  # Set to True for production
 
+# Configure SSL context based on VERIFY_SSL setting
+# When using custom transport, verify must be set at transport level (not client level)
+_ssl_context = ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False
+
 # Configure HTTP transport with automatic retry logic for transient errors
 _http_transport = httpx.AsyncHTTPTransport(
     retries=3,  # Retry up to 3 times for transient failures
+    verify=_ssl_context,  # SSL verification setting must be on transport when transport is provided
 )
 
 
 # Standard HTTP client configuration with timeouts, connection limits, and retry
-def create_http_client(verify=None, timeout=None):
-    """Create httpx AsyncClient with standard retry and timeout configuration."""
+def create_http_client(timeout=None):
+    """Create httpx AsyncClient with standard retry and timeout configuration.
+
+    Note: SSL verification is configured at the transport level (_http_transport),
+    not at the client level, because httpx ignores client-level verify when
+    a custom transport is provided.
+    """
     return httpx.AsyncClient(
         timeout=httpx.Timeout(timeout or API_TIMEOUT, read=20.0),
         limits=httpx.Limits(max_connections=50),
         transport=_http_transport,
-        verify=verify if verify is not None else VERIFY_SSL,
     )
 
 
@@ -101,8 +110,6 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
     Raises:
         httpx.HTTPError: If the HTTP request fails after all retries
     """
-    verify = ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False
-
     async def _maybe_await(obj):
         """Await obj if awaitable; call it if callable and await results if needed."""
         try:
@@ -118,7 +125,8 @@ async def fetch_marrvel_data(query_or_endpoint: str, is_graphql: bool = True) ->
             return obj
 
     # Use client with automatic retry transport for transient errors
-    async with create_http_client(verify=verify) as client:
+    # Note: SSL verification is configured at transport level (_http_transport)
+    async with create_http_client() as client:
         if is_graphql:
             # GraphQL API call (POST request)
             payload = {"query": query_or_endpoint}
