@@ -36,6 +36,7 @@ import requests
 
 import httpx
 import httpcore
+from httpx_retry import AsyncRetryTransport, RetryPolicy
 from lxml import etree
 from pymed_paperscraper import PubMed
 from mcp.server.fastmcp import FastMCP
@@ -65,21 +66,38 @@ API_REST_BASE_URL = "https://marrvel.org/data"  # REST endpoint
 API_TIMEOUT = 10.0
 VERIFY_SSL = False  # Set to True for production
 
-# Configure HTTP transport with automatic retry logic for transient errors
-_http_transport = httpx.AsyncHTTPTransport(
-    verify=ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False,
-    retries=3,  # Retry up to 3 times for transient failures
-)
-
 
 # Standard HTTP client configuration with timeouts, connection limits, and retry
 def create_http_client(verify=None, timeout=None):
     """Create httpx AsyncClient with standard retry and timeout configuration."""
+    # Configure base transport with SSL settings
+    base_transport = httpx.AsyncHTTPTransport(
+        verify=(
+            ssl.create_default_context(cafile=certifi.where())
+            if (verify if verify is not None else VERIFY_SSL)
+            else False
+        ),
+    )
+
+    # Configure retry policy for automatic retry logic (up to 3 retries for transient failures)
+    retry_policy = RetryPolicy(
+        max_retries=3,
+        initial_delay=0.5,  # Start with 0.5s delay
+        multiplier=2.0,  # Exponential backoff: 0.5s, 1s, 2s
+        max_delay=10.0,  # Cap at 10s
+        retry_on=[408, 429, 500, 502, 503, 504],  # Retry on these HTTP status codes
+    )
+
+    # Wrap with retry transport
+    retry_transport = AsyncRetryTransport(
+        transport=base_transport,
+        policy=retry_policy,
+    )
+
     return httpx.AsyncClient(
         timeout=httpx.Timeout(timeout or API_TIMEOUT, read=20.0),
         limits=httpx.Limits(max_connections=50),
-        transport=_http_transport,
-        verify=verify if verify is not None else VERIFY_SSL,
+        transport=retry_transport,
     )
 
 
