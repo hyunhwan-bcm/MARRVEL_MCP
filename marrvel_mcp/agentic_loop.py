@@ -104,7 +104,9 @@ async def invoke_with_throttle_retry(
                     or "https://api.openai.com/v1 (default)"
                 )
                 model_name = getattr(llm_instance, "model_name", "unknown")
-                logging.warning(f"🌐 Invoking LLM | model={model_name} endpoint={endpoint}")
+                # Suppress invoke banner when QUIET/LLM_QUIET env set; downgrade to debug by default
+                if not (os.getenv("QUIET") or os.getenv("LLM_QUIET")):
+                    logging.debug(f"🌐 Invoking LLM | model={model_name} endpoint={endpoint}")
 
             result = await llm_instance.ainvoke(messages)
             if os.getenv("OPENROUTER_TRACE") or os.getenv("LLM_TRACE"):
