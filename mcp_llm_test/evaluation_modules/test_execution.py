@@ -6,6 +6,7 @@ This module handles running individual test cases and collecting results.
 
 import asyncio
 import logging
+import os
 from typing import Any, Dict
 
 from fastmcp.client import Client
@@ -51,6 +52,8 @@ async def run_test_case(
         llm_instance: LLM instance to use (if None, uses global llm)
         llm_web_instance: Web-enabled LLM instance to use (if None, uses global llm_web)
     """
+    # Apply per-test timeout to prevent indefinite hanging (default 300s configurable via env TEST_CASE_TIMEOUT)
+    per_test_timeout = float(os.getenv("TEST_CASE_TIMEOUT", "300"))
     async with semaphore:
         name = test_case["case"]["name"]
         user_input = test_case["case"]["input"]
@@ -127,8 +130,16 @@ async def run_test_case(
 
         try:
             langchain_response, tool_history, full_conversation, tokens_used, metadata = (
-                await get_langchain_response(
-                    mcp_client, user_input, vanilla_mode, web_mode, llm_instance, llm_web_instance
+                await asyncio.wait_for(
+                    get_langchain_response(
+                        mcp_client,
+                        user_input,
+                        vanilla_mode,
+                        web_mode,
+                        llm_instance,
+                        llm_web_instance,
+                    ),
+                    timeout=per_test_timeout,
                 )
             )
 
@@ -182,6 +193,24 @@ async def run_test_case(
             if pbar:
                 pbar.update(1)
             # Don't cache failures
+            return result
+        except asyncio.TimeoutError:
+            timeout_msg = f"**Timeout:** Test exceeded {per_test_timeout}s limit and was aborted to prevent run stall."
+            if pbar:
+                pbar.write(f"⏱️ Timeout in {name} after {per_test_timeout}s")
+                pbar.update(1)
+            result = {
+                "question": user_input,
+                "expected": expected,
+                "response": timeout_msg,
+                "classification": "no - timeout",
+                "tool_calls": [],
+                "conversation": [],
+                "tokens_used": 0,
+                "mode": "web" if web_mode else ("vanilla" if vanilla_mode else "tool"),
+                "metadata": {"timeout_seconds": per_test_timeout},
+            }
+            # Do not cache timeouts
             return result
         except Exception as e:
             # Always log errors, not just when pbar exists
