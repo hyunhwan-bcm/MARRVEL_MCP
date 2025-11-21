@@ -71,6 +71,7 @@ _ssl_context = ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL 
 
 # Configure HTTP transport with automatic retry logic for transient errors
 _http_transport = httpx.AsyncHTTPTransport(
+    verify=ssl.create_default_context(cafile=certifi.where()) if VERIFY_SSL else False,
     retries=3,  # Retry up to 3 times for transient failures
     verify=_ssl_context,  # SSL verification setting must be on transport when transport is provided
 )
