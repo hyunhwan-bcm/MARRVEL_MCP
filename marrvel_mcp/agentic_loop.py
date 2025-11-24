@@ -266,7 +266,7 @@ async def execute_agentic_loop(
     tool_history: List[Dict[str, Any]],
     max_tokens: int = 100_000,
     max_iterations: int = 10,
-) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, int]]:
+) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, int], List[Any]]:
     """
     Execute the agentic loop that iteratively calls tools until a final response is reached.
 
@@ -291,6 +291,7 @@ async def execute_agentic_loop(
         - tool_history: Updated list of tool calls executed
         - conversation: Updated conversation history
         - usage: Dict with token usage {input_tokens, output_tokens, total_tokens}
+        - messages: LangChain message objects (for serialization/debugging)
 
     Raises:
         TokenLimitExceeded: If tool result exceeds max_tokens
@@ -414,6 +415,18 @@ async def execute_agentic_loop(
                 except Exception:
                     tokens_total = 0
 
+            logging.debug(
+                "[Token Tracking] Final: input=%d, output=%d, total=%d",
+                total_input_tokens,
+                total_output_tokens,
+                tokens_total,
+            )
+            usage = {
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+                "total_tokens": tokens_total,
+            }
+
             # Serialize and log LangChain messages if debug serialization is enabled
             if os.getenv("SERIALIZE_LANGCHAIN"):
                 logging.info("\n" + "=" * 80)
@@ -431,19 +444,7 @@ async def execute_agentic_loop(
                     output_path = os.getenv("SERIALIZE_LANGCHAIN_FILE")
                     save_serialized_messages(messages, output_path)
 
-            return final_content, tool_history, conversation, tokens_total
-            logging.debug(
-                "[Token Tracking] Final: input=%d, output=%d, total=%d",
-                total_input_tokens,
-                total_output_tokens,
-                tokens_total,
-            )
-            usage = {
-                "input_tokens": total_input_tokens,
-                "output_tokens": total_output_tokens,
-                "total_tokens": tokens_total,
-            }
-            return final_content, tool_history, conversation, tokens_total
+            return final_content, tool_history, conversation, usage, messages
 
     # If we hit max iterations without getting a final response, return the last message
     if len(messages) > 2:  # More than just system and user messages
@@ -455,24 +456,6 @@ async def execute_agentic_loop(
     # Always append to conversation for consistency
     conversation.append({"role": "assistant", "content": final_content})
 
-    # Serialize and log LangChain messages if debug serialization is enabled
-    if os.getenv("SERIALIZE_LANGCHAIN"):
-        logging.info("\n" + "=" * 80)
-        logging.info("🔍 LANGCHAIN MESSAGES SERIALIZATION")
-        logging.info("=" * 80)
-
-        # Print serialized messages
-        print_serialized_messages(messages, title="LangChain Messages Array")
-
-        # Compare with conversation to identify information loss
-        print_information_loss_analysis(messages, conversation)
-
-        # Save to file if requested
-        if os.getenv("SERIALIZE_LANGCHAIN_FILE"):
-            output_path = os.getenv("SERIALIZE_LANGCHAIN_FILE")
-            save_serialized_messages(messages, output_path)
-
-    return final_content, tool_history, conversation, tokens_total
     # Use accumulated server-reported tokens; fallback to tiktoken if server didn't report
     tokens_total = total_input_tokens + total_output_tokens
     if tokens_total == 0:
@@ -500,4 +483,22 @@ async def execute_agentic_loop(
         "output_tokens": total_output_tokens,
         "total_tokens": tokens_total,
     }
-    return final_content, tool_history, conversation, usage
+
+    # Serialize and log LangChain messages if debug serialization is enabled
+    if os.getenv("SERIALIZE_LANGCHAIN"):
+        logging.info("\n" + "=" * 80)
+        logging.info("🔍 LANGCHAIN MESSAGES SERIALIZATION")
+        logging.info("=" * 80)
+
+        # Print serialized messages
+        print_serialized_messages(messages, title="LangChain Messages Array")
+
+        # Compare with conversation to identify information loss
+        print_information_loss_analysis(messages, conversation)
+
+        # Save to file if requested
+        if os.getenv("SERIALIZE_LANGCHAIN_FILE"):
+            output_path = os.getenv("SERIALIZE_LANGCHAIN_FILE")
+            save_serialized_messages(messages, output_path)
+
+    return final_content, tool_history, conversation, usage, messages
