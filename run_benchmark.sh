@@ -6,14 +6,12 @@
 # 1. Reading model configurations from models_config.yaml
 # 2. Running evaluate_mcp.py for each enabled model
 # 3. Saving results to test_results/<model_id>/ directories
-# 4. Optionally aggregating results into summary tables and plots
 #
 # Environment Variables:
 #   RESUME=true         - Skip models that already have completed results
 #   MODELS_CONFIG       - Path to models_config.yaml (default: mcp_llm_test/models_config.yaml)
 #   OUTPUT_DIR          - Base directory for results (default: test_results)
 #   CONCURRENCY         - Number of concurrent test executions per model (default: 1)
-#   ANALYZE             - Generate summary tables and plots after testing (default: true)
 #
 # Usage:
 #   # Fresh run (all models)
@@ -34,7 +32,6 @@ MODELS_CONFIG="${MODELS_CONFIG:-${SCRIPT_DIR}/mcp_llm_test/models_config.yaml}"
 OUTPUT_DIR="${OUTPUT_DIR:-${SCRIPT_DIR}/test_results}"
 CONCURRENCY="${CONCURRENCY:-1}"
 RESUME="${RESUME:-false}"
-ANALYZE="${ANALYZE:-true}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -164,7 +161,6 @@ main() {
     echo "  Output directory: ${OUTPUT_DIR}"
     echo "  Concurrency: ${CONCURRENCY}"
     echo "  Resume mode: ${RESUME}"
-    echo "  Auto-analyze: ${ANALYZE}"
     echo ""
 
     # Prerequisites
@@ -230,22 +226,7 @@ for model in models:
 
     echo ""
 
-    # Generate analysis
-    if [ "${ANALYZE}" = "true" ] && [ "${total_completed}" -gt 0 ]; then
-        log_info "Generating aggregated results..."
-
-        if [ -f "${SCRIPT_DIR}/mcp_llm_test/analyze_results.py" ]; then
-            python "${SCRIPT_DIR}/mcp_llm_test/analyze_results.py" "${OUTPUT_DIR}" || {
-                log_warning "Analysis script failed, but results are available in ${OUTPUT_DIR}"
-            }
-        else
-            log_warning "Analysis script not found (${SCRIPT_DIR}/mcp_llm_test/analyze_results.py)"
-            log_info "Results are available in: ${OUTPUT_DIR}"
-        fi
-    else
-        log_info "Results are available in: ${OUTPUT_DIR}"
-    fi
-
+    log_info "Results are available in: ${OUTPUT_DIR}"
     echo ""
     log_success "Benchmark complete!"
 
