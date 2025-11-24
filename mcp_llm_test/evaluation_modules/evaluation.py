@@ -97,7 +97,7 @@ async def get_langchain_response(
     web_mode: bool = False,
     llm_instance=None,
     llm_web_instance=None,
-) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int, Dict[str, Any]]:
+) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, int], Dict[str, Any]]:
     """
     Get response using LangChain with OpenRouter, handling tool calls via the MCP client.
 
@@ -109,7 +109,8 @@ async def get_langchain_response(
         llm_instance: LLM instance to use (required)
         llm_web_instance: Web-enabled LLM instance to use (required for web_mode)
 
-    Returns: (final_response, tool_history, full_conversation, tokens_used, metadata)
+    Returns: (final_response, tool_history, full_conversation, usage_dict, metadata)
+        where usage_dict has {input_tokens, output_tokens, total_tokens}
     """
     # Initialize LangChain messages
     if vanilla_mode:
@@ -190,21 +191,48 @@ When answering:
 
             conversation.append({"role": "assistant", "content": final_content})
 
-            # Compute total tokens used
-            try:
-                conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
-                tokens_total = count_tokens(conv_text)
-            except Exception:
-                tokens_total = 0
+            # Use server-reported token counts; fallback to tiktoken if not available
+            input_tokens = response_metadata.get("input_tokens", 0)
+            output_tokens = response_metadata.get("output_tokens", 0)
+            tokens_total = input_tokens + output_tokens
+            if tokens_total == 0:
+                # Fallback to tiktoken-based estimate if server didn't report usage
+                try:
+                    conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+                    tokens_total = count_tokens(conv_text)
+                    # Split evenly for fallback (rough approximation)
+                    input_tokens = tokens_total // 2
+                    output_tokens = tokens_total - input_tokens
+                    logging.debug(
+                        "[Token Tracking] No server-reported tokens in %s mode, using tiktoken fallback: %d",
+                        "web" if web_mode else "vanilla",
+                        tokens_total,
+                    )
+                except Exception:
+                    tokens_total = 0
+            else:
+                logging.debug(
+                    "[Token Tracking] %s mode: input=%d, output=%d, total=%d",
+                    "web" if web_mode else "vanilla",
+                    input_tokens,
+                    output_tokens,
+                    tokens_total,
+                )
 
-            return final_content, tool_history, conversation, tokens_total, response_metadata
+            usage = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": tokens_total,
+            }
+            return final_content, tool_history, conversation, usage, response_metadata
 
         except Exception as e:
             mode_name = "web search" if web_mode else "vanilla"
             error_msg = f"**Error in {mode_name} mode: {str(e)}**"
             print(f"❌ Error in {mode_name} mode: {e}")
             conversation.append({"role": "assistant", "content": error_msg})
-            return error_msg, tool_history, conversation, 0, {"error": str(e)}
+            usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            return error_msg, tool_history, conversation, usage, {"error": str(e)}
 
     # Get MCP tools and convert to LangChain format
     mcp_tools_list = await mcp_client.list_tools()
@@ -218,7 +246,7 @@ When answering:
     conversation.append({"role": "user", "content": user_input})
 
     # Execute agentic loop with tool calling
-    final_content, tool_history, conversation, tokens_total = await execute_agentic_loop(
+    final_content, tool_history, conversation, usage = await execute_agentic_loop(
         mcp_client=mcp_client,
         llm_with_tools=llm_with_tools,
         messages=messages,
@@ -228,4 +256,4 @@ When answering:
         max_iterations=10,
     )
 
-    return final_content, tool_history, conversation, tokens_total, {}
+    return final_content, tool_history, conversation, usage, {}
