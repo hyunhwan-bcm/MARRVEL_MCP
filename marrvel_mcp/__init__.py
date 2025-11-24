@@ -69,6 +69,17 @@ from .agentic_loop import (
     TokenLimitExceeded,
 )
 
+# Import from cost_tracking module
+from .cost_tracking import (
+    TokenUsage,
+    ModelPricing,
+    UsageWithCost,
+    calculate_cost,
+    calculate_cost_from_usage,
+    get_model_pricing,
+    DEFAULT_MODEL_PRICING,
+)
+
 # Define public API
 __all__ = [
     # Tool calling functions
@@ -80,6 +91,14 @@ __all__ = [
     "execute_agentic_loop",
     "count_tokens",
     "validate_token_count",
+    # Cost tracking
+    "TokenUsage",
+    "ModelPricing",
+    "UsageWithCost",
+    "calculate_cost",
+    "calculate_cost_from_usage",
+    "get_model_pricing",
+    "DEFAULT_MODEL_PRICING",
     # Exceptions
     "TokenLimitExceeded",
 ]

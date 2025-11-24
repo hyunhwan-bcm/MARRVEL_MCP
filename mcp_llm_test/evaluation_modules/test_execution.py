@@ -146,7 +146,7 @@ async def run_test_case(
         )
 
         try:
-            langchain_response, tool_history, full_conversation, tokens_used, metadata = (
+            langchain_response, tool_history, full_conversation, usage, metadata = (
                 await asyncio.wait_for(
                     get_langchain_response(
                         mcp_client,
@@ -176,6 +176,12 @@ async def run_test_case(
 
             # Use the provided evaluator LLM for consistent evaluation
             classification = await evaluate_response(langchain_response, expected, llm_evaluator)
+
+            # Extract token counts from usage dict (backward compatible)
+            tokens_used = usage.get("total_tokens", 0) if isinstance(usage, dict) else usage
+            input_tokens = usage.get("input_tokens", 0) if isinstance(usage, dict) else 0
+            output_tokens = usage.get("output_tokens", 0) if isinstance(usage, dict) else 0
+
             result = {
                 "question": user_input,
                 "expected": expected,
@@ -184,6 +190,8 @@ async def run_test_case(
                 "tool_calls": tool_history,
                 "conversation": full_conversation,
                 "tokens_used": tokens_used,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
                 "mode": "web" if web_mode else ("vanilla" if vanilla_mode else "tool"),
                 "metadata": metadata,
             }

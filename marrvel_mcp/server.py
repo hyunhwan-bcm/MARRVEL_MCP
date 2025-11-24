@@ -698,7 +698,7 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
         lo_data = await liftover_hg38_to_hg19(chr, pos)
         lo_data_obj = json.loads(lo_data)
 
-        variant = f"{lo_data_obj["hg19Chr"]}:{lo_data_obj["hg19Pos"]} {ref}>{alt}"
+        variant = f"{lo_data_obj['hg19Chr']}:{lo_data_obj['hg19Pos']} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/gnomAD/variant/{variant_uri}", is_graphql=False)
         data_obj = json.loads(data)
@@ -852,7 +852,7 @@ async def get_omim_variant(gene_symbol: str, chr: str, pos: str, ref: str, alt: 
         lo_data = await liftover_hg38_to_hg19(chr, pos)
         lo_data_obj = json.loads(lo_data)
 
-        variant = f"{lo_data_obj["hg19Chr"]}:{lo_data_obj["hg19Pos"]} {ref}>{alt}"
+        variant = f"{lo_data_obj['hg19Chr']}:{lo_data_obj['hg19Pos']} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
 
         data = await fetch_marrvel_data(
@@ -1295,7 +1295,7 @@ async def get_protein_change_by_genomic_position(chr: str, pos: int, ref: str, a
         lo_data_obj = json.loads(lo_data)
 
         chr_clean = lo_data_obj["hg19Chr"].replace("chr", "")
-        genomic_variant = f"chr{chr_clean}:g.{lo_data_obj["hg19Pos"]}{ref}>{alt}"
+        genomic_variant = f"chr{chr_clean}:g.{lo_data_obj['hg19Pos']}{ref}>{alt}"
         encoded_variant = quote(genomic_variant, safe="")
 
         data = await fetch_marrvel_data(
