@@ -13,23 +13,46 @@ LangChain message objects (SystemMessage, HumanMessage, AIMessage, ToolMessage, 
 
 ## Key Information Often Lost
 
-Based on our analysis, the following information is commonly lost when converting LangChain messages to conversation dictionaries:
+Based on our comprehensive analysis, the following information is commonly lost when converting LangChain messages to conversation dictionaries:
 
 ### For All Messages:
 - `type` - The message type identifier (system, human, ai, tool)
 - `_object_type` - The Python class name (e.g., SystemMessage, AIMessage)
 - `_module` - The module path where the class is defined
+- `id` - Unique message identifier
+- `example` - Whether this is an example message
 
-### For AI Messages:
-- `response_metadata` - Rich metadata from the LLM response including:
-  - `model_name` - The specific model that generated the response
-  - `finish_reason` - Why the model stopped (e.g., "stop", "tool_calls", "length")
-  - `token_usage` - Detailed token counts (input_tokens, output_tokens)
-- `usage_metadata` - Token usage statistics
-- `additional_kwargs` - Any additional provider-specific data
+### For AI Messages (8+ attributes typically lost):
+
+**Token Information** (captured in 3 locations):
+- `usage_metadata` - Contains input_tokens, output_tokens, total_tokens
+- `response_metadata.token_usage` - Contains prompt_tokens, completion_tokens, total_tokens
+- `llm_output.token_usage` - Provider-specific token counts
+
+**Response Metadata**:
+- `model_name` - The specific model that generated the response (e.g., "gpt-4-turbo")
+- `finish_reason` - Why the model stopped (e.g., "stop", "tool_calls", "length")
+- `system_fingerprint` - Model version fingerprint
+- `logprobs` - Log probabilities (if requested)
+
+**Additional Information**:
+- `additional_kwargs` - Provider-specific data (function_call, tool_calls, etc.)
+- `llm_output` - Full LLM output including model name and token usage
+- `response_time_ms` - Response time in milliseconds (if tracked)
 
 ### For Tool Messages:
+- `type` - Message type identifier
 - Metadata about tool execution timing and status
+
+### Token Information Locations
+
+Our **enhanced serialization** specifically searches for token information in multiple locations:
+1. `usage_metadata` - LangChain's standard location
+2. `response_metadata["token_usage"]` - OpenAI-style token usage
+3. `llm_output["token_usage"]` - Provider-specific output
+4. Any attribute with "token" in the name
+
+This ensures **no token information is lost**, regardless of which LLM provider you're using.
 
 ## Usage
 
@@ -175,7 +198,20 @@ Compare serialized LangChain messages with conversation dictionaries to identify
 
 ### `print_information_loss_analysis(messages: List[Any], conversation: List[Dict[str, Any]]) -> None`
 
-Print an analysis of what information is lost when converting LangChain messages to conversation dictionaries.
+Print an analysis of what information is lost when converting LangChain messages to conversation dictionaries. Includes a special **Token Information Summary** section showing all token data found across all messages.
+
+### `extract_token_info(obj: Any) -> Dict[str, Any]`
+
+Extract all token-related information from a LangChain object. Searches multiple locations:
+- `usage_metadata`
+- `response_metadata.token_usage`
+- `llm_output.token_usage`
+- Any attribute containing 'token' in the name
+
+**Args:**
+- `obj` - LangChain object (typically an AIMessage)
+
+**Returns:** Dictionary containing all token information found
 
 ## Integration
 

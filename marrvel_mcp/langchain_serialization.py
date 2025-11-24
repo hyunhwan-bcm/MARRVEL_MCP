@@ -41,29 +41,33 @@ def serialize_langchain_object(obj: Any) -> Dict[str, Any]:
             except Exception as e:
                 serialized[key] = f"<non-serializable: {type(value).__name__}>"
 
-    # Common LangChain message properties
-    common_props = [
-        "content",
-        "type",
-        "role",
-        "name",
-        "additional_kwargs",
-        "response_metadata",
-        "usage_metadata",
-        "tool_calls",
-        "tool_call_id",
-        "id",
-        "example",
-    ]
+    # Use dir() to find ALL public attributes (including properties, methods, etc.)
+    # This ensures we don't miss anything
+    all_attrs = [attr for attr in dir(obj) if not attr.startswith("_")]
 
-    for prop in common_props:
-        if hasattr(obj, prop):
-            value = getattr(obj, prop)
-            if prop not in serialized:  # Don't overwrite if already captured
-                try:
-                    serialized[prop] = _serialize_value(value)
-                except Exception as e:
-                    serialized[prop] = f"<non-serializable: {type(value).__name__}>"
+    for attr in all_attrs:
+        # Skip if already captured
+        if attr in serialized:
+            continue
+
+        # Skip common methods that aren't data
+        if attr in ["copy", "dict", "json", "parse_obj", "parse_raw", "schema",
+                    "schema_json", "update_forward_refs", "validate", "construct",
+                    "from_orm", "parse_file"]:
+            continue
+
+        try:
+            value = getattr(obj, attr)
+
+            # Skip methods and callables (except if they're properties that return data)
+            if callable(value) and not isinstance(value, (list, dict, str, int, float, bool)):
+                continue
+
+            # Try to serialize
+            serialized[attr] = _serialize_value(value)
+        except Exception as e:
+            # Some properties might raise exceptions when accessed
+            serialized[attr] = f"<error accessing: {str(e)[:50]}>"
 
     # Special handling for tool calls
     if hasattr(obj, "tool_calls") and obj.tool_calls:
@@ -256,6 +260,71 @@ def compare_with_conversation(
     return analysis
 
 
+def extract_token_info(obj: Any) -> Dict[str, Any]:
+    """
+    Extract all token-related information from a LangChain object.
+
+    This searches multiple possible locations where token information might be stored:
+    - usage_metadata
+    - response_metadata
+    - token_usage (direct attribute)
+    - llm_output
+    - And any other attributes containing 'token' in the name
+
+    Args:
+        obj: LangChain object (typically an AIMessage)
+
+    Returns:
+        Dictionary containing all token information found
+    """
+    token_info = {}
+
+    # Check usage_metadata
+    if hasattr(obj, "usage_metadata") and obj.usage_metadata:
+        token_info["usage_metadata"] = obj.usage_metadata
+
+    # Check response_metadata
+    if hasattr(obj, "response_metadata") and obj.response_metadata:
+        metadata = obj.response_metadata
+        if isinstance(metadata, dict):
+            # Look for token usage in response_metadata
+            if "token_usage" in metadata:
+                token_info["response_metadata.token_usage"] = metadata["token_usage"]
+            if "usage" in metadata:
+                token_info["response_metadata.usage"] = metadata["usage"]
+            # Store full response_metadata for context
+            token_info["response_metadata"] = metadata
+
+    # Check for direct token_usage attribute
+    if hasattr(obj, "token_usage"):
+        token_info["token_usage"] = getattr(obj, "token_usage")
+
+    # Check llm_output (some providers use this)
+    if hasattr(obj, "llm_output") and obj.llm_output:
+        llm_output = obj.llm_output
+        if isinstance(llm_output, dict) and "token_usage" in llm_output:
+            token_info["llm_output.token_usage"] = llm_output["token_usage"]
+
+    # Search all attributes for anything with 'token' in the name
+    if hasattr(obj, "__dict__"):
+        for key, value in obj.__dict__.items():
+            if "token" in key.lower() and key not in token_info:
+                token_info[key] = value
+
+    # Use dir() to find any token-related properties
+    for attr in dir(obj):
+        if "token" in attr.lower() and not attr.startswith("_"):
+            if attr not in token_info and attr not in ["token_usage", "usage_metadata"]:
+                try:
+                    value = getattr(obj, attr)
+                    if not callable(value):
+                        token_info[attr] = value
+                except Exception:
+                    pass
+
+    return token_info
+
+
 def print_information_loss_analysis(
     messages: List[Any],
     conversation: List[Dict[str, Any]]
@@ -289,7 +358,37 @@ def print_information_loss_analysis(
                         print(f"    {key}: {json.dumps(value, indent=6, default=str)}")
                     else:
                         print(f"    {key}: {value}")
+
+            # Special focus on token information
+            msg = messages[loss['index']]
+            token_info = extract_token_info(msg)
+            if token_info:
+                print(f"\n  🔍 Token Information Found:")
+                for key, value in token_info.items():
+                    if isinstance(value, dict):
+                        print(f"    {key}: {json.dumps(value, indent=6, default=str)}")
+                    else:
+                        print(f"    {key}: {value}")
     else:
         print("\n✅ No significant information loss detected!")
+
+    # Print summary of token information across all messages
+    print("\n" + "=" * 80)
+    print("TOKEN INFORMATION SUMMARY")
+    print("=" * 80)
+    total_tokens_found = 0
+    for i, msg in enumerate(messages):
+        token_info = extract_token_info(msg)
+        if token_info:
+            total_tokens_found += 1
+            print(f"\n[Message {i}] {type(msg).__name__}")
+            for key, value in token_info.items():
+                if isinstance(value, dict):
+                    print(f"  {key}: {json.dumps(value, default=str)}")
+                else:
+                    print(f"  {key}: {value}")
+
+    if total_tokens_found == 0:
+        print("\n⚠️  No token information found in any messages")
 
     print("\n" + "=" * 80)

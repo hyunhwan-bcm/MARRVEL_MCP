@@ -86,6 +86,7 @@ from .langchain_serialization import (
     save_serialized_messages,
     compare_with_conversation,
     print_information_loss_analysis,
+    extract_token_info,
 )
 
 # Define public API
@@ -108,6 +109,7 @@ __all__ = [
     "save_serialized_messages",
     "compare_with_conversation",
     "print_information_loss_analysis",
+    "extract_token_info",
 ]
 
 # Package metadata
