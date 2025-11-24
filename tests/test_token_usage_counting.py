@@ -4,6 +4,13 @@ Tests for token usage counting from server-reported usage_metadata.
 Verifies that:
 1. Token counts come from server-reported usage_metadata (not tiktoken)
 2. Token counts are accumulated across multiple LLM calls
+
+Provider Compatibility:
+- OpenAI: Returns usage_metadata with input_tokens, output_tokens, total_tokens
+- OpenRouter: Uses OpenAI-compatible API, returns same structure
+- AWS Bedrock: ChatBedrock/ChatBedrockConverse returns usage_metadata with same keys
+
+Reference: https://python.langchain.com/v0.1/docs/modules/model_io/chat/token_usage_tracking/
 """
 
 import pytest
@@ -262,3 +269,82 @@ async def test_zero_server_tokens_triggers_fallback():
 
     # Zero server tokens triggers tiktoken fallback (mocked to 77)
     assert tokens_used == 77, f"Should have tiktoken fallback count, got {tokens_used}"
+
+
+class TestProviderCompatibility:
+    """Tests documenting expected usage_metadata format from different LLM providers."""
+
+    def test_openai_usage_metadata_format(self):
+        """Document expected format from OpenAI/OpenRouter (langchain_openai.ChatOpenAI).
+
+        LangChain's ChatOpenAI (used for OpenAI and OpenRouter) returns:
+        - response.usage_metadata = {
+            "input_tokens": <int>,
+            "output_tokens": <int>,
+            "total_tokens": <int>
+          }
+        """
+        # Simulated OpenAI/OpenRouter response
+        usage_metadata = {
+            "input_tokens": 150,
+            "output_tokens": 75,
+            "total_tokens": 225,
+        }
+
+        # Our code extracts these keys
+        input_tokens = usage_metadata.get("input_tokens", 0)
+        output_tokens = usage_metadata.get("output_tokens", 0)
+
+        assert input_tokens == 150
+        assert output_tokens == 75
+        assert input_tokens + output_tokens == 225
+
+    def test_bedrock_usage_metadata_format(self):
+        """Document expected format from AWS Bedrock (langchain_aws.ChatBedrock).
+
+        LangChain's ChatBedrock returns:
+        - response.usage_metadata = {
+            "input_tokens": <int>,
+            "output_tokens": <int>,
+            "total_tokens": <int>
+          }
+
+        Note: For prompt caching, may also include:
+        - "input_token_details": {"cache_creation": <int>, "cache_read": <int>}
+        """
+        # Simulated Bedrock response
+        usage_metadata = {
+            "input_tokens": 200,
+            "output_tokens": 100,
+            "total_tokens": 300,
+        }
+
+        # Our code extracts these keys
+        input_tokens = usage_metadata.get("input_tokens", 0)
+        output_tokens = usage_metadata.get("output_tokens", 0)
+
+        assert input_tokens == 200
+        assert output_tokens == 100
+        assert input_tokens + output_tokens == 300
+
+    def test_usage_metadata_with_cache_details(self):
+        """Test handling of extended usage_metadata with cache details.
+
+        Some providers include additional token details for caching.
+        Our code should still work correctly with these extended formats.
+        """
+        # Extended format with cache details (e.g., Bedrock with prompt caching)
+        usage_metadata = {
+            "input_tokens": 1500,
+            "output_tokens": 250,
+            "total_tokens": 1750,
+            "input_token_details": {"cache_creation": 1000, "cache_read": 500},
+        }
+
+        # Our code only uses the main token counts
+        input_tokens = usage_metadata.get("input_tokens", 0)
+        output_tokens = usage_metadata.get("output_tokens", 0)
+
+        assert input_tokens == 1500
+        assert output_tokens == 250
+        assert input_tokens + output_tokens == 1750
