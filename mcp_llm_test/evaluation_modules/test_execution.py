@@ -17,14 +17,14 @@ from .evaluation import evaluate_response, get_langchain_response, MAX_TOKENS
 
 
 def update_progress_bar_with_stats(pbar, test_stats: Dict[str, int] | None):
-    """Update progress bar with current test statistics."""
+    """Update progress bar with current test statistics on the left side."""
     if pbar and test_stats is not None:
         stats_str = (
             f"✓ {test_stats.get('yes', 0)} | "
             f"✗ {test_stats.get('no', 0)} | "
             f"⚠ {test_stats.get('failed', 0)}"
         )
-        pbar.set_postfix_str(stats_str)
+        pbar.set_description_str(stats_str)
 
 
 async def run_test_case(
