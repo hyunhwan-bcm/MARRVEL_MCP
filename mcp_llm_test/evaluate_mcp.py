@@ -210,8 +210,7 @@ async def main():
             # Apply YAML evaluator config
             evaluator_model = yaml_model
             evaluator_provider = yaml_provider
-            vprint(f"📊 Evaluator config loaded from YAML: {yaml_file_path}")
-            vprint(f"   Using: {yaml_provider} / {yaml_model} (applies to ALL test modes)")
+            vprint(f"📊 Using evaluator from YAML: {yaml_provider}/{yaml_model}")
         except Exception as e:
             logging.warning(f"Failed to apply YAML evaluator config: {e}")
             vprint(
@@ -287,16 +286,10 @@ async def main():
         )
 
     if args.with_web:
-        vprint(f"🌐 Web search enabled for comparison (model: {resolved_model}:online)")
+        vprint(f"🌐 Web search enabled (model: {resolved_model}:online)")
         vprint(
-            f"⚠️  Note: Not all models support web search. "
-            f"Check OpenRouter docs for compatibility."
+            f"⚠️  Note: Not all models support web search - check provider docs for compatibility"
         )
-        vprint(
-            f"   Models known to support :online - "
-            f"OpenAI (gpt-4, gpt-3.5-turbo, etc), Anthropic Claude"
-        )
-        vprint(f"   If you see empty responses, try a different model that supports web search.")
 
     # Clear cache if requested
     if args.clear:
@@ -385,8 +378,9 @@ async def main():
         try:
             subset_indices = parse_subset(args.subset, len(all_test_cases))
             test_cases = [all_test_cases[i] for i in subset_indices]
-            vprint(f"📋 Running subset: {len(test_cases)}/{len(all_test_cases)} test cases")
-            vprint(f"   Indices (1-based): {', '.join(str(i+1) for i in subset_indices)}")
+            vprint(
+                f"📋 Running {len(test_cases)} out of {len(all_test_cases)} test cases: indices {', '.join(str(i+1) for i in subset_indices)}"
+            )
         except ValueError as e:
             logging.error(f"❌ Error parsing subset: {e}")
             return
@@ -412,12 +406,12 @@ async def main():
             f"vanilla, web search, and MARRVEL-MCP"
         )
         vprint(f"   Concurrency: {args.concurrency}")
-        cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
-        vprint(f"💾 Cache {cache_status}")
+        if use_cache:
+            vprint(f"💾 Cache enabled")
 
         async with mcp_client:
             # Run vanilla mode tests
-            vprint("\n🍦 Running VANILLA mode (no tools, no web search)...")
+            vprint("\n🍦 Running VANILLA mode...")
             test_stats_vanilla = {"yes": 0, "no": 0, "failed": 0}
             pbar_vanilla = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
 
@@ -443,7 +437,7 @@ async def main():
             pbar_vanilla.close()
 
             # Run web search mode tests
-            vprint("\n🌐 Running WEB SEARCH mode (web search enabled via :online)...")
+            vprint("\n🌐 Running WEB SEARCH mode...")
             test_stats_web = {"yes": 0, "no": 0, "failed": 0}
             pbar_web = atqdm(total=len(test_cases), desc="Web search mode", unit="test")
 
@@ -469,7 +463,7 @@ async def main():
             pbar_web.close()
 
             # Run tool mode tests
-            vprint("\n🔧 Running MARRVEL-MCP mode (with specialized tools)...")
+            vprint("\n🔧 Running MARRVEL-MCP mode...")
             test_stats_tool = {"yes": 0, "no": 0, "failed": 0}
             pbar_tool = atqdm(total=len(test_cases), desc="Tool mode", unit="test")
 
@@ -525,12 +519,12 @@ async def main():
     elif args.with_vanilla:
         vprint(f"🚀 Running {len(test_cases)} test case(s) with BOTH vanilla and tool modes")
         vprint(f"   Concurrency: {args.concurrency}")
-        cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
-        vprint(f"💾 Cache {cache_status}")
+        if use_cache:
+            vprint(f"💾 Cache enabled")
 
         async with mcp_client:
             # Run vanilla mode tests
-            vprint("\n🍦 Running VANILLA mode (without tool calling)...")
+            vprint("\n🍦 Running VANILLA mode...")
             test_stats_vanilla = {"yes": 0, "no": 0, "failed": 0}
             pbar_vanilla = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
 
@@ -556,7 +550,7 @@ async def main():
             pbar_vanilla.close()
 
             # Run tool mode tests
-            vprint("\n🔧 Running TOOL mode (with tool calling)...")
+            vprint("\n🔧 Running TOOL mode...")
             test_stats_tool = {"yes": 0, "no": 0, "failed": 0}
             pbar_tool = atqdm(total=len(test_cases), desc="Tool mode", unit="test")
 
@@ -610,8 +604,8 @@ async def main():
     else:
         # Normal mode: run with tools only
         vprint(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
-        cache_status = "enabled (--cache)" if use_cache else "disabled - re-running all tests"
-        vprint(f"💾 Cache {cache_status}")
+        if use_cache:
+            vprint(f"💾 Cache enabled")
 
         async with mcp_client:
             # Create progress bar and test statistics
