@@ -81,7 +81,7 @@
 - case:
     name: "LoF o/e implication"
     input: "What does the LoF o/e score imply about the strength of selection on NUTM2G?"
-    expected: "NUTM2G is not under significant selection against loss-of-function alleles."
+    expected: "NUTM2G is not under strong selection against loss-of-function alleles."
 
 - case:
     name: "DGV entries"
@@ -180,8 +180,8 @@
 
 - case:
     name: "PubMed search by gene name"
-    input: "Search PubMed for articles about BRCA1. Limit to 3 results and provide abstracts."
-    expected: "No more than 3 articles are found, all are about BRCA1 and include PubMed ids [29687286, 35432218, 23867111]."
+    input: "Search PubMed for articles about BRCA1. How many articles are there?"
+    expected: "At least 24,721 articles about BRCA1 are found."
 
 - case:
     name: "PubMed search by disease name"
