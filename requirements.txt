@@ -19,9 +19,6 @@ pytest-emoji>=0.2.0
 black>=24.0.0
 pre-commit>=3.5.0
 
-# OpenAI SDK for function calling integration
-openai>=1.0.0
-
 # LangChain for LLM evaluation with MCP
 langchain>=1.0.0
 langchain-openai>=1.0.0
