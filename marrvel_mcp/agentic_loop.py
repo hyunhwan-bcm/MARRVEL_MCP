@@ -25,6 +25,11 @@ from .tool_calling import (
     format_tool_call_for_conversation,
     parse_tool_result_content,
 )
+from .langchain_serialization import (
+    print_serialized_messages,
+    save_serialized_messages,
+    print_information_loss_analysis,
+)
 
 
 class TokenLimitExceeded(Exception):
@@ -384,6 +389,23 @@ async def execute_agentic_loop(
             except Exception:
                 tokens_total = 0
 
+            # Serialize and log LangChain messages if debug serialization is enabled
+            if os.getenv("SERIALIZE_LANGCHAIN"):
+                logging.info("\n" + "=" * 80)
+                logging.info("🔍 LANGCHAIN MESSAGES SERIALIZATION")
+                logging.info("=" * 80)
+
+                # Print serialized messages
+                print_serialized_messages(messages, title="LangChain Messages Array")
+
+                # Compare with conversation to identify information loss
+                print_information_loss_analysis(messages, conversation)
+
+                # Save to file if requested
+                if os.getenv("SERIALIZE_LANGCHAIN_FILE"):
+                    output_path = os.getenv("SERIALIZE_LANGCHAIN_FILE")
+                    save_serialized_messages(messages, output_path)
+
             return final_content, tool_history, conversation, tokens_total
 
     # If we hit max iterations without getting a final response, return the last message
@@ -400,5 +422,22 @@ async def execute_agentic_loop(
         tokens_total = count_tokens(conv_text)
     except Exception:
         tokens_total = 0
+
+    # Serialize and log LangChain messages if debug serialization is enabled
+    if os.getenv("SERIALIZE_LANGCHAIN"):
+        logging.info("\n" + "=" * 80)
+        logging.info("🔍 LANGCHAIN MESSAGES SERIALIZATION")
+        logging.info("=" * 80)
+
+        # Print serialized messages
+        print_serialized_messages(messages, title="LangChain Messages Array")
+
+        # Compare with conversation to identify information loss
+        print_information_loss_analysis(messages, conversation)
+
+        # Save to file if requested
+        if os.getenv("SERIALIZE_LANGCHAIN_FILE"):
+            output_path = os.getenv("SERIALIZE_LANGCHAIN_FILE")
+            save_serialized_messages(messages, output_path)
 
     return final_content, tool_history, conversation, tokens_total
