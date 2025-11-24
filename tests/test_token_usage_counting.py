@@ -174,16 +174,14 @@ async def test_fallback_to_tiktoken_when_no_server_tokens():
 
     # Mock count_tokens to avoid network issues with tiktoken encodings
     with patch.object(agentic_loop, "count_tokens", return_value=42):
-        final_content, tool_history, conversation, usage = (
-            await agentic_loop.execute_agentic_loop(
-                mcp_client=mcp_client,
-                llm_with_tools=mock_llm,
-                messages=messages,
-                conversation=conversation,
-                tool_history=tool_history,
-                max_tokens=100_000,
-                max_iterations=10,
-            )
+        final_content, tool_history, conversation, usage = await agentic_loop.execute_agentic_loop(
+            mcp_client=mcp_client,
+            llm_with_tools=mock_llm,
+            messages=messages,
+            conversation=conversation,
+            tool_history=tool_history,
+            max_tokens=100_000,
+            max_iterations=10,
         )
 
     # When server doesn't report tokens, should fallback to tiktoken (mocked to 42)
@@ -217,16 +215,14 @@ async def test_empty_usage_metadata_triggers_fallback():
 
     # Mock count_tokens to avoid network issues with tiktoken encodings
     with patch.object(agentic_loop, "count_tokens", return_value=55):
-        final_content, tool_history, conversation, usage = (
-            await agentic_loop.execute_agentic_loop(
-                mcp_client=mcp_client,
-                llm_with_tools=mock_llm,
-                messages=messages,
-                conversation=conversation,
-                tool_history=tool_history,
-                max_tokens=100_000,
-                max_iterations=10,
-            )
+        final_content, tool_history, conversation, usage = await agentic_loop.execute_agentic_loop(
+            mcp_client=mcp_client,
+            llm_with_tools=mock_llm,
+            messages=messages,
+            conversation=conversation,
+            tool_history=tool_history,
+            max_tokens=100_000,
+            max_iterations=10,
         )
 
     # Empty usage_metadata means no tokens counted -> fallback to tiktoken (mocked to 55)
@@ -259,16 +255,14 @@ async def test_zero_server_tokens_triggers_fallback():
 
     # Mock count_tokens to avoid network issues with tiktoken encodings
     with patch.object(agentic_loop, "count_tokens", return_value=77):
-        final_content, tool_history, conversation, usage = (
-            await agentic_loop.execute_agentic_loop(
-                mcp_client=mcp_client,
-                llm_with_tools=mock_llm,
-                messages=messages,
-                conversation=conversation,
-                tool_history=tool_history,
-                max_tokens=100_000,
-                max_iterations=10,
-            )
+        final_content, tool_history, conversation, usage = await agentic_loop.execute_agentic_loop(
+            mcp_client=mcp_client,
+            llm_with_tools=mock_llm,
+            messages=messages,
+            conversation=conversation,
+            tool_history=tool_history,
+            max_tokens=100_000,
+            max_iterations=10,
         )
 
     # Zero server tokens triggers tiktoken fallback (mocked to 77)
