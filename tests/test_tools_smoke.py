@@ -72,7 +72,7 @@ JSON (or a Python literal convertible to JSON), the test will fail.
 TEST_VARIANT = {"chr": "6", "pos": "98917691", "ref": "T", "alt": "C", "build": "hg38"}
 tool_calls = [
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
-    ("get_variant_annotation_by_genomic_position", TEST_VARIANT),
+    ("get_protein_change_by_genomic_position", TEST_VARIANT),
     ("get_clinvar_by_variant", TEST_VARIANT),
     ("get_gnomad_variant", TEST_VARIANT),
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
@@ -82,7 +82,7 @@ tool_calls = [
     ("get_gene_by_entrez_id", {"entrez_id": "7157"}),
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
     # Variant analysis - critical for variant annotation
-    ("get_variant_annotation_by_genomic_position", TEST_VARIANT),
+    ("get_protein_change_by_genomic_position", TEST_VARIANT),
     ("get_clinvar_by_variant", TEST_VARIANT),
     # Disease associations - essential for clinical relevance
     ("search_omim_by_disease_name", {"disease_name": "breast cancer"}),
