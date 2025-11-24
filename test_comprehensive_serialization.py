@@ -15,9 +15,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # Import directly to avoid dependency issues
 import importlib.util
+
 spec = importlib.util.spec_from_file_location(
     "langchain_serialization",
-    os.path.join(os.path.dirname(__file__), "marrvel_mcp", "langchain_serialization.py")
+    os.path.join(os.path.dirname(__file__), "marrvel_mcp", "langchain_serialization.py"),
 )
 langchain_serialization = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(langchain_serialization)
@@ -35,31 +36,19 @@ class MockAIMessage:
         self.type = "ai"
 
         # Token information (multiple locations)
-        self.usage_metadata = {
-            "input_tokens": 245,
-            "output_tokens": 87,
-            "total_tokens": 332
-        }
+        self.usage_metadata = {"input_tokens": 245, "output_tokens": 87, "total_tokens": 332}
 
         self.response_metadata = {
             "model_name": "gpt-4-turbo",
             "finish_reason": "stop",
             "system_fingerprint": "fp_abc123",
-            "token_usage": {
-                "prompt_tokens": 245,
-                "completion_tokens": 87,
-                "total_tokens": 332
-            },
+            "token_usage": {"prompt_tokens": 245, "completion_tokens": 87, "total_tokens": 332},
             "logprobs": None,
         }
 
         # Additional LLM-specific metadata
         self.llm_output = {
-            "token_usage": {
-                "prompt_tokens": 245,
-                "completion_tokens": 87,
-                "total_tokens": 332
-            },
+            "token_usage": {"prompt_tokens": 245, "completion_tokens": 87, "total_tokens": 332},
             "model_name": "gpt-4-turbo",
         }
 
@@ -123,15 +112,14 @@ def main():
     print("=" * 80)
 
     # Typical conversation dictionary format
-    conversation_entry = {
-        "role": "assistant",
-        "content": message.content
-    }
+    conversation_entry = {"role": "assistant", "content": message.content}
 
     print("Typical conversation format only stores:")
     print(json.dumps(conversation_entry, indent=2))
 
-    lost_attrs = set(serialized.keys()) - set(conversation_entry.keys()) - {"_object_type", "_module"}
+    lost_attrs = (
+        set(serialized.keys()) - set(conversation_entry.keys()) - {"_object_type", "_module"}
+    )
     print(f"\n⚠️  {len(lost_attrs)} attributes are lost:")
     for attr in sorted(lost_attrs):
         print(f"  - {attr}")
@@ -146,7 +134,9 @@ def main():
     if "usage_metadata" in token_info:
         token_locations.append(("usage_metadata", token_info["usage_metadata"]))
     if "response_metadata.token_usage" in token_info:
-        token_locations.append(("response_metadata.token_usage", token_info["response_metadata.token_usage"]))
+        token_locations.append(
+            ("response_metadata.token_usage", token_info["response_metadata.token_usage"])
+        )
     if "llm_output.token_usage" in token_info:
         token_locations.append(("llm_output.token_usage", token_info["llm_output.token_usage"]))
 

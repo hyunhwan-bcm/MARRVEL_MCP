@@ -51,9 +51,20 @@ def serialize_langchain_object(obj: Any) -> Dict[str, Any]:
             continue
 
         # Skip common methods that aren't data
-        if attr in ["copy", "dict", "json", "parse_obj", "parse_raw", "schema",
-                    "schema_json", "update_forward_refs", "validate", "construct",
-                    "from_orm", "parse_file"]:
+        if attr in [
+            "copy",
+            "dict",
+            "json",
+            "parse_obj",
+            "parse_raw",
+            "schema",
+            "schema_json",
+            "update_forward_refs",
+            "validate",
+            "construct",
+            "from_orm",
+            "parse_file",
+        ]:
             continue
 
         try:
@@ -155,7 +166,9 @@ def serialize_messages_array(messages: List[Any]) -> List[Dict[str, Any]]:
     return [serialize_langchain_object(msg) for msg in messages]
 
 
-def print_serialized_messages(messages: List[Any], title: str = "LangChain Messages", max_content_length: int = 200) -> None:
+def print_serialized_messages(
+    messages: List[Any], title: str = "LangChain Messages", max_content_length: int = 200
+) -> None:
     """
     Print serialized messages in a readable format for debugging.
 
@@ -220,8 +233,7 @@ def save_serialized_messages(messages: List[Any], filename: str) -> None:
 
 
 def compare_with_conversation(
-    messages: List[Any],
-    conversation: List[Dict[str, Any]]
+    messages: List[Any], conversation: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
     Compare serialized LangChain messages with conversation dictionaries
@@ -253,7 +265,9 @@ def compare_with_conversation(
                 "index": i,
                 "message_type": msg.get("_object_type"),
                 "lost_properties": list(lost_keys),
-                "lost_values": {key: msg.get(key) for key in lost_keys if msg.get(key) not in (None, "", [], {})},
+                "lost_values": {
+                    key: msg.get(key) for key in lost_keys if msg.get(key) not in (None, "", [], {})
+                },
             }
             analysis["information_loss"].append(loss_detail)
 
@@ -326,8 +340,7 @@ def extract_token_info(obj: Any) -> Dict[str, Any]:
 
 
 def print_information_loss_analysis(
-    messages: List[Any],
-    conversation: List[Dict[str, Any]]
+    messages: List[Any], conversation: List[Dict[str, Any]]
 ) -> None:
     """
     Print an analysis of what information is lost when converting
@@ -360,7 +373,7 @@ def print_information_loss_analysis(
                         print(f"    {key}: {value}")
 
             # Special focus on token information
-            msg = messages[loss['index']]
+            msg = messages[loss["index"]]
             token_info = extract_token_info(msg)
             if token_info:
                 print(f"\n  🔍 Token Information Found:")

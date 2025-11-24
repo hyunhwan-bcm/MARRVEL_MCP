@@ -15,9 +15,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # Import directly from the module file to avoid __init__ dependencies
 import importlib.util
+
 spec = importlib.util.spec_from_file_location(
     "langchain_serialization",
-    os.path.join(os.path.dirname(__file__), "marrvel_mcp", "langchain_serialization.py")
+    os.path.join(os.path.dirname(__file__), "marrvel_mcp", "langchain_serialization.py"),
 )
 langchain_serialization = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(langchain_serialization)

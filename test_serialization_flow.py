@@ -5,7 +5,9 @@ Quick test to verify serialized_messages flow through the evaluation pipeline.
 
 import sys
 import os
+
 sys.path.insert(0, os.path.dirname(__file__))
+
 
 # Mock the key parts
 class MockMessage:
@@ -13,6 +15,7 @@ class MockMessage:
         self.content = "Test response"
         self.type = "ai"
         self.usage_metadata = {"input_tokens": 10, "output_tokens": 5}
+
 
 # Test serialization
 from marrvel_mcp import serialize_messages_array
@@ -26,7 +29,7 @@ print(f"   First message has {len(serialized[0])} attributes")
 print(f"   Attributes: {list(serialized[0].keys())}")
 
 # Check if usage_metadata is captured
-if 'usage_metadata' in serialized[0]:
+if "usage_metadata" in serialized[0]:
     print(f"   ✅ Token info captured: {serialized[0]['usage_metadata']}")
 else:
     print("   ❌ Token info NOT captured")

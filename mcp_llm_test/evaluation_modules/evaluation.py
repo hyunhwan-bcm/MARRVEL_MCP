@@ -246,18 +246,27 @@ When answering:
     conversation.append({"role": "user", "content": user_input})
 
     # Execute agentic loop with tool calling
-    final_content, tool_history, conversation, usage, langchain_messages = await execute_agentic_loop(
-        mcp_client=mcp_client,
-        llm_with_tools=llm_with_tools,
-        messages=messages,
-        conversation=conversation,
-        tool_history=tool_history,
-        max_tokens=MAX_TOKENS,
-        max_iterations=10,
+    final_content, tool_history, conversation, usage, langchain_messages = (
+        await execute_agentic_loop(
+            mcp_client=mcp_client,
+            llm_with_tools=llm_with_tools,
+            messages=messages,
+            conversation=conversation,
+            tool_history=tool_history,
+            max_tokens=MAX_TOKENS,
+            max_iterations=10,
+        )
     )
 
     # Serialize LangChain messages for HTML display
     from marrvel_mcp import serialize_messages_array
+
     serialized_messages = serialize_messages_array(langchain_messages)
 
-    return final_content, tool_history, conversation, usage, {"serialized_messages": serialized_messages}
+    return (
+        final_content,
+        tool_history,
+        conversation,
+        usage,
+        {"serialized_messages": serialized_messages},
+    )
