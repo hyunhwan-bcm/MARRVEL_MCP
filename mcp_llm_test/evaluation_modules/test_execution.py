@@ -194,6 +194,9 @@ async def run_test_case(
                 "output_tokens": output_tokens,
                 "mode": "web" if web_mode else ("vanilla" if vanilla_mode else "tool"),
                 "metadata": metadata,
+                "serialized_messages": metadata.get(
+                    "serialized_messages", []
+                ),  # Add serialized LangChain objects
             }
 
             # Update test statistics based on classification

@@ -9,6 +9,7 @@ Modules:
     server: MARRVEL MCP server with 35+ genetics research tools
     tool_calling: Tool conversion, ID management, and result parsing
     agentic_loop: Iterative agent loop for multiple tool calls and responses
+    langchain_serialization: Serialization utilities for LangChain objects
 
 Key Components:
 
@@ -27,6 +28,14 @@ Agentic Loop:
     - count_tokens: Count tokens in text using tiktoken
     - validate_token_count: Validate text against token limits
     - TokenLimitExceeded: Exception for token limit violations
+
+LangChain Serialization:
+    - serialize_langchain_object: Serialize a single LangChain object
+    - serialize_messages_array: Serialize an array of LangChain messages
+    - print_serialized_messages: Print serialized messages for debugging
+    - save_serialized_messages: Save serialized messages to JSON file
+    - compare_with_conversation: Compare messages with conversation to find lost info
+    - print_information_loss_analysis: Print analysis of information loss
 
 Example:
     >>> from marrvel_mcp import execute_agentic_loop, convert_tool_to_langchain_format
@@ -69,15 +78,15 @@ from .agentic_loop import (
     TokenLimitExceeded,
 )
 
-# Import from cost_tracking module
-from .cost_tracking import (
-    TokenUsage,
-    ModelPricing,
-    UsageWithCost,
-    calculate_cost,
-    calculate_cost_from_usage,
-    get_model_pricing,
-    DEFAULT_MODEL_PRICING,
+# Import from langchain_serialization module
+from .langchain_serialization import (
+    serialize_langchain_object,
+    serialize_messages_array,
+    print_serialized_messages,
+    save_serialized_messages,
+    compare_with_conversation,
+    print_information_loss_analysis,
+    extract_token_info,
 )
 
 # Define public API
@@ -101,6 +110,14 @@ __all__ = [
     "DEFAULT_MODEL_PRICING",
     # Exceptions
     "TokenLimitExceeded",
+    # Serialization functions
+    "serialize_langchain_object",
+    "serialize_messages_array",
+    "print_serialized_messages",
+    "save_serialized_messages",
+    "compare_with_conversation",
+    "print_information_loss_analysis",
+    "extract_token_info",
 ]
 
 # Package metadata

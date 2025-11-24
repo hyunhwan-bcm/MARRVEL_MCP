@@ -100,8 +100,49 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
         function closeModal(id) {
             document.getElementById('modal-' + id).classList.add('hidden');
         }
-        function copyToClipboard(id) {
-            const preElement = document.getElementById('json-content-' + id);
+        // Tab switching for modal
+        let currentTabs = {}; // Track current tab for each modal
+
+        function switchTab(id, tabName) {
+            // Hide all tab contents for this modal
+            const tabContents = document.querySelectorAll('.tab-content-' + id);
+            tabContents.forEach(content => content.classList.add('hidden'));
+
+            // Reset all tab buttons for this modal
+            const tabButtons = document.querySelectorAll('.tab-button-' + id);
+            tabButtons.forEach(button => {
+                button.classList.remove('border-blue-500', 'text-blue-600');
+                button.classList.add('border-transparent', 'text-gray-500');
+            });
+
+            // Show selected tab content
+            document.getElementById('content-' + tabName + '-' + id).classList.remove('hidden');
+
+            // Highlight selected tab button
+            const selectedTab = document.getElementById('tab-' + tabName + '-' + id);
+            selectedTab.classList.remove('border-transparent', 'text-gray-500');
+            selectedTab.classList.add('border-blue-500', 'text-blue-600');
+
+            // Track current tab
+            currentTabs[id] = tabName;
+        }
+
+        function copyCurrentTab(id) {
+            const currentTab = currentTabs[id] || 'conversation';
+            let preElementId;
+
+            if (currentTab === 'conversation') {
+                preElementId = 'json-content-' + id;
+            } else if (currentTab === 'langchain') {
+                preElementId = 'json-content-langchain-' + id;
+            }
+
+            const preElement = document.getElementById(preElementId);
+            if (!preElement) {
+                alert('No content to copy');
+                return;
+            }
+
             const textContent = preElement.textContent;
 
             navigator.clipboard.writeText(textContent).then(function() {
@@ -121,6 +162,11 @@ Template variables: success_rate, successful_tests, total_tests, results (list o
                 console.error('Failed to copy:', err);
                 alert('Failed to copy to clipboard');
             });
+        }
+
+        function copyToClipboard(id) {
+            // Legacy function - redirect to copyCurrentTab
+            copyCurrentTab(id);
         }
         function copyResponseToClipboard(id) {
             const fullTextElement = document.getElementById('response-full-' + id);
@@ -1112,18 +1158,55 @@ ${jsonContent}
                             </td>
                         </tr>
 
-                        <!-- Modal for conversation JSON -->
+                        <!-- Modal for conversation JSON with tabs -->
                         <div id="modal-{{ result.idx }}" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onclick="closeModal({{ result.idx }})">
                             <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white" onclick="event.stopPropagation()">
                                 <div class="flex justify-between items-center mb-4">
-                                    <h3 class="text-lg font-semibold text-gray-900">Full Conversation JSON</h3>
+                                    <h3 class="text-lg font-semibold text-gray-900">Conversation Data</h3>
                                     <button onclick="closeModal({{ result.idx }})" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
                                 </div>
-                                <div class="max-h-96 overflow-y-auto">
+
+                                <!-- Tabs -->
+                                <div class="mb-4 border-b border-gray-200">
+                                    <nav class="-mb-px flex space-x-8">
+                                        <button onclick="switchTab({{ result.idx }}, 'conversation')"
+                                                id="tab-conversation-{{ result.idx }}"
+                                                class="tab-button-{{ result.idx }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-blue-500 text-blue-600">
+                                            Conversation (Legacy)
+                                        </button>
+                                        <button onclick="switchTab({{ result.idx }}, 'langchain')"
+                                                id="tab-langchain-{{ result.idx }}"
+                                                class="tab-button-{{ result.idx }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                            LangChain Objects (Full)
+                                        </button>
+                                    </nav>
+                                </div>
+
+                                <!-- Conversation Tab Content -->
+                                <div id="content-conversation-{{ result.idx }}" class="tab-content-{{ result.idx }} max-h-96 overflow-y-auto">
                                     <pre id="json-content-{{ result.idx }}" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.conversation | tojson_pretty }}</pre>
                                 </div>
+
+                                <!-- LangChain Objects Tab Content -->
+                                <div id="content-langchain-{{ result.idx }}" class="tab-content-{{ result.idx }} max-h-96 overflow-y-auto hidden">
+                                    {% if result.serialized_messages %}
+                                    <pre id="json-content-langchain-{{ result.idx }}" class="p-4 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto whitespace-pre">{{ result.serialized_messages | tojson_pretty }}</pre>
+                                    {% else %}
+                                    <div class="p-4 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                                        <p><strong>No LangChain objects available.</strong></p>
+                                        <p class="mt-2">This may be because:</p>
+                                        <ul class="list-disc ml-6 mt-1">
+                                            <li>The test was run with an older version of the code</li>
+                                            <li>This is vanilla/web mode (LangChain messages only available in tool mode)</li>
+                                            <li>The result was cached before serialization was implemented</li>
+                                        </ul>
+                                        <p class="mt-2 text-xs">Re-run the test to capture LangChain objects.</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
                                 <div class="mt-4 flex justify-end gap-2">
-                                    <button id="copy-btn-{{ result.idx }}" onclick="copyToClipboard({{ result.idx }})" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
+                                    <button id="copy-btn-{{ result.idx }}" onclick="copyCurrentTab({{ result.idx }})" class="inline-flex items-center gap-x-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700">
                                         <svg class="-ml-0.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                             <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
                                             <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />

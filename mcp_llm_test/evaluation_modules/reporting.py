@@ -271,6 +271,10 @@ def generate_html_report(
                 "idx": idx,
                 "question": result["question"],
                 "expected": result["expected"],
+                # Surface serialized LangChain messages (prefer tool mode; fallback to any present)
+                "serialized_messages": result.get(
+                    "serialized_messages", tool_res.get("serialized_messages", [])
+                ),
                 "vanilla": {
                     "response": vanilla_res.get("response", ""),
                     "classification": vanilla_res["classification"],
@@ -317,6 +321,9 @@ def generate_html_report(
                 "idx": idx,
                 "question": result["question"],
                 "expected": result["expected"],
+                "serialized_messages": result.get(
+                    "serialized_messages", tool_res.get("serialized_messages", [])
+                ),
                 "vanilla": {
                     "response": vanilla_res.get("response", ""),
                     "classification": vanilla_res["classification"],
@@ -355,6 +362,7 @@ def generate_html_report(
                 "tokens_used": result.get("tokens_used", 0),
                 "tool_calls": result.get("tool_calls", []),
                 "conversation": cleaned_conversation,
+                "serialized_messages": result.get("serialized_messages", []),
             }
             enriched_results.append(enriched_result)
 
