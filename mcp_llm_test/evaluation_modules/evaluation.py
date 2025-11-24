@@ -190,12 +190,30 @@ When answering:
 
             conversation.append({"role": "assistant", "content": final_content})
 
-            # Compute total tokens used
-            try:
-                conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
-                tokens_total = count_tokens(conv_text)
-            except Exception:
-                tokens_total = 0
+            # Use server-reported token counts; fallback to tiktoken if not available
+            tokens_total = response_metadata.get("input_tokens", 0) + response_metadata.get(
+                "output_tokens", 0
+            )
+            if tokens_total == 0:
+                # Fallback to tiktoken-based estimate if server didn't report usage
+                try:
+                    conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+                    tokens_total = count_tokens(conv_text)
+                    logging.debug(
+                        "[Token Tracking] No server-reported tokens in %s mode, using tiktoken fallback: %d",
+                        "web" if web_mode else "vanilla",
+                        tokens_total,
+                    )
+                except Exception:
+                    tokens_total = 0
+            else:
+                logging.debug(
+                    "[Token Tracking] %s mode: input=%d, output=%d, total=%d",
+                    "web" if web_mode else "vanilla",
+                    response_metadata.get("input_tokens", 0),
+                    response_metadata.get("output_tokens", 0),
+                    tokens_total,
+                )
 
             return final_content, tool_history, conversation, tokens_total, response_metadata
 

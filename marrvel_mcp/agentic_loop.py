@@ -285,15 +285,30 @@ async def execute_agentic_loop(
         - final_response: Final text response from LLM
         - tool_history: Updated list of tool calls executed
         - conversation: Updated conversation history
-        - tokens_used: Total tokens used in conversation
+        - tokens_used: Total tokens used (server-reported, accumulated across all LLM calls)
 
     Raises:
         TokenLimitExceeded: If tool result exceeds max_tokens
     """
+    # Accumulate server-reported token usage across all LLM calls
+    total_input_tokens = 0
+    total_output_tokens = 0
+
     for iteration in range(max_iterations):
         # Invoke LLM with current messages (with throttle retry and auto-jitter for Bedrock)
         response = await invoke_with_throttle_retry(llm_with_tools, messages)
         messages.append(response)
+
+        # Accumulate server-reported token usage from this call
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            usage = response.usage_metadata
+            total_input_tokens += usage.get("input_tokens", 0)
+            total_output_tokens += usage.get("output_tokens", 0)
+            logging.debug(
+                f"[Token Tracking] Iteration {iteration + 1}: "
+                f"input={usage.get('input_tokens', 0)}, output={usage.get('output_tokens', 0)}, "
+                f"cumulative_total={total_input_tokens + total_output_tokens}"
+            )
 
         # Check if there are tool calls
         if response.tool_calls:
@@ -377,13 +392,26 @@ async def execute_agentic_loop(
             final_content = response.content if hasattr(response, "content") else str(response)
             conversation.append({"role": "assistant", "content": final_content})
 
-            # Compute total tokens used based on conversation contents
-            try:
-                conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
-                tokens_total = count_tokens(conv_text)
-            except Exception:
-                tokens_total = 0
+            # Use accumulated server-reported tokens; fallback to tiktoken if server didn't report
+            tokens_total = total_input_tokens + total_output_tokens
+            if tokens_total == 0:
+                # Fallback to tiktoken-based estimate if server didn't report usage
+                try:
+                    conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+                    tokens_total = count_tokens(conv_text)
+                    logging.debug(
+                        "[Token Tracking] No server-reported tokens, using tiktoken fallback: %d",
+                        tokens_total,
+                    )
+                except Exception:
+                    tokens_total = 0
 
+            logging.debug(
+                "[Token Tracking] Final: input=%d, output=%d, total=%d",
+                total_input_tokens,
+                total_output_tokens,
+                tokens_total,
+            )
             return final_content, tool_history, conversation, tokens_total
 
     # If we hit max iterations without getting a final response, return the last message
@@ -395,10 +423,24 @@ async def execute_agentic_loop(
 
     # Always append to conversation for consistency
     conversation.append({"role": "assistant", "content": final_content})
-    try:
-        conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
-        tokens_total = count_tokens(conv_text)
-    except Exception:
-        tokens_total = 0
 
+    # Use accumulated server-reported tokens; fallback to tiktoken if server didn't report
+    tokens_total = total_input_tokens + total_output_tokens
+    if tokens_total == 0:
+        try:
+            conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
+            tokens_total = count_tokens(conv_text)
+            logging.debug(
+                "[Token Tracking] Max iterations reached, no server tokens, tiktoken fallback: %d",
+                tokens_total,
+            )
+        except Exception:
+            tokens_total = 0
+
+    logging.debug(
+        "[Token Tracking] Max iterations final: input=%d, output=%d, total=%d",
+        total_input_tokens,
+        total_output_tokens,
+        tokens_total,
+    )
     return final_content, tool_history, conversation, tokens_total
