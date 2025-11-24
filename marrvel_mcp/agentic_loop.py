@@ -261,7 +261,7 @@ async def execute_agentic_loop(
     tool_history: List[Dict[str, Any]],
     max_tokens: int = 100_000,
     max_iterations: int = 10,
-) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], int]:
+) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, int]]:
     """
     Execute the agentic loop that iteratively calls tools until a final response is reached.
 
@@ -285,7 +285,7 @@ async def execute_agentic_loop(
         - final_response: Final text response from LLM
         - tool_history: Updated list of tool calls executed
         - conversation: Updated conversation history
-        - tokens_used: Total tokens used (server-reported, accumulated across all LLM calls)
+        - usage: Dict with token usage {input_tokens, output_tokens, total_tokens}
 
     Raises:
         TokenLimitExceeded: If tool result exceeds max_tokens
@@ -399,6 +399,9 @@ async def execute_agentic_loop(
                 try:
                     conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
                     tokens_total = count_tokens(conv_text)
+                    # Split evenly for fallback (rough approximation)
+                    total_input_tokens = tokens_total // 2
+                    total_output_tokens = tokens_total - total_input_tokens
                     logging.debug(
                         "[Token Tracking] No server-reported tokens, using tiktoken fallback: %d",
                         tokens_total,
@@ -412,7 +415,12 @@ async def execute_agentic_loop(
                 total_output_tokens,
                 tokens_total,
             )
-            return final_content, tool_history, conversation, tokens_total
+            usage = {
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+                "total_tokens": tokens_total,
+            }
+            return final_content, tool_history, conversation, usage
 
     # If we hit max iterations without getting a final response, return the last message
     if len(messages) > 2:  # More than just system and user messages
@@ -430,6 +438,9 @@ async def execute_agentic_loop(
         try:
             conv_text = "\n".join([str(item.get("content", "")) for item in conversation])
             tokens_total = count_tokens(conv_text)
+            # Split evenly for fallback (rough approximation)
+            total_input_tokens = tokens_total // 2
+            total_output_tokens = tokens_total - total_input_tokens
             logging.debug(
                 "[Token Tracking] Max iterations reached, no server tokens, tiktoken fallback: %d",
                 tokens_total,
@@ -443,4 +454,9 @@ async def execute_agentic_loop(
         total_output_tokens,
         tokens_total,
     )
-    return final_content, tool_history, conversation, tokens_total
+    usage = {
+        "input_tokens": total_input_tokens,
+        "output_tokens": total_output_tokens,
+        "total_tokens": tokens_total,
+    }
+    return final_content, tool_history, conversation, usage

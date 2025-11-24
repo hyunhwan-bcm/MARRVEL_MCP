@@ -65,7 +65,7 @@ async def test_single_call_server_tokens():
     conversation = []
     tool_history = []
 
-    final_content, tool_history, conversation, tokens_used = await execute_agentic_loop(
+    final_content, tool_history, conversation, usage = await execute_agentic_loop(
         mcp_client=mcp_client,
         llm_with_tools=mock_llm,
         messages=messages,
@@ -75,8 +75,10 @@ async def test_single_call_server_tokens():
         max_iterations=10,
     )
 
-    # Verify tokens_used comes from server (150 + 75 = 225)
-    assert tokens_used == 225, f"Expected 225 server-reported tokens, got {tokens_used}"
+    # Verify usage dict contains server-reported tokens
+    assert usage["input_tokens"] == 150, f"Expected 150 input tokens, got {usage['input_tokens']}"
+    assert usage["output_tokens"] == 75, f"Expected 75 output tokens, got {usage['output_tokens']}"
+    assert usage["total_tokens"] == 225, f"Expected 225 total tokens, got {usage['total_tokens']}"
     assert final_content == "Final answer"
 
 
@@ -126,7 +128,7 @@ async def test_multiple_calls_accumulate_tokens():
     conversation = []
     tool_history = []
 
-    final_content, tool_history, conversation, tokens_used = await execute_agentic_loop(
+    final_content, tool_history, conversation, usage = await execute_agentic_loop(
         mcp_client=mcp_client,
         llm_with_tools=mock_llm,
         messages=messages,
@@ -136,11 +138,13 @@ async def test_multiple_calls_accumulate_tokens():
         max_iterations=10,
     )
 
-    # Verify tokens are accumulated: (100+30) + (200+40) + (300+60) = 730
-    expected_tokens = (100 + 30) + (200 + 40) + (300 + 60)
-    assert tokens_used == expected_tokens, (
-        f"Expected {expected_tokens} accumulated server tokens, got {tokens_used}"
-    )
+    # Verify tokens are accumulated: input=(100+200+300)=600, output=(30+40+60)=130
+    expected_input = 100 + 200 + 300
+    expected_output = 30 + 40 + 60
+    expected_total = expected_input + expected_output
+    assert usage["input_tokens"] == expected_input, f"Expected {expected_input} input tokens"
+    assert usage["output_tokens"] == expected_output, f"Expected {expected_output} output tokens"
+    assert usage["total_tokens"] == expected_total, f"Expected {expected_total} total tokens"
     assert final_content == "Final answer after tools"
 
 
@@ -170,7 +174,7 @@ async def test_fallback_to_tiktoken_when_no_server_tokens():
 
     # Mock count_tokens to avoid network issues with tiktoken encodings
     with patch.object(agentic_loop, "count_tokens", return_value=42):
-        final_content, tool_history, conversation, tokens_used = (
+        final_content, tool_history, conversation, usage = (
             await agentic_loop.execute_agentic_loop(
                 mcp_client=mcp_client,
                 llm_with_tools=mock_llm,
@@ -183,7 +187,7 @@ async def test_fallback_to_tiktoken_when_no_server_tokens():
         )
 
     # When server doesn't report tokens, should fallback to tiktoken (mocked to 42)
-    assert tokens_used == 42, f"Should have tiktoken fallback count, got {tokens_used}"
+    assert usage["total_tokens"] == 42, f"Should have tiktoken fallback count, got {usage}"
     assert "without usage metadata" in final_content
 
 
@@ -213,7 +217,7 @@ async def test_empty_usage_metadata_triggers_fallback():
 
     # Mock count_tokens to avoid network issues with tiktoken encodings
     with patch.object(agentic_loop, "count_tokens", return_value=55):
-        final_content, tool_history, conversation, tokens_used = (
+        final_content, tool_history, conversation, usage = (
             await agentic_loop.execute_agentic_loop(
                 mcp_client=mcp_client,
                 llm_with_tools=mock_llm,
@@ -226,7 +230,7 @@ async def test_empty_usage_metadata_triggers_fallback():
         )
 
     # Empty usage_metadata means no tokens counted -> fallback to tiktoken (mocked to 55)
-    assert tokens_used == 55, f"Should have tiktoken fallback count, got {tokens_used}"
+    assert usage["total_tokens"] == 55, f"Should have tiktoken fallback count, got {usage}"
 
 
 @pytest.mark.asyncio
@@ -255,7 +259,7 @@ async def test_zero_server_tokens_triggers_fallback():
 
     # Mock count_tokens to avoid network issues with tiktoken encodings
     with patch.object(agentic_loop, "count_tokens", return_value=77):
-        final_content, tool_history, conversation, tokens_used = (
+        final_content, tool_history, conversation, usage = (
             await agentic_loop.execute_agentic_loop(
                 mcp_client=mcp_client,
                 llm_with_tools=mock_llm,
@@ -268,7 +272,7 @@ async def test_zero_server_tokens_triggers_fallback():
         )
 
     # Zero server tokens triggers tiktoken fallback (mocked to 77)
-    assert tokens_used == 77, f"Should have tiktoken fallback count, got {tokens_used}"
+    assert usage["total_tokens"] == 77, f"Should have tiktoken fallback count, got {usage}"
 
 
 class TestProviderCompatibility:

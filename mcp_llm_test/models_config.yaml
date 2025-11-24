@@ -28,6 +28,10 @@
 #   api_key: Override OPENAI_API_KEY for this specific model
 #   api_base: Override OPENAI_API_BASE for this specific model
 #
+# Pricing Fields (optional, for cost tracking):
+#   input_cost_per_million: Cost in USD per 1M input tokens
+#   output_cost_per_million: Cost in USD per 1M output tokens
+#
 # Usage:
 #   python evaluate_mcp.py --multi-model
 #
@@ -60,6 +64,8 @@ models:
     provider: "openrouter"
     enabled: false
     skip_vanilla: true
+    input_cost_per_million: 0.03
+    output_cost_per_million: 0.06
     description: "Meta LLaMA 3.2 3B Instruct via OpenRouter ($0.03/$0.06 per 1M tokens)"
 
   - name: "LLaMA 3.1 8B Instruct"
@@ -67,6 +73,8 @@ models:
     provider: "openrouter"
     enabled: true
     skip_vanilla: true
+    input_cost_per_million: 0.02
+    output_cost_per_million: 0.03
     description: "Meta LLaMA 3.1 8B Instruct via OpenRouter ($0.02/$0.03 per 1M tokens)"
 
   # OpenRouter - Qwen models
@@ -75,6 +83,8 @@ models:
     provider: "openrouter"
     enabled: true
     skip_vanilla: true
+    input_cost_per_million: 0.05
+    output_cost_per_million: 0.22
     description: "Qwen 3 14B via OpenRouter ($0.05/$0.22 per 1M tokens)"
 
   - name: "GPT OSS 20B"
@@ -83,6 +93,8 @@ models:
     enabled: false
     skip_vanilla: true
     skip_web_search: true
+    input_cost_per_million: 0.03
+    output_cost_per_million: 0.14
     description: "GPT OSS 20B via OpenRouter ($0.03/$0.14 per 1M tokens)"
 
   # OpenRouter - OpenAI OSS models
@@ -92,6 +104,8 @@ models:
     enabled: true
     skip_vanilla: true
     skip_web_search: true
+    input_cost_per_million: 0.04
+    output_cost_per_million: 0.22
     description: "GPT OSS 120B via OpenRouter ($0.04/$0.22 per 1M tokens)"
 
   - name: "Claude 3.5 Sonnet v2 (Oct 2024)"
@@ -99,6 +113,8 @@ models:
     provider: "bedrock"
     enabled: false
     skip_web_search: true
+    input_cost_per_million: 3.00
+    output_cost_per_million: 15.00
     description: "Anthropic Claude 3.5 Sonnet v2 October 2024 via AWS Bedrock"
 
   # Claude 3.5 Haiku
@@ -107,6 +123,8 @@ models:
     provider: "bedrock"
     enabled: true
     skip_web_search: true
+    input_cost_per_million: 0.80
+    output_cost_per_million: 4.00
     description: "Anthropic Claude 3.5 Haiku via AWS Bedrock"
 
   - name: "Claude 4.0 Sonnet"
@@ -114,6 +132,8 @@ models:
     provider: "bedrock"
     enabled: true
     skip_web_search: true
+    input_cost_per_million: 3.00
+    output_cost_per_million: 15.00
     description: "Anthropic Claude 4.0 Sonnet via AWS Bedrock"
 
 # Configuration options
