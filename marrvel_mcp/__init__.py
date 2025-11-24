@@ -100,6 +100,14 @@ __all__ = [
     "execute_agentic_loop",
     "count_tokens",
     "validate_token_count",
+    # Cost tracking
+    "TokenUsage",
+    "ModelPricing",
+    "UsageWithCost",
+    "calculate_cost",
+    "calculate_cost_from_usage",
+    "get_model_pricing",
+    "DEFAULT_MODEL_PRICING",
     # Exceptions
     "TokenLimitExceeded",
     # Serialization functions
