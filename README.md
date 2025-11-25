@@ -16,23 +16,6 @@ git clone https://github.com/hyunhwan-bcm/MARRVEL_MCP.git
 cd MARRVEL_MCP
 pip install -r requirements.txt
 ```
-
-2. Configure your MCP client (e.g., Claude Desktop):
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "marrvel": {
-      "command": "python",
-      "args": ["/path/to/MARRVEL_MCP/server.py"]
-    }
-  }
-}
-```
-
 ### MCP Server Setup (mcp.json)
 
 To use MARRVEL-MCP with LM Studio, Claude Desktop, or other MCP-compatible clients, create an `mcp.json` file or add the following block to your client configuration:
@@ -138,7 +121,6 @@ export OPENAI_API_BASE=https://your-service.com/v1
 
 ## Documentation
 
-<!--- **[API Reference](./API_DOCUMENTATION.md)** - Complete tool documentation-->
 - **[Multi-Model Benchmark Testing](docs/BENCHMARK_WORKFLOW.md)** - New modular benchmark workflow
 - **[MCP LLM Evaluation](mcp_llm_test/README.md)** - CLI tool for testing MCP with LangChain
 - **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines
