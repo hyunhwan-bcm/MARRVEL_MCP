@@ -1,224 +1,279 @@
+# Test cases categorized based on MARRVEL-MCP tool domains
+# Categories derived from: bioRxiv 2025.11.26.690887v1
+# - Gene and Variant Utilities: Tools for gene/variant identification and format conversion
+# - Variant Prioritization: Tools accessing pathogenicity databases (dbNSFP, ClinVar, gnomAD, etc.)
+# - Gene-Phenotype Databases: Resources linking genes to clinical phenotypes (OMIM, HPO, Geno2MP)
+# - Expression Databases: Gene expression data (GTEx, ortholog expression)
+# - Ortholog Data: Comparative genomic information from model organisms (DIOPT)
+# - Literature: Scientific publication databases (PubMed, PMC)
+# - Protein Interactions: Protein-protein interaction networks (STRING)
+
 - case:
     name: "Gene for NM_001045477.4:c.187C>T"
+    category: "Gene and Variant Utilities"
     input: "What gene is primarily associated with the variant NM_001045477.4:c.187C>T?"
     expected: "The genes associated includes NUTM2G."
 
 - case:
     name: "Protein change for NM_001045477.4:c.187C>T"
+    category: "Gene and Variant Utilities"
     input: "What is the protein change resulting from NM_001045477.4:c.187C>T?"
     expected: "The protein change is p.P63S."
 
 - case:
     name: "NUTM2G OMIM entries"
+    category: "Gene-Phenotype Databases"
     input: "Does NUTM2G have any entries in OMIM database?"
     expected: "NUTM2G has no OMIM match and no known Mendelian phenotypes."
 
 - case:
     name: "MECP2 OMIM entries"
+    category: "Gene-Phenotype Databases"
     input: "Does MECP2 have an OMIM number?"
     expected: "Yes, MECP2's OMIM number is 300005."
 
 - case:
     name: "MECP2 OMIM entries 2"
+    category: "Gene-Phenotype Databases"
     input: "Does MECP2 have any associated Mendelian phenotypes?"
     expected: "MECP2 is linked with several Mendelian phenotypes (generally: autism susceptibility and intellectual developmental disorders)."
 
 - case:
     name: "Average dbNSFP rank score"
+    category: "Variant Prioritization"
     input: "What is the average dbNSFP rank score for p.P63S in NUTM2G?"
     expected: "The average dbNSFP rank score is 0.214."
 
 - case:
     name: "CADD phred score"
+    category: "Variant Prioritization"
     input: "What is the CADD phred score for the variant NM_001045477.4:c.187C>T?"
     expected: "CADD phred score is 8.103."
 
 - case:
     name: "AlphaMissesense"
+    category: "Variant Prioritization"
     input: "What is the CADD phred prediction for the variant rs137852987?"
     expected: "The CADD prediction for this variant is highly deleterious."
 
 - case:
     name: "REVEL prediction"
+    category: "Variant Prioritization"
     input: "Tell me about the variant NM_001045477.4:c.187C>T. According to REVEL, how is this variant classified?"
     expected: "REVEL predicts it with a score of 0.027."
 
 - case:
     name: "PolyPhen-2 prediction"
+    category: "Variant Prioritization"
     input: "According to PolyPhen-2, how is NM_001045477.4:c.187C>T predicted?"
     expected: "PolyPhen-2 HumDiv and HumVar both classify it as 'Benign'."
 
 - case:
     name: "ClinVar records for NUTM2G"
+    category: "Variant Prioritization"
     input: "How many ClinVar variants associated with NUTM2G?"
     expected: "Yes, NUTM2G has 99 reported variants in ClinVar."
 
 - case:
     name: "ClinVar pathogenic allele count"
+    category: "Variant Prioritization"
     input: "How many NUTM2G alleles are reported as pathogenic (not likely pathogenic) in ClinVar?"
     expected: "33 alleles are reported as pathogenic."
 
 - case:
     name: "ClinVar likely pathogenic allele count"
+    category: "Variant Prioritization"
     input: "How many NUTM2G alleles are reported as likely pathogenic in ClinVar?"
     expected: "3 alleles are reported as likely pathogenic."
 
 - case:
     name: "gnomAD presence"
+    category: "Variant Prioritization"
     input: "Is Chr9:99694174 C>T found in gnomAD?"
     expected: "This variant is not found in gnomAD control populations."
 
 - case:
     name: "gnomAD presence 2"
+    category: "Variant Prioritization"
     input: "Is Chr9:99699454 C>A (hg19) found in gnomAD? Perform a liftover if needed."
     expected: "Yes, this variant is found in gnomAD control populations."
 
 - case:
     name: "LoF o/e score"
+    category: "Variant Prioritization"
     input: "What is the LoF o/e (loss-of-function observed/expected) score for NUTM2G?"
     expected: "The LoF o/e score is 0.84"
 
 - case:
     name: "LoF o/e implication"
+    category: "Variant Prioritization"
     input: "What does the LoF o/e score imply about the strength of selection on NUTM2G?"
     expected: "NUTM2G is not under strong selection against loss-of-function alleles."
 
 - case:
     name: "DGV entries"
+    category: "Variant Prioritization"
     input: "Are there any DGV entries for NUTM2G? If so, how many?"
     expected: "Yes, there are 16 DGV entries for NUTM2G."
 
 - case:
     name: "DECIPHER control variants"
+    category: "Variant Prioritization"
     input: "Are there any DECIPHER control variants involving NUTM2G?"
     expected: "Yes, there is 1 control individual with a duplication containing NUTM2G."
 
 - case:
     name: "DIOPT ortholog mouse"
+    category: "Ortholog Data"
     input: "What is the gene symbol for the DIOPT ortholog of NUTM2G in mouse?"
     expected: "The mouse ortholog is Nutm2."
 
 - case:
     name: "DIOPT ortholog rat"
+    category: "Ortholog Data"
     input: "What is the gene symbol for the DIOPT ortholog of NUTM2G in rat?"
     expected: "The rat ortholog is Nutm2f."
 
 - case:
     name: "DIOPT ortholog fly"
+    category: "Ortholog Data"
     input: "What is the gene symbol for the DIOPT ortholog of NUTM2G in fly?"
     expected: "There is no clear ortholog of NUTM2G in fly."
 
 - case:
     name: "Highest GTEx expression"
+    category: "Expression Databases"
     input: "Which tissue expresses NUTM2G the most according to GTEx?"
     expected: "Highest expression is observed in the testis."
 
 - case:
     name: "Protein domain"
+    category: "Gene and Variant Utilities"
     input: "What type of protein domain does NUTM2G contain?"
     expected: "It contains an NUT protein domain."
 
 - case:
     name: "Drugs or ligands"
+    category: "Gene and Variant Utilities"
     input: "Are there any approved drugs or active ligands targeting NUTM2G?"
     expected: "No approved drugs or active ligands were found for NUTM2G."
 
 - case:
     name: "Geno2MP by entrez id value comparison"
+    category: "Gene-Phenotype Databases"
     input: "What is the most common mutation category in ENSG00000197386 gene variant HPO entries?"
     expected: "Synonymous/Unknown"
 
 - case:
     name: "Geno2MP by entrez id"
+    category: "Gene-Phenotype Databases"
     input: "How many noncoding HTT gene variant HPO entries are there in the Geno2MP database?"
     expected: "654 HPO entries for noncoding HTT variants"
 
 - case:
     name: "OMIM by disease name"
+    category: "Gene-Phenotype Databases"
     input: "Which gene is most associated with huntington's disease?"
     expected: "The gene most associated with huntington's is HTT"
 
 - case:
     name: "Omim by mim number"
+    category: "Gene-Phenotype Databases"
     input: "Which genes are connected to mim number 114480?"
     expected: "The genes connected include BRCA1, BRCA2, RAD51C, and RAD51D"
 
 - case:
     name: "Omim by variant - variant does not exist"
+    category: "Gene-Phenotype Databases"
     input: "Is the variant variant chr4:31600 A>T present on OMIM? If so what is that associated phenotype?"
     expected: "The variant is not present on OMIM."
 
 - case:
     name: "Omim by variant"
+    category: "Gene-Phenotype Databases"
     input: "Is the variant variant chr4:3160307 C>T present on OMIM? If so what is that associated phenotype?"
     expected: "The associated phenotype is Lopes-Maciel-Rodan syndrome."
 
 - case:
     name: "HPO by phenotype query"
+    category: "Gene-Phenotype Databases"
     input: "What HPO terms are associated with the search term 'haemolytic anaemia'?"
     expected: "HP:0001878, HP:0001890, HP:0004804 are among the results"
 
 - case:
     name: "HPO by id query"
+    category: "Gene-Phenotype Databases"
     input: "How many genes are associated with HPO term HP:0002671"
     expected: "HP:0002671 is associated with 58 genes."
 
 - case:
     name: "UniProt ID and name"
+    category: "Gene and Variant Utilities"
     input: "What is the UniProt ID and protein name associated with NUTM2G?"
     expected: "UniProt ID Q5VZR2, and the protein name is NUT family member 2G."
 
 - case:
     name: "GO functions for TP53"
+    category: "Gene and Variant Utilities"
     input: "Regarding GO molecular functions, does the fly ortholog for TP53 have RNA Polymerase II TF binding function?"
     expected: "Yes, the fly ortholog of TP53 has the molecular function \"RNA polymerase II transcription factor binding\" (GO:0001085)."
 
 - case:
     name: "Ortholog tissue expression"
+    category: "Expression Databases"
     input: "Which developmental stage has the most HTT expression annotations in mice?"
     expected: "Embryo stage"
 
 - case:
     name: "PubMed search by gene name"
+    category: "Literature"
     input: "Search PubMed for articles about BRCA1. How many articles are there?"
     expected: "At least 24,721 articles about BRCA1 are found."
 
 - case:
     name: "PubMed search by disease name"
+    category: "Literature"
     input: "Search PubMed for articles about Rett syndrome. Limit to 3 results and provide abstracts."
     expected: "No more than 3 articles are found, all are about Rett syndrome and include PubMed ids [37628658, 29445033, 39331775]."
 
 - case:
     name: "PMC abstract lookup by PMC ID"
+    category: "Literature"
     input: "Get the abstract for PMC article PMC3518823."
     expected: "Abstract text is retrieved."
 
 - case:
     name: "PMC full text lookup by PMC ID"
+    category: "Literature"
     input: "Get the full text for PMC article PMC3518823."
     expected: "Full text is retrieved with more content than just the abstract."
 
 - case:
     name: "PMC table count"
+    category: "Literature"
     input: "How many tables are in the PMC article PMC3518823?"
     expected: "The number of tables is reported."
 
 - case:
     name: "PMC figure captions"
+    category: "Literature"
     input: "What are the figure captions in PMC article PMC3518823?"
     expected: "Figure captions are listed."
 
 - case:
     name: "STRING list all protein interactions"
+    category: "Protein Interactions"
     input: "What are the gene symbol(s) for the protein(s) connected to NUTM2G on STRING?"
     expected: "NUTM2G is connected to VIRMA on STRING."
 
 - case:
     name: "STRING check for existing protein interaction"
+    category: "Protein Interactions"
     input: "Is there an interaction between MAP3K1 and HRAS in STRING?"
     expected: "Yes, there is an interaction between these two genes in STRING."
 
 - case:
     name: "STRING check for nonexistent protein interaction"
+    category: "Protein Interactions"
     input: "Is there an interaction between MAP3K1 and NUTM2G in STRING?"
     expected: "No, there is not an interaction between these two genes in STRING."
