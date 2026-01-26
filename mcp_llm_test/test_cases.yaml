@@ -268,4 +268,17 @@
     input: "What is the full name of the gene ENSG00000012048?"
     expected: "The full name of ENSG00000012048 is breast cancer gene 2."
 
+- case:
+    name: "Use geno2mp to identify HPO terms linked to specific variant"
+    input: "What HPO terms are associated with the variant chr8:70126887 C>T?"
+    expected: "The HPO terms associated with this variant includes HP:0001250 (Seizures) and HP:0002342 (Microcephaly)."
 
+- case:
+    name: "Use geno2mp to identify HPO terms linked to specific variant 2"
+    input: "What HPO terms are associated with the variant chr21:45175759 C>T?"
+    expected: "The HPO terms associated with this variant includes HP:0000776 (Congenital diaphragmatic hernia) and HP:0005684 (Distal arthrogryposis)."
+
+- case:
+    name: "Use geno2mp to identify HPO terms linked to specific variant 3"
+    input: "What HPO terms are associated with the variant chr12:14841081 C>T?"
+    expected: "The HPO terms associated with this variant includes HP:0008058 (Aplasia/Hypoplasia of the optic nerve) and HP:0000501 (Glaucoma)."
