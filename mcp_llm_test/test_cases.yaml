@@ -282,3 +282,19 @@
     name: "Use geno2mp to identify HPO terms linked to specific variant 3"
     input: "What HPO terms are associated with the variant chr12:14841081 C>T?"
     expected: "The HPO terms associated with this variant includes HP:0008058 (Aplasia/Hypoplasia of the optic nerve) and HP:0000501 (Glaucoma)."
+
+- case:
+    name: "Use geno2mp to find number of homozygous cases for a variant 1"
+    input: "How many homozygous cases are reported for the variant chr8:70126887 C>T in the Geno2MP database?"
+    expected: "There are 13 homozygous cases reported for this variant in the Geno2MP database."
+
+- case:
+    name: "Use geno2mp to find number of heterozygous cases for a variant 2"
+    input: "How many heterozygous cases are reported for the variant chr21:45175759 C>T in the Geno2MP database?"
+    expected: "There are 3 heterozygous cases reported for this variant in the Geno2MP database."
+
+- case:
+    name: "Use geno2mp to find number of homozygous and heterozygous cases for a variant 3"
+    input: "How many homozygous and heterozygous cases are reported for the variant chr12:14841081 C>T in the Geno2MP database?"
+    expected: "There are 2 homozygous and 9 heterozygous cases reported for this variant in the Geno2MP database."
+
