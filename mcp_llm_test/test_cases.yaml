@@ -222,3 +222,18 @@
     name: "STRING check for nonexistent protein interaction"
     input: "Is there an interaction between MAP3K1 and NUTM2G in STRING?"
     expected: "No, there is not an interaction between these two genes in STRING."
+
+- case:
+    name: "Gene phenotype association for connected gene and phenotype"
+    input: "Does TTN gene have an association with dilated cardiomyopathy?"
+    expected: "Yes, TTN gene is associated with dilated cardiomyopathy."
+
+- case:
+    name: "Gene phenotype association for unconnected gene and phenotype"
+    input: "Does NUTM2G gene have an association with dilated cardiomyopathy?"
+    expected: "No, NUTM2G gene is not associated with dilated cardiomyopathy."
+
+- case:
+    name: "Gene phenotype association for connected gene and phenotype 2"
+    input: "Is TTN gene associated with limb-girdle muscular dystrophy?"
+    expected: "Yes, TTN gene is associated with limb-girdle muscular dystrophy."
