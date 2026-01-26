@@ -252,3 +252,20 @@
     name: "Gene alias check for nonexistent alias"
     input: "Is ENSG00000012048 an alias for NUTM2G?"
     expected: "No, ENSG00000012048 is not an alias for NUTM2G."
+
+- case:
+    name: "Full gene name"
+    input: "What is the full name of the gene NUTM2G?"
+    expected: "The full name of NUTM2G is NUT family member 2G."
+
+- case:
+    name: "Full gene name 2
+    input: "What is the full name of the gene SHP2?"
+    expected: "The full name of SHP2 is Src homology 2 domain-containing phosphatase 2."
+
+- case:
+    name: "Full gene name 3"
+    input: "What is the full name of the gene ENSG00000012048?"
+    expected: "The full name of ENSG00000012048 is breast cancer gene 2."
+
+
