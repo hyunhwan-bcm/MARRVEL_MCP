@@ -237,3 +237,18 @@
     name: "Gene phenotype association for connected gene and phenotype 2"
     input: "Is TTN gene associated with limb-girdle muscular dystrophy?"
     expected: "Yes, TTN gene is associated with limb-girdle muscular dystrophy."
+
+- case:
+    name: "Gene alias list"
+    input: "What are some aliases for the NUTM2G gene?"
+    expected: "Some aliases for NUTM2G include NUT2G, C9orf52, and NUT family member 2G."
+
+- case:
+    name: "Gene alias check for existing alias"
+    input: "Is ENSG00000197386 an alias for NUTM2G?"
+    expected: "Yes, ENSG00000197386 is an alias for NUTM2G."
+
+- case:
+    name: "Gene alias check for nonexistent alias"
+    input: "Is ENSG00000012048 an alias for NUTM2G?"
+    expected: "No, ENSG00000012048 is not an alias for NUTM2G."
