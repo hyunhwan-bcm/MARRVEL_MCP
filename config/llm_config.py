@@ -51,7 +51,6 @@ from typing import Tuple
 
 from config.llm_providers import ProviderType
 
-
 # Default model: latest Gemini 2.5 variant with reliable tool support
 DEFAULT_MODEL = "google/gemini-2.5-flash"
 DEFAULT_PROVIDER: ProviderType = "openrouter"

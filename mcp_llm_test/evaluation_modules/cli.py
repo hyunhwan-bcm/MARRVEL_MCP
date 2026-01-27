@@ -121,9 +121,7 @@ Cache Behavior:
 
   Cache is stored after every run. Use --cache to reuse successful results
   and re-run only failed tests. Without --cache, all tests are re-evaluated.
-        """.format(
-            cache_dir=CACHE_DIR
-        ),
+        """.format(cache_dir=CACHE_DIR),
     )
 
     parser.add_argument(

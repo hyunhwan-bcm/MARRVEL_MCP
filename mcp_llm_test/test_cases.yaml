@@ -145,13 +145,13 @@
 
 - case:
     name: "Omim by variant - variant does not exist"
-    input: "Is the variant variant chr4:31600 A>T present on OMIM? If so what is that associated phenotype?"
+    input: "Is the variant chr4:31600 A>T present on OMIM? If so what is that associated phenotype?"
     expected: "The variant is not present on OMIM."
 
 - case:
     name: "Omim by variant"
-    input: "Is the variant variant chr4:3160307 C>T present on OMIM? If so what is that associated phenotype?"
-    expected: "The associated phenotype is Lopes-Maciel-Rodan syndrome."
+    input: "Is the variant chr4:3160307 C>T present on OMIM? If so what is that associated phenotype?"
+    expected: "The associated phenotypes are Huntington disease and Lopes-Maciel-Rodan syndrome."
 
 - case:
     name: "HPO by phenotype query"
@@ -161,7 +161,7 @@
 - case:
     name: "HPO by id query"
     input: "How many genes are associated with HPO term HP:0002671"
-    expected: "HP:0002671 is associated with 58 genes."
+    expected: "HP:0002671 is associated with 59 genes."
 
 - case:
     name: "UniProt ID and name"
@@ -185,8 +185,8 @@
 
 - case:
     name: "PubMed search by disease name"
-    input: "Search PubMed for articles about Rett syndrome. Limit to 3 results and provide abstracts."
-    expected: "No more than 3 articles are found, all are about Rett syndrome and include PubMed ids [37628658, 29445033, 39331775]."
+    input: "Search PubMed for articles about Rett syndrome. Limit to 3 results and provide PMIDs and abstracts."
+    expected: "No more than 3 articles are found, all are about Rett syndrome and include PubMed ids [37628658, 7620591, 39331775]."
 
 - case:
     name: "PMC abstract lookup by PMC ID"
@@ -241,17 +241,17 @@
 - case:
     name: "Gene alias list"
     input: "What are some aliases for the NUTM2G gene?"
-    expected: "Some aliases for NUTM2G include NUT2G, C9orf52, and NUT family member 2G."
+    expected: "Some aliases for NUTM2G include NUTMG, and FAM22G."
 
 - case:
     name: "Gene alias check for existing alias"
-    input: "Is ENSG00000197386 an alias for NUTM2G?"
-    expected: "Yes, ENSG00000197386 is an alias for NUTM2G."
+    input: "Is FAM22G an alias for NUTM2G?"
+    expected: "Yes, FAM22G is an alias for NUTM2G."
 
 - case:
     name: "Gene alias check for nonexistent alias"
-    input: "Is ENSG00000012048 an alias for NUTM2G?"
-    expected: "No, ENSG00000012048 is not an alias for NUTM2G."
+    input: "Is SRC2 an alias for PTPN11?"
+    expected: "No, SRC2 is not an alias for PTPN11."
 
 - case:
     name: "Full gene name"
@@ -259,19 +259,19 @@
     expected: "The full name of NUTM2G is NUT family member 2G."
 
 - case:
-    name: "Full gene name 2
-    input: "What is the full name of the gene SHP2?"
-    expected: "The full name of SHP2 is Src homology 2 domain-containing phosphatase 2."
+    name: "Full gene name 2"
+    input: "What is the full name of the gene PTPN11?"
+    expected: "The full name of PTPN11 is protein tyrosine phosphatase non-receptor type 11."
 
 - case:
     name: "Full gene name 3"
     input: "What is the full name of the gene ENSG00000012048?"
-    expected: "The full name of ENSG00000012048 is breast cancer gene 2."
+    expected: "The full name of ENSG00000012048 is BRCA1 DNA repair associated."
 
 - case:
     name: "Use geno2mp to identify HPO terms linked to specific variant"
-    input: "What HPO terms are associated with the variant chr8:70126887 C>T?"
-    expected: "The HPO terms associated with this variant includes HP:0001250 (Seizures) and HP:0002342 (Microcephaly)."
+    input: "What narrow HPO terms are associated with the variant chr8:70157018 A>T?"
+    expected: "The narrow HPO term associated with this variant includes HP:0010316 (Ebstein's anomaly of the tricuspid valve)."
 
 - case:
     name: "Use geno2mp to identify HPO terms linked to specific variant 2"
@@ -286,7 +286,7 @@
 - case:
     name: "Use geno2mp to find number of homozygous cases for a variant 1"
     input: "How many homozygous cases are reported for the variant chr8:70126887 C>T in the Geno2MP database?"
-    expected: "There are 13 homozygous cases reported for this variant in the Geno2MP database."
+    expected: "There are 0 homozygous cases reported for this variant in the Geno2MP database."
 
 - case:
     name: "Use geno2mp to find number of heterozygous cases for a variant 2"
@@ -296,5 +296,5 @@
 - case:
     name: "Use geno2mp to find number of homozygous and heterozygous cases for a variant 3"
     input: "How many homozygous and heterozygous cases are reported for the variant chr12:14841081 C>T in the Geno2MP database?"
-    expected: "There are 2 homozygous and 9 heterozygous cases reported for this variant in the Geno2MP database."
+    expected: "There are 0 homozygous and 5 heterozygous cases reported for this variant in the Geno2MP database."
 

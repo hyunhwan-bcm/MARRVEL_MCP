@@ -20,7 +20,6 @@ from marrvel_mcp import (
 
 from .llm_retry import invoke_with_throttle_retry
 
-
 # Maximum tokens allowed for evaluation to prevent API errors
 MAX_TOKENS = 100_000
 
