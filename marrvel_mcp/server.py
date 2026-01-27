@@ -793,7 +793,8 @@ async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
-    
+
+
 @mcp.tool(
     name="get_geno2mp_by_variant",
     description="Get Geno2MP HPO terms and profile counts for both homozygous and heterozygous cases for a given gene variant",
@@ -807,13 +808,10 @@ async def get_geno2mp_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
         variant = f"{lo_data_obj['hg19Chr']}:{lo_data_obj['hg19Pos']} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
 
-        data = await fetch_marrvel_data(
-            f"/geno2mp/variant/{variant_uri}", is_graphql=False
-        )
+        data = await fetch_marrvel_data(f"/geno2mp/variant/{variant_uri}", is_graphql=False)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching Geno2MP data: {str(e)}"
-
 
 
 # ============================================================================
