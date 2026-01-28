@@ -34,7 +34,7 @@
     expected: "CADD phred score is 8.103."
 
 - case:
-    name: "AlphaMissesense"
+    name: "CADD phred prediction"
     input: "What is the CADD phred prediction for the variant rs137852987?"
     expected: "The CADD prediction for this variant is highly deleterious."
 
@@ -298,3 +298,102 @@
     input: "How many homozygous and heterozygous cases are reported for the variant chr12:14841081 C>T in the Geno2MP database?"
     expected: "There are 0 homozygous and 5 heterozygous cases reported for this variant in the Geno2MP database."
 
+- case:
+    name: "Explanation of each variant prioritization tool 1"
+    input: "What is the intuition behind AlphaMissense variant prioritization tool?"
+    expected: "AlphaMissense uses protein structure predictions to assess the potential impact of missense variants on protein function."
+
+- case:
+    name: "Explanation of each variant prioritization tool 2"
+    input: "What is the intuition behind CADD variant prioritization tool?"
+    expected: "CADD integrates multiple annotations into a single score to predict the deleteriousness of variants across the genome."
+
+- case:
+    name: "Explanation of each variant prioritization tool 3"
+    input: "What is the intuition behind REVEL variant prioritization tool?"
+    expected: "REVEL combines scores from multiple individual tools to improve the accuracy of predicting the pathogenicity of missense variants."
+
+- case:
+    name: "Explanation of pLI score 1"
+    input: "What does a pLI score represent in genetic variant interpretation?"
+    expected: "A pLI score estimates the probability that a gene is intolerant to loss-of-function variants, with higher scores indicating greater intolerance."
+
+- case:
+    name: "Explanation of pLI score 2"
+    input: "How is the pLI score calculated?"
+    expected: "The pLI score is calculated based on the observed and expected number of loss-of-function variants in a gene, using population sequencing data."
+
+- case:
+    name: "Explanation of pLI score 3"
+    input: "What is the interpretation of pLI score for TTN gene?"
+    expected: "The TTN gene has a low pLI score, indicating it is tolerant to loss-of-function variants."
+
+- case:
+    name: "Get pLI score for gene 1"
+    input: "What is the pLI score for NUTM2G gene? Provide interpretation."
+    expected: "The pLI score for NUTM2G is 5.629288140820559e-10, indicating it is tolerant to loss-of-function variants."
+
+- case:
+    name: "Get pLI score for gene 2"
+    input: "What is the pLI score for MECP2 gene? Provide interpretation."
+    expected: "The pLI score for MECP2 is 0.8938193637798467, indicating it is intolerant to loss-of-function variants."
+
+- case: 
+    name: "Get pLI score for gene 3"
+    input: "What is the pLI score for TTN gene? Provide interpretation."
+    expected: "The pLI score for TTN is 2.5582238715734978e-96, indicating it is tolerant to loss-of-function variants."
+
+- case:
+    name: "Get pLI score for variant"
+    input: "What is the pLI score for chr21:45175759 C>T?"
+    expected: "I cannot provide pLI scores for specific variants."
+
+- case:
+    name: "Explanation of o/e score 1"
+    input: "What does the o/e (observed/expected) score represent in genetic variant interpretation?"
+    expected: "The o/e score estimates the ratio of observed to expected loss-of-function variants in a gene, with lower scores indicating stronger selection against such variants."
+
+- case:
+    name: "Explanation of o/e score 2"
+    input: "How is the o/e score calculated?"
+    expected: "The o/e score is calculated by comparing the number of observed loss-of-function variants to the number expected based on mutation rates and gene length."   
+
+- case:
+    name: "Explanation of o/e score 3"
+    input: "What is the interpretation of o/e score for MECP2 gene?"
+    expected: "The MECP2 gene has a low o/e score, indicating it is under strong selection against loss-of-function variants."
+
+- case:
+    name: "Copare pLI and o/e scores for gene 1"
+    input: "How do the pLI and o/e scores for TTN gene compare? Provide interpretation."
+    expected: "The pLI score for TTN is 2.56e-96, and the o/e (LOEUF) score is 0.327. Both indicate it is tolerant to loss-of-function variants."
+
+- case:
+    name: "Compare pLI and o/e scores for gene 2"
+    input: "How do the pLI and o/e scores for MECP2 gene compare? Provide interpretation."
+    expected: "Both pLI and o/e scores for MECP2 indicate it is intolerant to loss-of-function variants."
+
+- case:
+    name: "Compare pLI and o/e scores for gene 3"
+    input: "How do the pLI and o/e scores for CHEK2 gene compare? Provide interpretation."
+    expected: "Both scores indicate tolerance to loss-of-function variants."
+
+- case:
+    name: "Explain discrepancy between pLI and o/e scores"
+    input: "Why might a gene have a high pLI score but a relatively high o/e score?"
+    expected: "A gene might have a high pLI score indicating intolerance to loss-of-function variants, but a relatively high o/e score if there are more observed variants than expected due to factors like population-specific variants or sequencing errors."
+
+- case:
+    name: "Descriptions of databases 1"
+    input: "What is the purpose of the gnomAD database in genetic research?"
+    expected: "gnomAD aggregates and harmonizes exome and genome sequencing data from a variety of large-scale sequencing projects to provide allele frequency information for genetic variants in diverse populations."
+
+- case:
+    name: "Descriptions of databases 2"
+    input: "What is the purpose of the ClinVar database in genetic research?"
+    expected: "ClinVar is a public database that aggregates information about genomic variation and its relationship to human health, providing a resource for clinicians and researchers to understand the clinical significance of genetic variants."
+    
+- case:
+    name: "Descriptions of databases 3"
+    input: "What is the purpose of the DECIPHER database in genetic research?"
+    expected: "DECIPHER is a database that collects and shares genomic and phenotypic data from patients with rare genetic disorders to facilitate diagnosis and research into the genetic basis of these conditions."

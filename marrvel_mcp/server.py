@@ -674,7 +674,7 @@ async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_gnomad_variant",
-    description="Get population allele frequencies and scores from gnomAD for a specific variant across global and ancestry-specific populations",
+    description="Get population allele frequencies and scores (o/e, pLI, etc)from gnomAD for a specific variant across global and ancestry-specific populations",
     meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
 )
 async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
