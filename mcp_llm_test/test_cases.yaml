@@ -397,3 +397,103 @@
     name: "Descriptions of databases 3"
     input: "What is the purpose of the DECIPHER database in genetic research?"
     expected: "DECIPHER is a database that collects and shares genomic and phenotypic data from patients with rare genetic disorders to facilitate diagnosis and research into the genetic basis of these conditions."
+
+- case:
+    name: "Positive Drugs or ligands 1"
+    input: "Are there any approved drugs or active ligands targeting MAP3K1?"
+    expected: "No approved drugs, two active ligands were found for MAP3K1."
+
+- case:
+    name: "Positive Drugs or ligands 2"
+    input: "Are there any approved drugs or active ligands targeting PTPN11?"
+    expected: "No approved drugs, ten active ligands targeting PTPN11 were found."
+
+- case:
+    name: "Positive Drugs or ligands 3"
+    input: "Are there any approved drugs or active ligands targeting BRCA1?"
+    expected: "No approved drugs, four active ligands were found for BRCA1."
+
+- case:
+    name: "Aditional questions on GO categories (MF, CC, BP) 1"
+    input: "What biological processes is NUTM2G involved in according to GO annotations?"
+    expected: "NUTM2G is involved in biological processes such as chromatin organization"
+
+- case:
+    name: "Aditional questions on GO categories (MF, CC, BP) 2"
+    input: "What cellular components is BRCA1 associated with according to GO annotations?"
+    expected: "BRCA1 is associated with cellular components such as the nucleus and DNA repair complexes."
+
+- case:
+    name: "Aditional questions on GO categories (MF, CC, BP) 3"
+    input: "What molecular functions does PTPN11 have according to GO annotations?"
+    expected: "PTPN11 has molecular functions including protein tyrosine phosphatase activity"
+
+- case:
+    name: "Aditional questions on GO categories (MF, CC, BP) 4"
+    input: "Does MECP2 have any GO annotations related to transcription regulation?"
+    expected: "Yes, MECP2 has GO annotations related to transcription regulation, including transcription."
+
+- case:
+    name: "Aditional questions on GO categories (MF, CC, BP) 5"
+    input: "Is TTN associated with any GO annotations related to transcription regulation?"
+    expected: "No, TTN is not associated with GO annotations related to transcription regulation."
+
+- case:
+    name: "Ortholog tissue expression 1"
+    input: "Which developmental stage has the most NUTM2G expression annotations in mice?"
+    expected: "The embryo stage has the most NUTM2G expression annotations in mice."
+
+- case:
+    name: "Ortholog tissue expression 2"
+    input: "Which tissue has the most PTPN11 expression annotations in zebrafish?"
+    expected: "The brain has the most PTPN11 expression annotations in zebrafish."
+
+- case:
+    name: "Ortholog tissue expression 3"
+    input: "Which developmental stage has the most MECP2 expression annotations in fly?"
+    expected: "The larva stage has the most MECP2 expression annotations in fly."
+
+- case:
+    name: "PubMed search by variant name 1"
+    input: "Search PubMed for articles about the variant chr4:3160307 C>T. How many articles are there?"
+    expected: "At least 5 articles about the variant chr4:3160307 C>T are found."
+
+- case:
+    name: "PubMed search by variant name 2"
+    input: "Search PubMed for articles about the variant chr12:14841081 C>T (hg38). What are the top 3 PMIDs?"
+    expected: "The top 3 PMIDs for articles about the variant chr12:14841081 C>T are 32078812, 31427787, and 30357312." 
+
+- case:
+    name: "PubMed search by variant name 3"
+    input: "Search PubMed for articles about the variant chr21:45175759 C>T. How many articles are there?"
+    expected: "At least 2 articles about the variant chr21:45175759 C>T are found."
+
+- case:
+    name: "STRING interaction counts 1"
+    input: "How many protein interactions does NUTM2G have on STRING?"
+    expected: "NUTM2G has 1 protein interaction on STRING."
+
+- case:
+    name: "STRING interaction counts 2"
+    input: "How many protein interactions does PTPN11 have on STRING?"
+    expected: "PTPN11 has 173 protein interactions on STRING."
+
+- case:
+    name: "STRING interaction counts 3"
+    input: "How many protein interactions does TTN have on STRING?"
+    expected: "TTN has 0 protein interactions on STRING."
+
+- case:
+    name: "STRING indirect connection 1"
+    input: "Is NUTM2G indirectly connected to VIRMA through another protein on STRING?"
+    expected: "No, NUTM2G is not indirectly connected to VIRMA through another protein on STRING."
+
+- case:
+    name: "STRING indirect connection 2"
+    input: "Is MAP3K1 indirectly connected to HRAS through another protein on STRING? If so, what proteins connect them?"
+    expected: "Yes, MAP3K1 is indirectly connected to HRAS through other proteins such as RAF1 and MEK1 on STRING."
+
+- case:
+    name: "STRING indirect connection 3"
+    input: "Is PTPN11 indirectly connected to BRCA1 through another protein on STRING? If so, what proteins connect them?"
+    expected: "No, PTPN11 is not indirectly connected to BRCA1 through another protein on STRING."
