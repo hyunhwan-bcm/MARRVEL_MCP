@@ -65,7 +65,7 @@ async def test_single_call_server_tokens():
     conversation = []
     tool_history = []
 
-    final_content, tool_history, conversation, usage = await execute_agentic_loop(
+    final_content, tool_history, conversation, usage, _ = await execute_agentic_loop(
         mcp_client=mcp_client,
         llm_with_tools=mock_llm,
         messages=messages,
@@ -128,7 +128,7 @@ async def test_multiple_calls_accumulate_tokens():
     conversation = []
     tool_history = []
 
-    final_content, tool_history, conversation, usage = await execute_agentic_loop(
+    final_content, tool_history, conversation, usage, _ = await execute_agentic_loop(
         mcp_client=mcp_client,
         llm_with_tools=mock_llm,
         messages=messages,
@@ -174,7 +174,7 @@ async def test_fallback_to_tiktoken_when_no_server_tokens():
 
     # Mock count_tokens to avoid network issues with tiktoken encodings
     with patch.object(agentic_loop, "count_tokens", return_value=42):
-        final_content, tool_history, conversation, usage = await agentic_loop.execute_agentic_loop(
+        final_content, tool_history, conversation, usage, _ = await agentic_loop.execute_agentic_loop(
             mcp_client=mcp_client,
             llm_with_tools=mock_llm,
             messages=messages,
@@ -215,7 +215,7 @@ async def test_empty_usage_metadata_triggers_fallback():
 
     # Mock count_tokens to avoid network issues with tiktoken encodings
     with patch.object(agentic_loop, "count_tokens", return_value=55):
-        final_content, tool_history, conversation, usage = await agentic_loop.execute_agentic_loop(
+        final_content, tool_history, conversation, usage, _ = await agentic_loop.execute_agentic_loop(
             mcp_client=mcp_client,
             llm_with_tools=mock_llm,
             messages=messages,
@@ -255,7 +255,7 @@ async def test_zero_server_tokens_triggers_fallback():
 
     # Mock count_tokens to avoid network issues with tiktoken encodings
     with patch.object(agentic_loop, "count_tokens", return_value=77):
-        final_content, tool_history, conversation, usage = await agentic_loop.execute_agentic_loop(
+        final_content, tool_history, conversation, usage, _ = await agentic_loop.execute_agentic_loop(
             mcp_client=mcp_client,
             llm_with_tools=mock_llm,
             messages=messages,
