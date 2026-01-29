@@ -338,7 +338,7 @@
     input: "What is the pLI score for MECP2 gene? Provide interpretation."
     expected: "The pLI score for MECP2 is 0.8938193637798467, indicating it is intolerant to loss-of-function variants."
 
-- case: 
+- case:
     name: "Get pLI score for gene 3"
     input: "What is the pLI score for TTN gene? Provide interpretation."
     expected: "The pLI score for TTN is 2.5582238715734978e-96, indicating it is tolerant to loss-of-function variants."
@@ -356,7 +356,7 @@
 - case:
     name: "Explanation of o/e score 2"
     input: "How is the o/e score calculated?"
-    expected: "The o/e score is calculated by comparing the number of observed loss-of-function variants to the number expected based on mutation rates and gene length."   
+    expected: "The o/e score is calculated by comparing the number of observed loss-of-function variants to the number expected based on mutation rates and gene length."
 
 - case:
     name: "Explanation of o/e score 3"
@@ -392,7 +392,7 @@
     name: "Descriptions of databases 2"
     input: "What is the purpose of the ClinVar database in genetic research?"
     expected: "ClinVar is a public database that aggregates information about genomic variation and its relationship to human health, providing a resource for clinicians and researchers to understand the clinical significance of genetic variants."
-    
+
 - case:
     name: "Descriptions of databases 3"
     input: "What is the purpose of the DECIPHER database in genetic research?"
@@ -461,7 +461,7 @@
 - case:
     name: "PubMed search by variant name 2"
     input: "Search PubMed for articles about the variant chr12:21452130 A>G (hg38). What are the top 3 PMIDs?"
-    expected: "The top 3 PMIDs for articles about the variant chr12:21452130 A>G are 32078812, 31427787, and 30357312." 
+    expected: "The top 3 PMIDs for articles about the variant chr12:21452130 A>G are 32078812, 31427787, and 30357312."
 
 - case:
     name: "PubMed search by variant name 3"
