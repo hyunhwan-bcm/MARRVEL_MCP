@@ -18,7 +18,6 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
-
 # Add the project root to sys.path for test discovery
 repo_root = None
 for p in Path(__file__).resolve().parents:
