@@ -310,8 +310,7 @@ async def fix_missing_hg38_vals(data: str) -> str:
 )
 async def get_gene_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
+        data = await fetch_marrvel_data(f"""
             query MyQuery {{
                 geneByEntrezId(entrezId: {entrez_id}) {{
                     alias
@@ -336,8 +335,7 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
                     }}
                 }}
             }}
-            """
-        )
+            """)
         data = await fix_missing_hg38_vals(data)
         return data
 
@@ -352,8 +350,7 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_gene_by_ensembl_id(ensembl_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
+        data = await fetch_marrvel_data(f"""
             query MyQuery {{
                 geneByEnsemblId(ensemblId: "{ensembl_id}") {{
                     alias
@@ -378,8 +375,7 @@ async def get_gene_by_ensembl_id(ensembl_id: str) -> str:
                     }}
                 }}
             }}
-            """
-        )
+            """)
         data = await fix_missing_hg38_vals(data)
         return data
 
@@ -394,8 +390,7 @@ async def get_gene_by_ensembl_id(ensembl_id: str) -> str:
 )
 async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
+        data = await fetch_marrvel_data(f"""
             query MyQuery {{
                 geneBySymbol(symbol: "{gene_symbol}", taxonId: {taxon_id}) {{
                     alias
@@ -420,8 +415,7 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
                     }}
                 }}
             }}
-            """
-        )
+            """)
         data = await fix_missing_hg38_vals(data)
         return data
     except httpx.HTTPError as e:
@@ -435,8 +429,7 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
 )
 async def get_gene_by_position(chromosome: str, position: int) -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
+        data = await fetch_marrvel_data(f"""
             query MyQuery {{
                 genesByGenomicLocation(chr: "{chromosome}", posStart: {position}, posStop: {position}, build: "hg38") {{
                     alias
@@ -462,8 +455,7 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
                     }}
                 }}
             }}
-            """
-        )
+            """)
         data = await fix_missing_hg38_vals(data)
         return data
     except httpx.HTTPError as e:
@@ -473,7 +465,6 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
 # ============================================================================
 # VARIANT TOOLS - dbNSFP
 # ============================================================================
-
 
 @mcp.tool(
     name="get_dbnsfp_docs",
@@ -499,7 +490,6 @@ Available dbNSFP Prediction Methods:
 - phyloP470way_mammalian: PhyloP scores based on multiple alignments of 470 mammalian genomes to assess evolutionary conservation at nucleotide positions.
 """
 
-
 @mcp.tool(
     name="get_variant_dbnsfp",
     description="Get comprehensive pathogenicity predictions and functional annotations from dbNSFP including SIFT, PolyPhen2, CADD, REVEL, and other prediction scores. Can calculate average rank scores across all methods and extract specific method scores.",
@@ -507,8 +497,7 @@ Available dbNSFP Prediction Methods:
 )
 async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
+        data = await fetch_marrvel_data(f"""
             query MyQuery {{
                 dbnsfpByVariant(chr: "{chr}", pos: {pos}, alt: "{alt}", ref: "{ref}", build: "hg38") {{
                     scores {{
@@ -581,8 +570,7 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
                     }}
                 }}
             }}
-            """
-        )
+            """)
 
         # Parse the response and add enhanced summary
         data_obj = json.loads(data)
@@ -647,8 +635,7 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
 async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
         variant = f"{chr}:{pos} {ref}>{alt}"
-        data = await fetch_marrvel_data(
-            f"""
+        data = await fetch_marrvel_data(f"""
             query MyQuery {{
                 clinvarByVariant(variant: "{variant}", build: "hg38") {{
                     uid
@@ -662,8 +649,7 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
                     }}
                 }}
             }}
-            """
-        )
+            """)
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
@@ -676,8 +662,7 @@ async def get_clinvar_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 )
 async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
+        data = await fetch_marrvel_data(f"""
             query MyQuery {{
                 clinvarCountsByEntrezId(entrezId: {entrez_id}) {{
                     benign
@@ -686,17 +671,14 @@ async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
                     pathogenic
                 }}
             }}
-            """
-        )
-        all_entries = await fetch_marrvel_data(
-            f"""
+            """)
+        all_entries = await fetch_marrvel_data(f"""
             query MyQuery {{
                 clinvarByGeneEntrezId(entrezId: {entrez_id}) {{
                     uid
                 }}
             }}
-            """
-        )
+            """)
         data_obj = json.loads(data)
         all_entries_obj = json.loads(all_entries)
         data_obj["data"]["clinvarCountsByEntrezId"]["all"] = len(
@@ -1094,8 +1076,7 @@ async def get_hpo_associated_genes(hpo_id: str) -> str:
 )
 async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
+        data = await fetch_marrvel_data(f"""
             query MyQuery {{
                 dioptOrthologsByEntrezId(entrezId: {entrez_id}) {{
                     bestScore
@@ -1106,8 +1087,7 @@ async def get_diopt_orthologs_by_entrez_id(entrez_id: str) -> str:
                     taxonId2
                 }}
             }}
-            """
-        )
+            """)
         return data
     except httpx.HTTPError as e:
         return f"Error fetching DIOPT data: {str(e)}"
@@ -1797,8 +1777,7 @@ async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.ed
 )
 async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
     try:
-        data = await fetch_marrvel_data(
-            f"""
+        data = await fetch_marrvel_data(f"""
             query MyQuery {{
                 stringInteractionsByEntrezId(entrezId: {entrez_id}) {{
                     combExpDb
@@ -1812,8 +1791,7 @@ async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
                     }}
                 }}
             }}
-            """
-        )
+            """)
         data_obj = json.loads(data)
         duplicates = set()
 
