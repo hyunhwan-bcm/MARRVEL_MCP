@@ -305,7 +305,7 @@ async def fix_missing_hg38_vals(data: str) -> str:
 
 @mcp.tool(
     name="get_gene_by_entrez_id",
-    description="Retrieve comprehensive gene information by NCBI Entrez Gene ID including symbol, ensembl gene id, uniprot ID, location, summary, and transcripts",
+    description="Retrieve comprehensive gene information by NCBI Entrez Gene ID including name, symbol, ensembl gene id, uniprot ID, location, summary, and transcripts",
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_entrez_id(entrez_id: str) -> str:
@@ -347,7 +347,7 @@ async def get_gene_by_entrez_id(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_gene_by_ensembl_id",
-    description="Retrieve comprehensive gene information by Ensembl Gene ID including symbol, entrezID, uniprot ID, location, summary, and transcripts",
+    description="Retrieve comprehensive gene information by Ensembl Gene ID including name, symbol, entrezID, uniprot ID, location, summary, and transcripts",
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_ensembl_id(ensembl_id: str) -> str:
@@ -389,7 +389,7 @@ async def get_gene_by_ensembl_id(ensembl_id: str) -> str:
 
 @mcp.tool(
     name="get_gene_by_symbol",
-    description="Find gene information including Entrez ID, Uniprot ID, ensembl ID for a given gene symbol and species (human, mouse, fly, worm, etc.)",
+    description="Find gene information including Entrez ID, Uniprot ID, ensembl ID and name for a given gene symbol and species (human, mouse, fly, worm, etc.)",
     meta={"category": "gene", "version": "1.0"},
 )
 async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
@@ -430,7 +430,7 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
 
 @mcp.tool(
     name="get_gene_by_position",
-    description="Find genes with information including Entrez ID, Uniprot ID, ensembl ID for a specific chromosomal position in hg38/GRCh38 coordinates",
+    description="Find genes with information including Entrez ID, Uniprot ID, ensembl ID and name for a specific chromosomal position in hg38/GRCh38 coordinates",
     meta={"category": "gene", "version": "1.0", "genome_build": "hg38"},
 )
 async def get_gene_by_position(chromosome: str, position: int) -> str:
@@ -473,6 +473,31 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
 # ============================================================================
 # VARIANT TOOLS - dbNSFP
 # ============================================================================
+
+
+@mcp.tool(
+    name="get_dbnsfp_docs",
+    description="Get descriptions for all dbNSFP pathogenicity prediction methods and scores available in MARRVEL including SIFT, PolyPhen2, CADD, REVEL, and others.",
+    meta={"category": "variant", "database": "dbNSFP", "version": "1.0"},
+)
+async def get_dbnsfp_docs() -> str:
+    return """
+Available dbNSFP Prediction Methods:
+- AlphaMissense: An adaption of AlphaFold fine-tuned on human and primate variant population frequency databases to predict missense variant pathogenicity.
+- CADD: Combined Annotation Dependent Depletion (CADD) is a framework that integrates multiple annotations into one metric by contrasting variants that survived natural selection with simulated mutations.
+- GERPppRS: Genomic Evolutionary Rate Profiling (GERP) rejected substitution score, which measures evolutionary constraint at a given nucleotide position.
+- MCAP: Mendelian Clinically Applicable Pathogenicity (M-CAP) is a pathogenicity classifier specifically designed to prioritize variants of uncertain significance in clinical exome sequencing.
+- MutationAssessor: Predicts the functional impact of amino-acid substitutions in proteins using evolutionary conservation patterns derived from homologous sequences.
+- MutationTaster: A comprehensive tool that evaluates the disease-causing potential of DNA sequence alterations based on evolutionary conservation, splice-site changes, and protein features.
+- Polyphen2HDIV: Polymorphism Phenotyping v2 (PolyPhen-2) is a tool that predicts the possible impact of an amino acid substitution on the structure and function of a human protein using straightforward physical and comparative considerations. HDIV is optimized for high sensitivity.
+- Polyphen2HVAR: Polymorphism Phenotyping v2 (PolyPhen-2) HVAR is optimized for high specificity.
+- PrimateAI: A deep learning-based pathogenicity predictor trained on common variants from primate species to identify deleterious missense mutations in humans.
+- REVEL: Rare Exome Variant Ensemble Learner (REVEL) is an ensemble method for predicting the pathogenicity of missense variants by combining scores from multiple individual tools.
+- SIFT: Sorting Intolerant From Tolerant (SIFT) predicts whether an amino acid substitution affects protein function based on sequence homology and the physical properties of amino acids.
+- SIFT4G: An updated version of SIFT that uses a larger database of protein sequences for improved prediction accuracy.
+- phyloP100way_vertebrate: PhyloP scores measure evolutionary conservation at individual nucleotide positions based on multiple alignments of 100 vertebrate genomes.
+- phyloP470way_mammalian: PhyloP scores based on multiple alignments of 470 mammalian genomes to assess evolutionary conservation at nucleotide positions.
+"""
 
 
 @mcp.tool(
@@ -690,7 +715,7 @@ async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_gnomad_variant",
-    description="Get population allele frequencies and scores from gnomAD for a specific variant across global and ancestry-specific populations",
+    description="Get population allele frequencies and scores (o/e, pLI, etc)from gnomAD for a specific variant across global and ancestry-specific populations",
     meta={"category": "variant", "database": "gnomAD", "version": "1.0"},
 )
 async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
@@ -754,7 +779,7 @@ async def get_dgv_by_entrez_id(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_geno2mp_by_entrez_id",
-    description="Get Geno2MP HPO profile counts across 4 variant categories for a given entrez gene id",
+    description="Get Geno2MP HPO profile counts across 4 variant categories (noncoding, synonymous, missense, nonsense/splice) for a given entrez gene id",
     meta={"category": "variant", "database": "Geno2MP", "version": "1.0"},
 )
 async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
@@ -809,6 +834,25 @@ async def get_geno2mp_by_entrez_id(entrez_id: str) -> str:
         return data
     except Exception as e:
         return json.dumps({"error": f"Failed to fetch data: {str(e)}"})
+
+
+@mcp.tool(
+    name="get_geno2mp_by_variant",
+    description="Get Geno2MP HPO terms and profile counts for both homozygous and heterozygous cases for a given gene variant",
+    meta={"category": "variant", "database": "Geno2MP", "version": "1.0"},
+)
+async def get_geno2mp_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
+    try:
+        lo_data = await liftover_hg38_to_hg19(chr, pos)
+        lo_data_obj = json.loads(lo_data)
+
+        variant = f"{lo_data_obj['hg19Chr']}:{lo_data_obj['hg19Pos']} {ref}>{alt}"
+        variant_uri = quote(variant, safe="")
+
+        data = await fetch_marrvel_data(f"/geno2mp/variant/{variant_uri}", is_graphql=False)
+        return data
+    except httpx.HTTPError as e:
+        return f"Error fetching Geno2MP data: {str(e)}"
 
 
 # ============================================================================
@@ -1134,7 +1178,7 @@ async def get_gtex_expression(entrez_id: str) -> str:
 
 @mcp.tool(
     name="get_ortholog_expression",
-    description="Get expression patterns for orthologs between 2 model organisms including developmental stages and tissues",
+    description="Get expression annotation counts across tissue types, cell locations and developmental stages for a given gene in any model organism",
     meta={"category": "expression", "version": "1.0"},
 )
 async def get_ortholog_expression(entrez_id: str, taxon_id: str) -> str:
@@ -1799,7 +1843,9 @@ async def get_string_interactions_by_entrez_id(entrez_id: str) -> str:
                     data_obj["data"]["stringInteractionsByEntrezId"][i]["gene2"],
                 )
                 i += 1
-
+        data_obj["data"]["totalInteractions"] = len(
+            data_obj["data"]["stringInteractionsByEntrezId"]
+        )
         data = json.dumps(data_obj, indent=2)
         return data
     except Exception as e:
@@ -1821,6 +1867,9 @@ async def get_string_interactions_between_entrez_ids(entrez_id1: str, entrez_id2
                 data_obj["data"]["stringInteractionsByEntrezId"].pop(i)
             else:
                 i += 1
+        data_obj["data"]["totalInteractions"] = len(
+            data_obj["data"]["stringInteractionsByEntrezId"]
+        )
         data = json.dumps(data_obj, indent=2)
         return data
 
