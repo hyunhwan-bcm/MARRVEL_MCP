@@ -392,7 +392,7 @@
     name: "Descriptions of databases 2"
     input: "What is the general purpose of the ClinVar database in genetic research?"
     expected: "ClinVar is a public database that aggregates information about genomic variation and its relationship to human health, providing a resource for clinicians and researchers to understand the clinical significance of genetic variants."
-    
+
 - case:
     name: "Descriptions of databases 3"
     input: "What is the general purpose of the DECIPHER database in genetic research?"
