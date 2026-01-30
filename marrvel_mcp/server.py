@@ -302,7 +302,7 @@ Available MARRVEL Datasets:
 
 @mcp.tool(
     name="get_dbnsfp_docs",
-    description="Get descriptions for all dbNSFP pathogenicity prediction methods and scores available in MARRVEL including SIFT, PolyPhen2, CADD, REVEL, and others.",
+    description="Get descriptions for all dbNSFP variant prioritization/pathogenicity prediction methods and scores available in MARRVEL including AlphaMissense, SIFT, PolyPhen2, CADD, REVEL, and others.",
     meta={"category": "variant", "database": "dbNSFP", "version": "1.0"},
 )
 async def get_dbnsfp_docs() -> str:

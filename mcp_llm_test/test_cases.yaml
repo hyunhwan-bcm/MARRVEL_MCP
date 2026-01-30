@@ -385,17 +385,17 @@
 
 - case:
     name: "Descriptions of databases 1"
-    input: "What is the purpose of the gnomAD database in genetic research?"
+    input: "What is the general purpose of the gnomAD database in genetic research?"
     expected: "gnomAD aggregates and harmonizes exome and genome sequencing data from a variety of large-scale sequencing projects to provide allele frequency information for genetic variants in diverse populations."
 
 - case:
     name: "Descriptions of databases 2"
-    input: "What is the purpose of the ClinVar database in genetic research?"
+    input: "What is the general purpose of the ClinVar database in genetic research?"
     expected: "ClinVar is a public database that aggregates information about genomic variation and its relationship to human health, providing a resource for clinicians and researchers to understand the clinical significance of genetic variants."
     
 - case:
     name: "Descriptions of databases 3"
-    input: "What is the purpose of the DECIPHER database in genetic research?"
+    input: "What is the general purpose of the DECIPHER database in genetic research?"
     expected: "DECIPHER is a database that collects and shares genomic and phenotypic data from patients with rare genetic disorders to facilitate diagnosis and research into the genetic basis of these conditions."
 
 - case:
