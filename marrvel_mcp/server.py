@@ -272,6 +272,7 @@ def get_example_genes() -> dict:
         "APOE": {"entrez_id": "348", "description": "Apolipoprotein E"},
     }
 
+
 # ============================================================================
 # DOC TOOLS
 # ============================================================================
@@ -341,7 +342,6 @@ Available gnomAD Gene Constraint Metrics:
 - z: Z-score measuring deviation between observed and expected variant counts. More positive values indicate stronger constraint.
 - pLI: Probability of loss-of-function intolerance, a value between 0 and 1 derived from a probabilistic model comparing observed versus expected LoF variants. Values ≥ 0.9 indicate strong evidence that the gene is haploinsufficient and intolerant to LoF variation.
 """
-
 
 
 # ============================================================================
@@ -537,6 +537,7 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
 # VARIANT TOOLS - dbNSFP
 # ============================================================================
 
+
 @mcp.tool(
     name="get_dbnsfp_docs",
     description="Get descriptions for all dbNSFP pathogenicity prediction methods and scores available in MARRVEL including SIFT, PolyPhen2, CADD, REVEL, and others.",
@@ -698,6 +699,7 @@ async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
 # VARIANT TOOLS - ClinVar
 # ============================================================================
 
+
 @mcp.tool(
     name="get_clinvar_by_variant",
     description="Get ClinVar clinical significance and interpretation for a specific variant including pathogenic/benign classification",
@@ -764,6 +766,7 @@ async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
 # ============================================================================
 # VARIANT TOOLS - gnomAD
 # ============================================================================
+
 
 @mcp.tool(
     name="get_gnomad_variant",
