@@ -766,10 +766,7 @@ async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
-        lo_data = await liftover_hg38_to_hg19(chr, pos)
-        lo_data_obj = json.loads(lo_data)
-
-        variant = f"{lo_data_obj['hg19Chr']}:{lo_data_obj['hg19Pos']} {ref}>{alt}"
+        variant = f"{chr}:{pos} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/gnomAD/variant/{variant_uri}", is_graphql=False)
         data_obj = json.loads(data)
@@ -777,7 +774,7 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
             for ome in ["exome", "genome"]:
                 if data_obj.get(ome):
                     data_obj[ome]["alleleFrequency"] = (
-                        data_obj[ome]["alleleCount"] / data_obj[ome]["alleleNum"]
+                        data_obj[ome]["alleleCount"] / data_obj[ome]["alleleNumber"]
                     )
             data_obj["pos"] = pos
             data_obj["chr"] = chr
@@ -973,6 +970,7 @@ async def search_omim_by_disease_name(disease_name: str) -> str:
 # DISEASE TOOLS - GO and HPO
 # ============================================================================
 
+
 @mcp.tool(
     name="get_go_by_entrez_id",
     description="Retrieve Gene Ontology terms for a given entrez gene ID",
@@ -1000,6 +998,7 @@ async def get_go_by_entrez_id(entrez_id: int) -> str:
         return data
     except httpx.HTTPError as e:
         return f"Error fetching gene data: {str(e)}"
+
 
 @mcp.tool(
     name="search_hpo_terms",

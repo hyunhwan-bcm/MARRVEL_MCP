@@ -70,7 +70,7 @@
 
 - case:
     name: "gnomAD presence 2"
-    input: "Is Chr2:74785853 G:A (hg19) found in gnomAD? Perform a liftover if needed."
+    input: "Is Chr6:99365567 T>C (hg19) found in gnomAD? Perform a liftover if needed."
     expected: "Yes, this variant is found in gnomAD control populations."
 
 - case:
