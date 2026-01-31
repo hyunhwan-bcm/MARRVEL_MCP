@@ -70,7 +70,7 @@
 
 - case:
     name: "gnomAD presence 2"
-    input: "Is Chr9:99699454 C>A (hg19) found in gnomAD? Perform a liftover if needed."
+    input: "Is Chr6:99365567 T>C (hg19) found in gnomAD? Perform a liftover if needed."
     expected: "Yes, this variant is found in gnomAD control populations."
 
 - case:
@@ -145,7 +145,7 @@
 
 - case:
     name: "Omim by variant - variant does not exist"
-    input: "Is the variant chr4:31600 A>T present on OMIM? If so what is that associated phenotype?"
+    input: "Is the variant chr2-74558644-C-T present on OMIM? If so what is that associated phenotype?"
     expected: "The variant is not present on OMIM."
 
 - case:
@@ -175,7 +175,7 @@
 
 - case:
     name: "Ortholog tissue expression"
-    input: "Which developmental stage has the most HTT expression annotations in mice?"
+    input: "For the human gene HTT, which developmental stage has the most ortholog expression annotations in mice?"
     expected: "Embryo stage"
 
 - case:
@@ -415,8 +415,8 @@
 
 - case:
     name: "Aditional questions on GO categories (MF, CC, BP) 1"
-    input: "What biological processes is  involved in according to GO annotations?"
-    expected: "NUTM2G is involved in biological processes such as chromatin organization"
+    input: "What biological processes is M1AP involved in according to GO annotations?"
+    expected: "M1AP is involved in RNA processing, Meiosis I, Spermatogenesis, Chromatin assembly among others."
 
 - case:
     name: "Aditional questions on GO categories (MF, CC, BP) 2"
@@ -435,13 +435,13 @@
 
 - case:
     name: "Aditional questions on GO categories (MF, CC, BP) 5"
-    input: "Is TTN associated with any GO annotations related to transcription regulation?"
-    expected: "No, TTN is not associated with GO annotations related to transcription regulation."
+    input: "Is TTN associated with any GO annotations related to carbohydrate metabolism?"
+    expected: "No, TTN is not associated with GO annotations related to carbohydrate metabolism."
 
 - case:
     name: "Ortholog tissue expression 1"
     input: "For the human gene CDKN2A, which cell location has the most ortholog expression annotations in rats?"
-    expected: "The nucleus has the most CDKN2A expression annotations in rats."
+    expected: "The nucleus and other locations are tied for the most CDKN2A expression annotations in rats."
 
 - case:
     name: "Ortholog tissue expression 2"
