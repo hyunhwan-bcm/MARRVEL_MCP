@@ -1,499 +1,609 @@
+# Test cases categorized based on MARRVEL-MCP tool domains
+# Categories derived from: bioRxiv 2025.11.26.690887v1
+# - Gene and Variant Utilities: Tools for gene/variant identification and format conversion
+# - Variant Prioritization: Tools accessing pathogenicity databases (dbNSFP, ClinVar, gnomAD, etc.)
+# - Gene-Phenotype Databases: Resources linking genes to clinical phenotypes (OMIM, HPO, Geno2MP)
+# - Expression Databases: Gene expression data (GTEx, ortholog expression)
+# - Ortholog Data: Comparative genomic information from model organisms (DIOPT)
+# - Literature: Scientific publication databases (PubMed, PMC)
+# - Protein Interactions: Protein-protein interaction networks (STRING)
+
 - case:
     name: "Gene for NM_001045477.4:c.187C>T"
+    category: "Gene and Variant Utilities"
     input: "What gene is primarily associated with the variant NM_001045477.4:c.187C>T?"
     expected: "The genes associated includes NUTM2G."
 
 - case:
     name: "Protein change for NM_001045477.4:c.187C>T"
+    category: "Gene and Variant Utilities"
     input: "What is the protein change resulting from NM_001045477.4:c.187C>T?"
     expected: "The protein change is p.P63S."
 
 - case:
     name: "NUTM2G OMIM entries"
+    category: "Gene-Phenotype Databases"
     input: "Does NUTM2G have any entries in OMIM database?"
     expected: "NUTM2G has no OMIM match and no known Mendelian phenotypes."
 
 - case:
     name: "MECP2 OMIM entries"
+    category: "Gene-Phenotype Databases"
     input: "Does MECP2 have an OMIM number?"
     expected: "Yes, MECP2's OMIM number is 300005."
 
 - case:
     name: "MECP2 OMIM entries 2"
+    category: "Gene-Phenotype Databases"
     input: "Does MECP2 have any associated Mendelian phenotypes?"
     expected: "MECP2 is linked with several Mendelian phenotypes (generally: autism susceptibility and intellectual developmental disorders)."
 
 - case:
     name: "Average dbNSFP rank score"
+    category: "Variant Prioritization"
     input: "What is the average dbNSFP rank score for p.P63S in NUTM2G?"
     expected: "The average dbNSFP rank score is 0.214."
 
 - case:
     name: "CADD phred score"
+    category: "Variant Prioritization"
     input: "What is the CADD phred score for the variant NM_001045477.4:c.187C>T?"
     expected: "CADD phred score is 8.103."
 
 - case:
     name: "CADD phred prediction"
+    category: "Variant Prioritization"
     input: "What is the CADD phred prediction for the variant rs137852987?"
     expected: "The CADD prediction for this variant is highly deleterious."
 
 - case:
     name: "REVEL prediction"
+    category: "Variant Prioritization"
     input: "Tell me about the variant NM_001045477.4:c.187C>T. According to REVEL, how is this variant classified?"
     expected: "REVEL predicts it with a score of 0.027."
 
 - case:
     name: "PolyPhen-2 prediction"
+    category: "Variant Prioritization"
     input: "According to PolyPhen-2, how is NM_001045477.4:c.187C>T predicted?"
     expected: "PolyPhen-2 HumDiv and HumVar both classify it as 'Benign'."
 
 - case:
     name: "ClinVar records for NUTM2G"
+    category: "Variant Prioritization"
     input: "How many ClinVar variants associated with NUTM2G?"
     expected: "Yes, NUTM2G has 99 reported variants in ClinVar."
 
 - case:
     name: "ClinVar pathogenic allele count"
+    category: "Variant Prioritization"
     input: "How many NUTM2G alleles are reported as pathogenic (not likely pathogenic) in ClinVar?"
     expected: "33 alleles are reported as pathogenic."
 
 - case:
     name: "ClinVar likely pathogenic allele count"
+    category: "Variant Prioritization"
     input: "How many NUTM2G alleles are reported as likely pathogenic in ClinVar?"
     expected: "3 alleles are reported as likely pathogenic."
 
 - case:
     name: "gnomAD presence"
+    category: "Variant Prioritization"
     input: "Is Chr9:99694174 C>T found in gnomAD?"
     expected: "This variant is not found in gnomAD control populations."
 
 - case:
     name: "gnomAD presence 2"
+    category: "Variant Prioritization"
     input: "Is Chr6:99365567 T>C (hg19) found in gnomAD? Perform a liftover if needed."
     expected: "Yes, this variant is found in gnomAD control populations."
 
 - case:
     name: "LoF o/e score"
+    category: "Variant Prioritization"
     input: "What is the LoF o/e (loss-of-function observed/expected) score for NUTM2G?"
     expected: "The LoF o/e score is 0.84"
 
 - case:
     name: "LoF o/e implication"
+    category: "Variant Prioritization"
     input: "What does the LoF o/e score imply about the strength of selection on NUTM2G?"
     expected: "NUTM2G is not under strong selection against loss-of-function alleles."
 
 - case:
     name: "DGV entries"
+    category: "Variant Prioritization"
     input: "Are there any DGV entries for NUTM2G? If so, how many?"
     expected: "Yes, there are 16 DGV entries for NUTM2G."
 
 - case:
     name: "DECIPHER control variants"
+    category: "Variant Prioritization"
     input: "Are there any DECIPHER control variants involving NUTM2G?"
     expected: "Yes, there is 1 control individual with a duplication containing NUTM2G."
 
 - case:
     name: "DIOPT ortholog mouse"
+    category: "Ortholog Data"
     input: "What is the gene symbol for the DIOPT ortholog of NUTM2G in mouse?"
     expected: "The mouse ortholog is Nutm2."
 
 - case:
     name: "DIOPT ortholog rat"
+    category: "Ortholog Data"
     input: "What is the gene symbol for the DIOPT ortholog of NUTM2G in rat?"
     expected: "The rat ortholog is Nutm2f."
 
 - case:
     name: "DIOPT ortholog fly"
+    category: "Ortholog Data"
     input: "What is the gene symbol for the DIOPT ortholog of NUTM2G in fly?"
     expected: "There is no clear ortholog of NUTM2G in fly."
 
 - case:
     name: "Highest GTEx expression"
+    category: "Expression Databases"
     input: "Which tissue expresses NUTM2G the most according to GTEx?"
     expected: "Highest expression is observed in the testis."
 
 - case:
     name: "Protein domain"
+    category: "Gene and Variant Utilities"
     input: "What type of protein domain does NUTM2G contain?"
     expected: "It contains an NUT protein domain."
 
 - case:
     name: "Drugs or ligands"
+    category: "Gene and Variant Utilities"
     input: "Are there any approved drugs or active ligands targeting NUTM2G?"
     expected: "No approved drugs or active ligands were found for NUTM2G."
 
 - case:
     name: "Geno2MP by entrez id value comparison"
+    category: "Gene-Phenotype Databases"
     input: "What is the most common mutation category in ENSG00000197386 gene variant HPO entries?"
     expected: "Synonymous/Unknown"
 
 - case:
     name: "Geno2MP by entrez id"
+    category: "Gene-Phenotype Databases"
     input: "How many noncoding HTT gene variant HPO entries are there in the Geno2MP database?"
     expected: "654 HPO entries for noncoding HTT variants"
 
 - case:
     name: "OMIM by disease name"
+    category: "Gene-Phenotype Databases"
     input: "Which gene is most associated with huntington's disease?"
     expected: "The gene most associated with huntington's is HTT"
 
 - case:
     name: "Omim by mim number"
+    category: "Gene-Phenotype Databases"
     input: "Which genes are connected to mim number 114480?"
     expected: "The genes connected include BRCA1, BRCA2, RAD51C, and RAD51D"
 
 - case:
     name: "Omim by variant - variant does not exist"
+    category: "Gene-Phenotype Databases"
     input: "Is the variant chr2-74558644-C-T present on OMIM? If so what is that associated phenotype?"
     expected: "The variant is not present on OMIM."
 
 - case:
     name: "Omim by variant"
+    category: "Gene-Phenotype Databases"
     input: "Is the variant chr4:3160307 C>T present on OMIM? If so what is that associated phenotype?"
     expected: "The associated phenotypes are Huntington disease and Lopes-Maciel-Rodan syndrome."
 
 - case:
     name: "HPO by phenotype query"
+    category: "Gene-Phenotype Databases"
     input: "What HPO terms are associated with the search term 'haemolytic anaemia'?"
     expected: "HP:0001878, HP:0001890, HP:0004804 are among the results"
 
 - case:
     name: "HPO by id query"
+    category: "Gene-Phenotype Databases"
     input: "How many genes are associated with HPO term HP:0002671"
     expected: "HP:0002671 is associated with 59 genes."
 
 - case:
     name: "UniProt ID and name"
+    category: "Gene and Variant Utilities"
     input: "What is the UniProt ID and protein name associated with NUTM2G?"
     expected: "UniProt ID Q5VZR2, and the protein name is NUT family member 2G."
 
 - case:
     name: "GO functions for TP53"
+    category: "Gene and Variant Utilities"
     input: "Regarding GO molecular functions, does the fly ortholog for TP53 have RNA Polymerase II TF binding function?"
     expected: "Yes, the fly ortholog of TP53 has the molecular function \"RNA polymerase II transcription factor binding\" (GO:0001085)."
 
 - case:
     name: "Ortholog tissue expression"
+    category: "Expression Databases"
     input: "For the human gene HTT, which developmental stage has the most ortholog expression annotations in mice?"
     expected: "Embryo stage"
 
 - case:
     name: "PubMed search by gene name"
+    category: "Literature"
     input: "Search PubMed for articles about BRCA1. How many articles are there?"
     expected: "At least 24,721 articles about BRCA1 are found."
 
 - case:
     name: "PubMed search by disease name"
+    category: "Literature"
     input: "Search PubMed for articles about Rett syndrome. Limit to 3 results and provide PMIDs and abstracts."
     expected: "No more than 3 articles are found, all are about Rett syndrome and include PubMed ids [37628658, 7620591, 39331775]."
 
 - case:
     name: "PMC abstract lookup by PMC ID"
+    category: "Literature"
     input: "Get the abstract for PMC article PMC3518823."
     expected: "Abstract text is retrieved."
 
 - case:
     name: "PMC full text lookup by PMC ID"
+    category: "Literature"
     input: "Get the full text for PMC article PMC3518823."
     expected: "Full text is retrieved with more content than just the abstract."
 
 - case:
     name: "PMC table count"
+    category: "Literature"
     input: "How many tables are in the PMC article PMC3518823?"
     expected: "The number of tables is reported."
 
 - case:
     name: "PMC figure captions"
+    category: "Literature"
     input: "What are the figure captions in PMC article PMC3518823?"
     expected: "Figure captions are listed."
 
 - case:
     name: "STRING list all protein interactions"
+    category: "Protein Interactions"
     input: "What are the gene symbol(s) for the protein(s) connected to NUTM2G on STRING?"
     expected: "NUTM2G is connected to VIRMA on STRING."
 
 - case:
     name: "STRING check for existing protein interaction"
+    category: "Protein Interactions"
     input: "Is there an interaction between MAP3K1 and HRAS in STRING?"
     expected: "Yes, there is an interaction between these two genes in STRING."
 
 - case:
     name: "STRING check for nonexistent protein interaction"
+    category: "Protein Interactions"
     input: "Is there an interaction between MAP3K1 and NUTM2G in STRING?"
     expected: "No, there is not an interaction between these two genes in STRING."
 
 - case:
     name: "Gene phenotype association for connected gene and phenotype"
+    category: "Gene-Phenotype Databases"
     input: "Does TTN gene have an association with dilated cardiomyopathy?"
     expected: "Yes, TTN gene is associated with dilated cardiomyopathy."
 
 - case:
     name: "Gene phenotype association for unconnected gene and phenotype"
+    category: "Gene-Phenotype Databases"
     input: "Does NUTM2G gene have an association with dilated cardiomyopathy?"
     expected: "No, NUTM2G gene is not associated with dilated cardiomyopathy."
 
 - case:
     name: "Gene phenotype association for connected gene and phenotype 2"
+    category: "Gene-Phenotype Databases"
     input: "Is TTN gene associated with limb-girdle muscular dystrophy?"
     expected: "Yes, TTN gene is associated with limb-girdle muscular dystrophy."
 
 - case:
     name: "Gene alias list"
+    category: "Gene and Variant Utilities"
     input: "What are some aliases for the NUTM2G gene?"
     expected: "Some aliases for NUTM2G include NUTMG, and FAM22G."
 
 - case:
     name: "Gene alias check for existing alias"
+    category: "Gene and Variant Utilities"
     input: "Is FAM22G an alias for NUTM2G?"
     expected: "Yes, FAM22G is an alias for NUTM2G."
 
 - case:
     name: "Gene alias check for nonexistent alias"
+    category: "Gene and Variant Utilities"
     input: "Is SRC2 an alias for PTPN11?"
     expected: "No, SRC2 is not an alias for PTPN11."
 
 - case:
     name: "Full gene name"
+    category: "Gene and Variant Utilities"
     input: "What is the full name of the gene NUTM2G?"
     expected: "The full name of NUTM2G is NUT family member 2G."
 
 - case:
     name: "Full gene name 2"
+    category: "Gene and Variant Utilities"
     input: "What is the full name of the gene PTPN11?"
     expected: "The full name of PTPN11 is protein tyrosine phosphatase non-receptor type 11."
 
 - case:
     name: "Full gene name 3"
+    category: "Gene and Variant Utilities"
     input: "What is the full name of the gene ENSG00000012048?"
     expected: "The full name of ENSG00000012048 is BRCA1 DNA repair associated."
 
 - case:
     name: "Use geno2mp to identify HPO terms linked to specific variant"
+    category: "Gene-Phenotype Databases"
     input: "What narrow HPO terms are associated with the variant chr8:70157018 A>T?"
     expected: "The narrow HPO term associated with this variant includes HP:0010316 (Ebstein's anomaly of the tricuspid valve)."
 
 - case:
     name: "Use geno2mp to identify HPO terms linked to specific variant 2"
+    category: "Gene-Phenotype Databases"
     input: "What HPO terms are associated with the variant chr21:45175759 C>T?"
     expected: "The HPO terms associated with this variant includes HP:0000776 (Congenital diaphragmatic hernia) and HP:0005684 (Distal arthrogryposis)."
 
 - case:
     name: "Use geno2mp to identify HPO terms linked to specific variant 3"
+    category: "Gene-Phenotype Databases"
     input: "What HPO terms are associated with the variant chr12:14841081 C>T?"
     expected: "The HPO terms associated with this variant includes HP:0008058 (Aplasia/Hypoplasia of the optic nerve) and HP:0000501 (Glaucoma)."
 
 - case:
     name: "Use geno2mp to find number of homozygous cases for a variant 1"
+    category: "Gene-Phenotype Databases"
     input: "How many homozygous cases are reported for the variant chr8:70126887 C>T in the Geno2MP database?"
     expected: "There are 0 homozygous cases reported for this variant in the Geno2MP database."
 
 - case:
     name: "Use geno2mp to find number of heterozygous cases for a variant 2"
+    category: "Gene-Phenotype Databases"
     input: "How many heterozygous cases are reported for the variant chr21:45175759 C>T in the Geno2MP database?"
     expected: "There are 3 heterozygous cases reported for this variant in the Geno2MP database."
 
 - case:
     name: "Use geno2mp to find number of homozygous and heterozygous cases for a variant 3"
+    category: "Gene-Phenotype Databases"
     input: "How many homozygous and heterozygous cases are reported for the variant chr12:14841081 C>T in the Geno2MP database?"
     expected: "There are 0 homozygous and 5 heterozygous cases reported for this variant in the Geno2MP database."
 
 - case:
     name: "Explanation of each variant prioritization tool 1"
+    category: "Variant Prioritization"
     input: "What is the intuition behind AlphaMissense variant prioritization tool?"
     expected: "AlphaMissense uses protein structure predictions to assess the potential impact of missense variants on protein function."
 
 - case:
     name: "Explanation of each variant prioritization tool 2"
+    category: "Variant Prioritization"
     input: "What is the intuition behind CADD variant prioritization tool?"
     expected: "CADD integrates multiple annotations into a single score to predict the deleteriousness of variants across the genome."
 
 - case:
     name: "Explanation of each variant prioritization tool 3"
+    category: "Variant Prioritization"
     input: "What is the intuition behind REVEL variant prioritization tool?"
     expected: "REVEL combines scores from multiple individual tools to improve the accuracy of predicting the pathogenicity of missense variants."
 
 - case:
     name: "Explanation of pLI score 1"
+    category: "Variant Prioritization"
     input: "What does a pLI score represent in genetic variant interpretation?"
     expected: "A pLI score estimates the probability that a gene is intolerant to loss-of-function variants, with higher scores indicating greater intolerance."
 
 - case:
     name: "Explanation of pLI score 2"
+    category: "Variant Prioritization"
     input: "How is the pLI score calculated?"
     expected: "The pLI score is calculated based on the observed and expected number of loss-of-function variants in a gene, using population sequencing data."
 
 - case:
     name: "Explanation of pLI score 3"
+    category: "Variant Prioritization"
     input: "What is the interpretation of pLI score for TTN gene?"
     expected: "The TTN gene has a low pLI score, indicating it is tolerant to loss-of-function variants."
 
 - case:
     name: "Get pLI score for gene 1"
+    category: "Variant Prioritization"
     input: "What is the pLI score for NUTM2G gene? Provide interpretation."
     expected: "The pLI score for NUTM2G is 5.629288140820559e-10, indicating it is tolerant to loss-of-function variants."
 
 - case:
     name: "Get pLI score for gene 2"
+    category: "Variant Prioritization"
     input: "What is the pLI score for MECP2 gene? Provide interpretation."
     expected: "The pLI score for MECP2 is 0.8938193637798467, indicating it is intolerant to loss-of-function variants."
 
 - case:
     name: "Get pLI score for gene 3"
+    category: "Variant Prioritization"
     input: "What is the pLI score for TTN gene? Provide interpretation."
     expected: "The pLI score for TTN is 2.5582238715734978e-96, indicating it is tolerant to loss-of-function variants."
 
 - case:
     name: "Get pLI score for variant"
+    category: "Variant Prioritization"
     input: "What is the pLI score for chr21:45175759 C>T?"
     expected: "I cannot provide pLI scores for specific variants."
 
 - case:
     name: "Explanation of o/e score 1"
+    category: "Variant Prioritization"
     input: "What does the o/e (observed/expected) score represent in genetic variant interpretation?"
     expected: "The o/e score estimates the ratio of observed to expected loss-of-function variants in a gene, with lower scores indicating stronger selection against such variants."
 
 - case:
     name: "Explanation of o/e score 2"
+    category: "Variant Prioritization"
     input: "How is the o/e score calculated?"
     expected: "The o/e score is calculated by comparing the number of observed loss-of-function variants to the number expected based on mutation rates and gene length."
 
 - case:
     name: "Explanation of o/e score 3"
+    category: "Variant Prioritization"
     input: "What is the interpretation of o/e score for MECP2 gene?"
     expected: "The MECP2 gene has a low o/e score, indicating it is under strong selection against loss-of-function variants."
 
 - case:
     name: "Copare pLI and o/e scores for gene 1"
+    category: "Variant Prioritization"
     input: "How do the pLI and o/e scores for TTN gene compare? Provide interpretation."
     expected: "The pLI score for TTN is 2.56e-96, and the o/e (LOEUF) score is 0.327. Both indicate it is tolerant to loss-of-function variants."
 
 - case:
     name: "Compare pLI and o/e scores for gene 2"
+    category: "Variant Prioritization"
     input: "How do the pLI and o/e scores for MECP2 gene compare? Provide interpretation."
     expected: "Both pLI and o/e scores for MECP2 indicate it is intolerant to loss-of-function variants."
 
 - case:
     name: "Compare pLI and o/e scores for gene 3"
+    category: "Variant Prioritization"
     input: "How do the pLI and o/e scores for CHEK2 gene compare? Provide interpretation."
     expected: "Both scores indicate tolerance to loss-of-function variants."
 
 - case:
     name: "Explain discrepancy between pLI and o/e scores"
+    category: "Variant Prioritization"
     input: "Why might a gene have a high pLI score but a relatively high o/e score?"
     expected: "A gene might have a high pLI score indicating intolerance to loss-of-function variants, but a relatively high o/e score if there are more observed variants than expected due to factors like population-specific variants or sequencing errors."
 
 - case:
     name: "Descriptions of databases 1"
+    category: "Variant Prioritization"
     input: "What is the general purpose of the gnomAD database in genetic research?"
     expected: "gnomAD aggregates and harmonizes exome and genome sequencing data from a variety of large-scale sequencing projects to provide allele frequency information for genetic variants in diverse populations."
 
 - case:
     name: "Descriptions of databases 2"
+    category: "Variant Prioritization"
     input: "What is the general purpose of the ClinVar database in genetic research?"
     expected: "ClinVar is a public database that aggregates information about genomic variation and its relationship to human health, providing a resource for clinicians and researchers to understand the clinical significance of genetic variants."
 
 - case:
     name: "Descriptions of databases 3"
+    category: "Variant Prioritization"
     input: "What is the general purpose of the DECIPHER database in genetic research?"
     expected: "DECIPHER is a database that collects and shares genomic and phenotypic data from patients with rare genetic disorders to facilitate diagnosis and research into the genetic basis of these conditions."
 
 - case:
     name: "Positive Drugs or ligands 1"
+    category: "Gene and Variant Utilities"
     input: "Are there any approved drugs or active ligands targeting MAP3K1?"
     expected: "No approved drugs, two active ligands were found for MAP3K1."
 
 - case:
     name: "Positive Drugs or ligands 2"
+    category: "Gene and Variant Utilities"
     input: "Are there any approved drugs or active ligands targeting PTPN11?"
     expected: "No approved drugs, ten active ligands targeting PTPN11 were found."
 
 - case:
     name: "Positive Drugs or ligands 3"
+    category: "Gene and Variant Utilities"
     input: "Are there any approved drugs or active ligands targeting BRCA1?"
     expected: "No approved drugs, four active ligands were found for BRCA1."
 
 - case:
     name: "Aditional questions on GO categories (MF, CC, BP) 1"
+    category: "Gene and Variant Utilities"
     input: "What biological processes is M1AP involved in according to GO annotations?"
     expected: "M1AP is involved in RNA processing, Meiosis I, Spermatogenesis, Chromatin assembly among others."
 
 - case:
     name: "Aditional questions on GO categories (MF, CC, BP) 2"
+    category: "Gene and Variant Utilities"
     input: "What cellular components is BRCA1 associated with according to GO annotations?"
     expected: "BRCA1 is associated with cellular components such as the nucleus and DNA repair complexes."
 
 - case:
     name: "Aditional questions on GO categories (MF, CC, BP) 3"
+    category: "Gene and Variant Utilities"
     input: "What molecular functions does PTPN11 have according to GO annotations?"
     expected: "PTPN11 has molecular functions including protein tyrosine phosphatase activity"
 
 - case:
     name: "Aditional questions on GO categories (MF, CC, BP) 4"
+    category: "Gene and Variant Utilities"
     input: "Does MECP2 have any GO annotations related to transcription regulation?"
     expected: "Yes, MECP2 has GO annotations related to transcription regulation, including transcription."
 
 - case:
     name: "Aditional questions on GO categories (MF, CC, BP) 5"
+    category: "Gene and Variant Utilities"
     input: "Is TTN associated with any GO annotations related to carbohydrate metabolism?"
     expected: "No, TTN is not associated with GO annotations related to carbohydrate metabolism."
 
 - case:
     name: "Ortholog tissue expression 1"
+    category: "Expression Databases"
     input: "For the human gene CDKN2A, which cell location has the most ortholog expression annotations in rats?"
     expected: "The nucleus and other locations are tied for the most CDKN2A expression annotations in rats."
 
 - case:
     name: "Ortholog tissue expression 2"
+    category: "Expression Databases"
     input: "For the human gene OR51A2, which tissues have the most ortholog expression annotations in zebrafish?"
     expected: "The chemosensory, sensory and nervous systems have the most OR51A2 expression annotations in zebrafish."
 
 - case:
     name: "Ortholog tissue expression 3"
+    category: "Expression Databases"
     input: "For the human gene HOXA1, which developmental stage has the most ortholog expression annotations in fly?"
     expected: "The embryo stage has the most HOXA1 expression annotations in fly."
 
 - case:
     name: "PubMed search by variant name 1"
+    category: "Literature"
     input: "Search PubMed for articles about the variant chr4:6302385 G>A. How many articles are there?"
     expected: "At least 5 articles about the variant chr4:6302385 G>A are found."
 
 - case:
     name: "PubMed search by variant name 2"
+    category: "Literature"
     input: "Search PubMed for articles about the variant chr12:21452130 A>G (hg38). What are the top 3 PMIDs?"
     expected: "The top 3 PMIDs for articles about the variant chr12:21452130 A>G are 32078812, 31427787, and 30357312."
 
 - case:
     name: "PubMed search by variant name 3"
+    category: "Literature"
     input: "Search PubMed for articles about the variant NM_153682.3:c.2 T>C. How many articles are there?"
     expected: "At least 2 articles about the variant NM_153682.3:c.2 T > C are found."
 
 - case:
     name: "STRING interaction counts 1"
+    category: "Protein Interactions"
     input: "How many protein interactions does NUTM2G have on STRING?"
     expected: "NUTM2G has 1 protein interaction on STRING."
 
 - case:
     name: "STRING interaction counts 2"
+    category: "Protein Interactions"
     input: "How many protein interactions does PTPN11 have on STRING?"
     expected: "PTPN11 has 97 protein interactions on STRING."
 
 - case:
     name: "STRING interaction counts 3"
+    category: "Protein Interactions"
     input: "How many protein interactions does TTN have on STRING?"
     expected: "TTN has 97 protein interactions on STRING."
 
 - case:
     name: "STRING indirect connection 1"
+    category: "Protein Interactions"
     input: "Are there any proteins connected to both NUTM2G and VIRMA on STRING? If so, what proteins?"
     expected: "No, NUTM2G is not indirectly connected to VIRMA through another protein on STRING."
 
 - case:
     name: "STRING indirect connection 2"
+    category: "Protein Interactions"
     input: "Are there any proteins connected to both MAP3K1 and HRAS on STRING? If so, what proteins?"
     expected: "Yes, MAP3K1 is connected to HRAS through other proteins such as RAF1 and MEK1 on STRING."
 
 - case:
     name: "STRING indirect connection 3"
+    category: "Protein Interactions"
     input: "Are there any proteins connected to both PTPN11 and BRCA1 on STRING? If so, what proteins?"
     expected: "No, PTPN11 is not indirectly connected to BRCA1 through another protein on STRING."

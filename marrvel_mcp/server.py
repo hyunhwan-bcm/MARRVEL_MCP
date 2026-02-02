@@ -547,6 +547,31 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
 
 
 @mcp.tool(
+    name="get_dbnsfp_docs",
+    description="Get descriptions for all dbNSFP pathogenicity prediction methods and scores available in MARRVEL including SIFT, PolyPhen2, CADD, REVEL, and others.",
+    meta={"category": "variant", "database": "dbNSFP", "version": "1.0"},
+)
+async def get_dbnsfp_docs() -> str:
+    return """
+Available dbNSFP Prediction Methods:
+- AlphaMissense: An adaption of AlphaFold fine-tuned on human and primate variant population frequency databases to predict missense variant pathogenicity.
+- CADD: Combined Annotation Dependent Depletion (CADD) is a framework that integrates multiple annotations into one metric by contrasting variants that survived natural selection with simulated mutations.
+- GERPppRS: Genomic Evolutionary Rate Profiling (GERP) rejected substitution score, which measures evolutionary constraint at a given nucleotide position.
+- MCAP: Mendelian Clinically Applicable Pathogenicity (M-CAP) is a pathogenicity classifier specifically designed to prioritize variants of uncertain significance in clinical exome sequencing.
+- MutationAssessor: Predicts the functional impact of amino-acid substitutions in proteins using evolutionary conservation patterns derived from homologous sequences.
+- MutationTaster: A comprehensive tool that evaluates the disease-causing potential of DNA sequence alterations based on evolutionary conservation, splice-site changes, and protein features.
+- Polyphen2HDIV: Polymorphism Phenotyping v2 (PolyPhen-2) is a tool that predicts the possible impact of an amino acid substitution on the structure and function of a human protein using straightforward physical and comparative considerations. HDIV is optimized for high sensitivity.
+- Polyphen2HVAR: Polymorphism Phenotyping v2 (PolyPhen-2) HVAR is optimized for high specificity.
+- PrimateAI: A deep learning-based pathogenicity predictor trained on common variants from primate species to identify deleterious missense mutations in humans.
+- REVEL: Rare Exome Variant Ensemble Learner (REVEL) is an ensemble method for predicting the pathogenicity of missense variants by combining scores from multiple individual tools.
+- SIFT: Sorting Intolerant From Tolerant (SIFT) predicts whether an amino acid substitution affects protein function based on sequence homology and the physical properties of amino acids.
+- SIFT4G: An updated version of SIFT that uses a larger database of protein sequences for improved prediction accuracy.
+- phyloP100way_vertebrate: PhyloP scores measure evolutionary conservation at individual nucleotide positions based on multiple alignments of 100 vertebrate genomes.
+- phyloP470way_mammalian: PhyloP scores based on multiple alignments of 470 mammalian genomes to assess evolutionary conservation at nucleotide positions.
+"""
+
+
+@mcp.tool(
     name="get_variant_dbnsfp",
     description="Get comprehensive pathogenicity predictions and functional annotations from dbNSFP including SIFT, PolyPhen2, CADD, REVEL, and other prediction scores. Can calculate average rank scores across all methods and extract specific method scores.",
     meta={"category": "variant", "database": "dbNSFP", "version": "1.0"},
