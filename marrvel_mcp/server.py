@@ -17,6 +17,7 @@ Features:
 Default genome build: hg38/GRCh38
 """
 
+import argparse
 import logging
 import sys
 import os
@@ -25,21 +26,17 @@ import ssl
 import certifi
 import inspect
 import re
-import ast
 import asyncio
 from typing import Optional
 from urllib.parse import quote
 import urllib.parse
 import statistics
 
-import requests
-
 import httpx
-import httpcore
 from httpx_retry import AsyncRetryTransport, RetryPolicy
 from lxml import etree
 from pymed_paperscraper import PubMed
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -544,31 +541,6 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
 # ============================================================================
 # VARIANT TOOLS - dbNSFP
 # ============================================================================
-
-
-@mcp.tool(
-    name="get_dbnsfp_docs",
-    description="Get descriptions for all dbNSFP pathogenicity prediction methods and scores available in MARRVEL including SIFT, PolyPhen2, CADD, REVEL, and others.",
-    meta={"category": "variant", "database": "dbNSFP", "version": "1.0"},
-)
-async def get_dbnsfp_docs() -> str:
-    return """
-Available dbNSFP Prediction Methods:
-- AlphaMissense: An adaption of AlphaFold fine-tuned on human and primate variant population frequency databases to predict missense variant pathogenicity.
-- CADD: Combined Annotation Dependent Depletion (CADD) is a framework that integrates multiple annotations into one metric by contrasting variants that survived natural selection with simulated mutations.
-- GERPppRS: Genomic Evolutionary Rate Profiling (GERP) rejected substitution score, which measures evolutionary constraint at a given nucleotide position.
-- MCAP: Mendelian Clinically Applicable Pathogenicity (M-CAP) is a pathogenicity classifier specifically designed to prioritize variants of uncertain significance in clinical exome sequencing.
-- MutationAssessor: Predicts the functional impact of amino-acid substitutions in proteins using evolutionary conservation patterns derived from homologous sequences.
-- MutationTaster: A comprehensive tool that evaluates the disease-causing potential of DNA sequence alterations based on evolutionary conservation, splice-site changes, and protein features.
-- Polyphen2HDIV: Polymorphism Phenotyping v2 (PolyPhen-2) is a tool that predicts the possible impact of an amino acid substitution on the structure and function of a human protein using straightforward physical and comparative considerations. HDIV is optimized for high sensitivity.
-- Polyphen2HVAR: Polymorphism Phenotyping v2 (PolyPhen-2) HVAR is optimized for high specificity.
-- PrimateAI: A deep learning-based pathogenicity predictor trained on common variants from primate species to identify deleterious missense mutations in humans.
-- REVEL: Rare Exome Variant Ensemble Learner (REVEL) is an ensemble method for predicting the pathogenicity of missense variants by combining scores from multiple individual tools.
-- SIFT: Sorting Intolerant From Tolerant (SIFT) predicts whether an amino acid substitution affects protein function based on sequence homology and the physical properties of amino acids.
-- SIFT4G: An updated version of SIFT that uses a larger database of protein sequences for improved prediction accuracy.
-- phyloP100way_vertebrate: PhyloP scores measure evolutionary conservation at individual nucleotide positions based on multiple alignments of 100 vertebrate genomes.
-- phyloP470way_mammalian: PhyloP scores based on multiple alignments of 470 mammalian genomes to assess evolutionary conservation at nucleotide positions.
-"""
 
 
 @mcp.tool(
@@ -2049,5 +2021,44 @@ def create_server():
     return mcp
 
 
+# ASGI app for deployment with uvicorn/gunicorn:
+#   uvicorn marrvel_mcp.server:app --host 0.0.0.0 --port 8000
+app = mcp.http_app()
+
+
+def main():
+    """CLI entry point for the MARRVEL MCP server."""
+    parser = argparse.ArgumentParser(description="MARRVEL MCP Server")
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "sse", "http", "streamable-http"],
+        default="stdio",
+        help=(
+            "Transport protocol (default: stdio). "
+            "stdio: for MCP clients (e.g. Claude Desktop). "
+            "sse: Server-Sent Events over HTTP. "
+            "http: Streamable HTTP (alias for streamable-http). "
+            "streamable-http: Streamable HTTP transport."
+        ),
+    )
+    parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (network transports only, default: 0.0.0.0)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to listen on (network transports only, default: 8000)",
+    )
+    args = parser.parse_args()
+
+    if args.transport == "stdio":
+        mcp.run(transport="stdio")
+    else:
+        mcp.run(transport=args.transport, host=args.host, port=args.port)
+
+
 if __name__ == "__main__":
-    mcp.run()
+    main()
