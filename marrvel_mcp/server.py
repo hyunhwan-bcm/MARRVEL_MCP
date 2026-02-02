@@ -274,6 +274,77 @@ def get_example_genes() -> dict:
 
 
 # ============================================================================
+# DOC TOOLS
+# ============================================================================
+@mcp.tool(
+    name="get_dataset_docs",
+    description="Get descriptions for all datasets available through the MARRVEL API, including ClinVar, OMIM, gnomAD, DGV, DECIPHER, and others.",
+    meta={"category": "meta", "database": "MARRVEL", "version": "1.0"},
+)
+async def get_dataset_docs() -> str:
+    return """
+Available MARRVEL Datasets:
+- gene: Core gene metadata endpoint supporting queries by Entrez ID, gene symbol, or genomic position.
+- omim: Online Mendelian Inheritance in Man (OMIM), a curated database of human genes and genetic disorders with gene–disease relationships.
+- dbnsfp: Database for Nonsynonymous SNPs' Functional Predictions (dbNSFP), aggregating in silico pathogenicity prediction scores and conservation metrics for coding variants.
+- clinvar: ClinVar, a public archive of relationships between human genetic variants and their clinical significance with supporting evidence.
+- geno2mp: Geno2MP, a genotype-to-phenotype database linking rare variants to Human Phenotype Ontology (HPO) terms from large sequencing cohorts.
+- gnomad: Genome Aggregation Database (gnomAD), providing population allele frequencies and gene-level constraint metrics from large-scale human sequencing data.
+- dgv: Database of Genomic Variants (DGV), a curated catalog of structural variants observed in healthy human populations.
+- decipher: DECIPHER, a database of pathogenic and likely pathogenic copy number variants and sequence variants linked to patient phenotypes.
+- diopt: Drosophila RNAi Screening Center Integrative Ortholog Prediction Tool (DIOPT), providing orthology mappings between human genes and model organisms.
+- gtex: Genotype-Tissue Expression (GTEx), providing gene expression profiles and expression quantitative trait loci (eQTLs) across human tissues.
+- expression: Aggregated gene expression information across tissues and datasets as provided through MARRVEL.
+- pharos: Pharos, the Illuminating the Druggable Genome (IDG) knowledgebase, providing information on druggability, target development level, and known ligands.
+- mutalyzer: Mutalyzer, a tool for validating, normalizing, and interpreting HGVS variant nomenclature.
+- transvar: TransVar, a variant annotation tool for translating genomic variants into transcript- and protein-level consequences.
+"""
+
+
+@mcp.tool(
+    name="get_dbnsfp_docs",
+    description="Get descriptions for all dbNSFP variant prioritization/pathogenicity prediction methods and scores available in MARRVEL including AlphaMissense, SIFT, PolyPhen2, CADD, REVEL, and others.",
+    meta={"category": "variant", "database": "dbNSFP", "version": "1.0"},
+)
+async def get_dbnsfp_docs() -> str:
+    return """
+Available dbNSFP Prediction Methods:
+- AlphaMissense: A deep learning model derived from AlphaFold that predicts missense variant pathogenicity by modeling the impact of amino acid substitutions on protein sequence and structure, trained using a combination of labeled clinical variants and large-scale unlabeled protein sequence data.
+- CADD: Combined Annotation Dependent Depletion (CADD) is a framework that integrates multiple genomic annotations into a single score by contrasting variants observed in human populations with simulated variants to estimate deleteriousness.
+- GERPppRS: Genomic Evolutionary Rate Profiling (GERP++) rejected substitution score, which quantifies evolutionary constraint by measuring the deficit of substitutions at a nucleotide position relative to neutral evolutionary expectation.
+- MCAP: Mendelian Clinically Applicable Pathogenicity (M-CAP) is a supervised pathogenicity classifier designed to prioritize rare missense variants of uncertain significance in clinical sequencing.
+- MutationAssessor: Predicts the functional impact of amino acid substitutions based on evolutionary conservation patterns derived from protein homologs.
+- MutationTaster: A rule-based variant effect predictor that integrates evolutionary conservation, splice-site changes, protein features, and regulatory annotations to classify variants as disease-causing or benign.
+- Polyphen2HDIV: Polymorphism Phenotyping v2 (PolyPhen-2) predicts the impact of amino acid substitutions on protein structure and function using sequence conservation, structural features, and functional annotations; the HDIV model is optimized for high sensitivity.
+- Polyphen2HVAR: Polymorphism Phenotyping v2 (PolyPhen-2) HVAR model, optimized for higher specificity when distinguishing pathogenic mutations from benign polymorphisms.
+- PrimateAI: A deep learning–based pathogenicity predictor trained on primate sequence variation to model evolutionary constraint and predict deleterious missense variants in humans, with newer versions incorporating protein structural features.
+- REVEL: Rare Exome Variant Ensemble Learner (REVEL) is an ensemble method for predicting the pathogenicity of missense variants by combining scores from multiple individual prediction tools.
+- SIFT: Sorting Intolerant From Tolerant (SIFT) predicts whether an amino acid substitution affects protein function based on sequence homology and the physicochemical properties of amino acids.
+- SIFT4G: An updated implementation of SIFT that leverages larger and more comprehensive protein sequence databases to improve prediction accuracy and coverage.
+- phyloP100way_vertebrate: PhyloP scores measure evolutionary conservation or acceleration at individual nucleotide positions based on multiple alignments of 100 vertebrate genomes.
+- phyloP470way_mammalian: PhyloP scores based on multiple alignments of 470 mammalian genomes, measuring evolutionary conservation or acceleration at nucleotide positions.
+"""
+
+
+@mcp.tool(
+    name="get_gnomad_docs",
+    description="Get descriptions for gnomAD gene-level constraint metrics returned via the MARRVEL API, including observed/expected scores and pLI.",
+    meta={"category": "gene", "database": "gnomAD", "version": "1.0"},
+)
+async def get_gnomad_docs() -> str:
+    return """
+Available gnomAD Gene Constraint Metrics:
+- exp: Expected number of variants in the gene under a neutral mutation model, estimated using sequence-context mutation rates.
+- obs: Number of unique variants actually observed in the population dataset for the specified functional class.
+- o/e: Observed/Expected ratio, calculated as obs / exp, which quantifies gene tolerance to variation. Values near 1 indicate neutrality, while values near 0 indicate strong constraint.
+- oeLower: Lower bound of the confidence interval for the o/e score.
+- oeUpper: Upper bound of the confidence interval for the o/e score; commonly used to assess constraint (e.g., LOEUF for loss-of-function variants).
+- z: Z-score measuring deviation between observed and expected variant counts. More positive values indicate stronger constraint.
+- pLI: Probability of loss-of-function intolerance, a value between 0 and 1 derived from a probabilistic model comparing observed versus expected LoF variants. Values ≥ 0.9 indicate strong evidence that the gene is haploinsufficient and intolerant to LoF variation.
+"""
+
+
+# ============================================================================
 # GENE TOOLS
 # ============================================================================
 
@@ -720,10 +791,7 @@ async def get_clinvar_counts_by_entrez_id(entrez_id: str) -> str:
 )
 async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
-        lo_data = await liftover_hg38_to_hg19(chr, pos)
-        lo_data_obj = json.loads(lo_data)
-
-        variant = f"{lo_data_obj['hg19Chr']}:{lo_data_obj['hg19Pos']} {ref}>{alt}"
+        variant = f"{chr}:{pos} {ref}>{alt}"
         variant_uri = quote(variant, safe="")
         data = await fetch_marrvel_data(f"/gnomAD/variant/{variant_uri}", is_graphql=False)
         data_obj = json.loads(data)
@@ -731,7 +799,7 @@ async def get_gnomad_variant(chr: str, pos: str, ref: str, alt: str) -> str:
             for ome in ["exome", "genome"]:
                 if data_obj.get(ome):
                     data_obj[ome]["alleleFrequency"] = (
-                        data_obj[ome]["alleleCount"] / data_obj[ome]["alleleNum"]
+                        data_obj[ome]["alleleCount"] / data_obj[ome]["alleleNumber"]
                     )
             data_obj["pos"] = pos
             data_obj["chr"] = chr
@@ -924,8 +992,37 @@ async def search_omim_by_disease_name(disease_name: str) -> str:
 
 
 # ============================================================================
-# DISEASE TOOLS - HPO
+# DISEASE TOOLS - GO and HPO
 # ============================================================================
+
+
+@mcp.tool(
+    name="get_go_by_entrez_id",
+    description="Retrieve Gene Ontology terms for a given entrez gene ID",
+    meta={"category": "disease", "database": "GO", "version": "1.0"},
+)
+async def get_go_by_entrez_id(entrez_id: int) -> str:
+    try:
+        data = await fetch_marrvel_data(
+            f"""
+            query MyQuery {{
+                goByEntrezId(entrezId: {entrez_id}) {{
+                    goId
+                    eviCode
+                    date
+                    assignedBy
+                    ontology {{
+                        agrSlimGoId
+                        name
+                        namespace
+                    }}
+                }}
+            }}
+            """
+        )
+        return data
+    except httpx.HTTPError as e:
+        return f"Error fetching gene data: {str(e)}"
 
 
 @mcp.tool(
