@@ -114,8 +114,9 @@ async def test_tool_returns_json_or_fail(mcp_server, name, args):
     for each tool will be saved to `test-output/smoke-test-json/{tool_name}.json`.
     """
     try:
-        resp = await mcp_server.call_tool(name, args)
-        resp = resp[-1]["result"]
+        result = await mcp_server.call_tool(name, args)
+        # FastMCP 3.0 returns a ToolResult with .content list of TextContent objects
+        resp = result.content[0].text if result.content else None
     except Exception as e:
         pytest.fail(f"Tool {name} raised exception when called: {type(e).__name__}: {e}")
 
