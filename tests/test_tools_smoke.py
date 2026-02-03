@@ -115,11 +115,18 @@ async def test_tool_returns_json_or_fail(mcp_server, name, args):
     """
     try:
         result = await mcp_server.call_tool(name, args)
-        # FastMCP 3.0 returns a ToolResult with .content list of TextContent objects
-        resp = result.content[0].text if result.content else None
     except Exception as e:
         pytest.fail(f"Tool {name} raised exception when called: {type(e).__name__}: {e}")
 
+    # Extract text content defensively to avoid AttributeError if content items
+    # are not TextContent instances or lack a .text attribute.
+    resp = None
+    content = getattr(result, "content", None)
+    if content:
+        first_item = content[0]
+        text = getattr(first_item, "text", None)
+        if isinstance(text, str):
+            resp = text
     assert resp is not None, f"No response for tool {name}"
 
     # Save output if requested
