@@ -192,7 +192,7 @@
     name: "Omim by variant"
     category: "Gene-Phenotype Databases"
     input: "Is the variant chr4:3160307 C>T present on OMIM? If so what is that associated phenotype?"
-    expected: "The associated phenotypes are Huntington disease and Lopes-Maciel-Rodan syndrome."
+    expected: "The associated phenotype is Lopes-Maciel-Rodan syndrome."
 
 - case:
     name: "HPO by phenotype query"
@@ -420,13 +420,13 @@
     name: "Get pLI score for gene 3"
     category: "Variant Prioritization"
     input: "What is the pLI score for TTN gene? Provide interpretation."
-    expected: "The pLI score for TTN is 2.5582238715734978e-96, indicating it is tolerant to loss-of-function variants."
+    expected: "The pLI score for TTN is approximately 2.56 * 10^-96, indicating it is tolerant to loss-of-function variants."
 
 - case:
     name: "Get pLI score for variant"
     category: "Variant Prioritization"
-    input: "What is the pLI score for chr21:45175759 C>T?"
-    expected: "I cannot provide pLI scores for specific variants."
+    input: "What is the pLI score for chr21:45175759 C>T? Give for the variant, not the gene as a whole."
+    expected: "I cannot provide pLI scores for specific variants - pLI scores are gene-level metrics. Gene level pLI score may be provided but is not required."
 
 - case:
     name: "Explanation of o/e score 1"
@@ -450,7 +450,7 @@
     name: "Copare pLI and o/e scores for gene 1"
     category: "Variant Prioritization"
     input: "How do the pLI and o/e scores for TTN gene compare? Provide interpretation."
-    expected: "The pLI score for TTN is 2.56e-96, and the o/e (LOEUF) score is 0.327. Both indicate it is tolerant to loss-of-function variants."
+    expected: "The pLI score for TTN is 2.56 * 10^-96 (nearly 0), and the o/e (LOEUF) score is 0.327. pLI indicates high tolerance to loss of function, while o/e implies some constraint."
 
 - case:
     name: "Compare pLI and o/e scores for gene 2"
@@ -468,7 +468,7 @@
     name: "Explain discrepancy between pLI and o/e scores"
     category: "Variant Prioritization"
     input: "Why might a gene have a high pLI score but a relatively high o/e score?"
-    expected: "A gene might have a high pLI score indicating intolerance to loss-of-function variants, but a relatively high o/e score if there are more observed variants than expected due to factors like population-specific variants or sequencing errors."
+    expected: "A gene might have a high pLI score indicating intolerance to loss-of-function variants, but a relatively high o/e score if there are more observed variants than expected due to factors like differing variant classes, population-specific variants or sequencing errors."
 
 - case:
     name: "Descriptions of databases 1"
@@ -557,20 +557,20 @@
 - case:
     name: "PubMed search by variant name 1"
     category: "Literature"
-    input: "Search PubMed for articles about the variant chr4:6302385 G>A. How many articles are there?"
-    expected: "At least 5 articles about the variant chr4:6302385 G>A are found."
+    input: "Search PubMed for articles about the specific mutation chr4:6302385 G>A. How many articles are there?"
+    expected: "No articles are found about the variant chr4:6302385 G>A."
 
 - case:
     name: "PubMed search by variant name 2"
     category: "Literature"
-    input: "Search PubMed for articles about the variant chr12:21452130 A>G (hg38). What are the top 3 PMIDs?"
-    expected: "The top 3 PMIDs for articles about the variant chr12:21452130 A>G are 32078812, 31427787, and 30357312."
+    input: "Search PubMed for articles about the mutation p.N155S in PYROXD1. What are the top 3 PMIDs?"
+    expected: "The top 3 PMIDs for articles about the mutation p.N155S in PYROXD1 are 38553017, 30203143, and 31455395."
 
 - case:
     name: "PubMed search by variant name 3"
     category: "Literature"
-    input: "Search PubMed for articles about the variant NM_153682.3:c.2 T>C. How many articles are there?"
-    expected: "At least 2 articles about the variant NM_153682.3:c.2 T > C are found."
+    input: "Search PubMed for articles about the specific mutation NM_153682.3:c.2 T>C. How many articles are there?"
+    expected: "One article about the mutation NM_153682.3:c.2 T > C is found."
 
 - case:
     name: "STRING interaction counts 1"
@@ -593,17 +593,17 @@
 - case:
     name: "STRING indirect connection 1"
     category: "Protein Interactions"
-    input: "Are there any proteins connected to both NUTM2G and VIRMA on STRING? If so, what proteins?"
-    expected: "No, NUTM2G is not indirectly connected to VIRMA through another protein on STRING."
+    input: "Are there any proteins connected to both NUTM2G and VIRMA on STRING? Exclude NUTM2G and VIRMA themselves. If so, what proteins?"
+    expected: "NUTM2G is directly connected to VIRMA but the two have no other shared protein connections on STRING."
 
 - case:
     name: "STRING indirect connection 2"
     category: "Protein Interactions"
-    input: "Are there any proteins connected to both MAP3K1 and HRAS on STRING? If so, what proteins?"
-    expected: "Yes, MAP3K1 is connected to HRAS through other proteins such as RAF1 and MEK1 on STRING."
+    input: "Are there any proteins connected to both RASGRP1 and HRAS on STRING? Exclude RASGRP1 and HRAS themselves. If so, what proteins?"
+    expected: "Yes, RASGRP1 is connected to HRAS through DGKZ."
 
 - case:
     name: "STRING indirect connection 3"
     category: "Protein Interactions"
-    input: "Are there any proteins connected to both PTPN11 and BRCA1 on STRING? If so, what proteins?"
-    expected: "No, PTPN11 is not indirectly connected to BRCA1 through another protein on STRING."
+    input: "Are there any proteins connected to both TTN and HBA1 on STRING? Exclude TTN and HBA1 themselves. If so, what proteins?"
+    expected: "No, there are no proteins that are directly connected to both TTN and HBA1 on STRING."
