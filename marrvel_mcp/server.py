@@ -349,6 +349,8 @@ Available gnomAD Gene Constraint Metrics:
 async def fix_missing_hg38_vals(data: str) -> str:
     data_obj = json.loads(data)
     sub_dict_list = next(iter(data_obj["data"].values()))
+    if sub_dict_list is None:
+        return json.dumps({"data": "No genes found for given query"}, indent=2)
     if isinstance(sub_dict_list, dict):
         sub_dict_list = [sub_dict_list]
     for sub_dict in sub_dict_list:
