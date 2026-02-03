@@ -2031,14 +2031,13 @@ def main():
     parser = argparse.ArgumentParser(description="MARRVEL MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio", "sse", "http", "streamable-http"],
+        choices=["stdio", "sse", "http"],
         default="stdio",
         help=(
             "Transport protocol (default: stdio). "
             "stdio: for MCP clients (e.g. Claude Desktop). "
             "sse: Server-Sent Events over HTTP. "
-            "http: Streamable HTTP (alias for streamable-http). "
-            "streamable-http: Streamable HTTP transport."
+            "http: Streamable HTTP transport."
         ),
     )
     parser.add_argument(
