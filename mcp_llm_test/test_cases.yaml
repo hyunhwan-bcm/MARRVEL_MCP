@@ -6,13 +6,14 @@
 # - Expression Databases: Gene expression data (GTEx, ortholog expression)
 # - Ortholog Data: Comparative genomic information from model organisms (DIOPT)
 # - Literature: Scientific publication databases (PubMed, PMC)
-# - Protein Interactions: Protein-protein interaction networks (STRING)
+# - Protein Interactions: Protein-protein interaction networks (STRING) 
+
 
 - case:
     name: "Gene for NM_001045477.4:c.187C>T"
     category: "Gene and Variant Utilities"
     input: "What gene is primarily associated with the variant NM_001045477.4:c.187C>T?"
-    expected: "The genes associated includes NUTM2G."
+    expected: "The genes associated include NUTM2G."
 
 - case:
     name: "Protein change for NM_001045477.4:c.187C>T"
@@ -53,14 +54,14 @@
 - case:
     name: "CADD phred prediction"
     category: "Variant Prioritization"
-    input: "What is the CADD phred prediction for the variant rs137852987?"
+    input: "What is the CADD phred prediction for the variant rs137852987?" 
     expected: "The CADD prediction for this variant is highly deleterious."
 
 - case:
     name: "REVEL prediction"
     category: "Variant Prioritization"
     input: "Tell me about the variant NM_001045477.4:c.187C>T. According to REVEL, how is this variant classified?"
-    expected: "REVEL predicts it with a score of 0.027."
+    expected: "REVEL predicts it with a score of 0.027, meaning lower pathogenicity."
 
 - case:
     name: "PolyPhen-2 prediction"
@@ -71,19 +72,19 @@
 - case:
     name: "ClinVar records for NUTM2G"
     category: "Variant Prioritization"
-    input: "How many ClinVar variants associated with NUTM2G?"
+    input: "How many ClinVar variants are associated with NUTM2G?"
     expected: "Yes, NUTM2G has 99 reported variants in ClinVar."
 
 - case:
     name: "ClinVar pathogenic allele count"
     category: "Variant Prioritization"
-    input: "How many NUTM2G alleles are reported as pathogenic (not likely pathogenic) in ClinVar?"
+    input: "How many NUTM2G variants are reported as pathogenic (not likely pathogenic) in ClinVar?"
     expected: "33 alleles are reported as pathogenic."
 
 - case:
-    name: "ClinVar likely pathogenic allele count"
+    name: "ClinVar likely pathogenic variant count"
     category: "Variant Prioritization"
-    input: "How many NUTM2G alleles are reported as likely pathogenic in ClinVar?"
+    input: "How many NUTM2G variants are reported as likely pathogenic in ClinVar?"
     expected: "3 alleles are reported as likely pathogenic."
 
 - case:
@@ -143,14 +144,14 @@
 - case:
     name: "Highest GTEx expression"
     category: "Expression Databases"
-    input: "Which tissue expresses NUTM2G the most according to GTEx?"
+    input: "Which tissue shows the highest expression of NUTM2G in the GTEx?"
     expected: "Highest expression is observed in the testis."
 
 - case:
     name: "Protein domain"
     category: "Gene and Variant Utilities"
     input: "What type of protein domain does NUTM2G contain?"
-    expected: "It contains an NUT protein domain."
+    expected: "It contains an Nuclear protein in Testes family protein domain."
 
 - case:
     name: "Drugs or ligands"
@@ -173,8 +174,8 @@
 - case:
     name: "OMIM by disease name"
     category: "Gene-Phenotype Databases"
-    input: "Which gene is most associated with huntington's disease?"
-    expected: "The gene most associated with huntington's is HTT"
+    input: "Which gene is most associated with Huntington's disease?"
+    expected: "The gene most associated with Huntington's is HTT"
 
 - case:
     name: "Omim by mim number"
@@ -185,19 +186,19 @@
 - case:
     name: "Omim by variant - variant does not exist"
     category: "Gene-Phenotype Databases"
-    input: "Is the variant chr2-74558644-C-T present on OMIM? If so what is that associated phenotype?"
+    input: "Is the variant chr2-74558644-C-T present on OMIM? If so, what is that associated phenotype?"
     expected: "The variant is not present on OMIM."
 
 - case:
     name: "Omim by variant"
     category: "Gene-Phenotype Databases"
-    input: "Is the variant chr4:3160307 C>T present on OMIM? If so what is that associated phenotype?"
+    input: "Is the HGVS variant chr4:3160307 C>T listed in OMIM? If so, what is the associated phenotype?"
     expected: "The associated phenotype is Lopes-Maciel-Rodan syndrome."
 
 - case:
     name: "HPO by phenotype query"
     category: "Gene-Phenotype Databases"
-    input: "What HPO terms are associated with the search term 'haemolytic anaemia'?"
+    input: "What HPO terms are associated with the search term 'hemolytic anemia'?"
     expected: "HP:0001878, HP:0001890, HP:0004804 are among the results"
 
 - case:
@@ -221,7 +222,7 @@
 - case:
     name: "Ortholog tissue expression"
     category: "Expression Databases"
-    input: "For the human gene HTT, which developmental stage has the most ortholog expression annotations in mice?"
+    input: "For the human gene HTT, which mouse developmental stage has the most ortholog expression annotations?"
     expected: "Embryo stage"
 
 - case:
@@ -263,7 +264,7 @@
 - case:
     name: "STRING list all protein interactions"
     category: "Protein Interactions"
-    input: "What are the gene symbol(s) for the protein(s) connected to NUTM2G on STRING?"
+    input: "What is the gene symbol(s) for the protein(s) connected to NUTM2G on STRING?"
     expected: "NUTM2G is connected to VIRMA on STRING."
 
 - case:
@@ -276,7 +277,7 @@
     name: "STRING check for nonexistent protein interaction"
     category: "Protein Interactions"
     input: "Is there an interaction between MAP3K1 and NUTM2G in STRING?"
-    expected: "No, there is not an interaction between these two genes in STRING."
+    expected: "No, there is no interaction between these two genes in STRING."
 
 - case:
     name: "Gene phenotype association for connected gene and phenotype"
@@ -287,7 +288,7 @@
 - case:
     name: "Gene phenotype association for unconnected gene and phenotype"
     category: "Gene-Phenotype Databases"
-    input: "Does NUTM2G gene have an association with dilated cardiomyopathy?"
+    input: "Is the NUTM2G gene associated with dilated cardiomyopathy?"
     expected: "No, NUTM2G gene is not associated with dilated cardiomyopathy."
 
 - case:
@@ -299,8 +300,8 @@
 - case:
     name: "Gene alias list"
     category: "Gene and Variant Utilities"
-    input: "What are some aliases for the NUTM2G gene?"
-    expected: "Some aliases for NUTM2G include NUTMG, and FAM22G."
+    input: "What are the known aliases for the NUTM2G gene?"
+    expected: "Known aliases for NUTM2G include NUTMG, and FAM22G."
 
 - case:
     name: "Gene alias check for existing alias"
@@ -353,14 +354,14 @@
 - case:
     name: "Use geno2mp to find number of homozygous cases for a variant 1"
     category: "Gene-Phenotype Databases"
-    input: "How many homozygous cases are reported for the variant chr8:70126887 C>T in the Geno2MP database?"
-    expected: "There are 0 homozygous cases reported for this variant in the Geno2MP database."
+    input: "How many homozygous cases carrying the variant chr8:70126887 C>T are reported in the Geno2MP database?"
+    expected: "There are 0 homozygous cases reported with this variant in the Geno2MP database."
 
 - case:
     name: "Use geno2mp to find number of heterozygous cases for a variant 2"
     category: "Gene-Phenotype Databases"
     input: "How many heterozygous cases are reported for the variant chr21:45175759 C>T in the Geno2MP database?"
-    expected: "There are 3 heterozygous cases reported for this variant in the Geno2MP database."
+    expected: "There are 3 heterozygous cases reported with this variant in the Geno2MP database."
 
 - case:
     name: "Use geno2mp to find number of homozygous and heterozygous cases for a variant 3"
@@ -449,7 +450,7 @@
 - case:
     name: "Copare pLI and o/e scores for gene 1"
     category: "Variant Prioritization"
-    input: "How do the pLI and o/e scores for TTN gene compare? Provide interpretation."
+    input: "How do the pLI and observed/expected scores for TTN gene compare, and how should they be interpreted?"
     expected: "The pLI score for TTN is 2.56 * 10^-96 (nearly 0), and the o/e (LOEUF) score is 0.327. pLI indicates high tolerance to loss of function, while o/e implies some constraint."
 
 - case:
@@ -539,8 +540,8 @@
 - case:
     name: "Ortholog tissue expression 1"
     category: "Expression Databases"
-    input: "For the human gene CDKN2A, which cell location has the most ortholog expression annotations in rats?"
-    expected: "The nucleus and other locations are tied for the most CDKN2A expression annotations in rats."
+    input: "For the human gene CDKN2A, which cell component has the most ortholog expression annotations in rats?"
+    expected: "The nucleus and other components are tied for the most CDKN2A expression annotations in rats."
 
 - case:
     name: "Ortholog tissue expression 2"
