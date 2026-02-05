@@ -1236,6 +1236,10 @@ async def get_gtex_expression(entrez_id: str) -> str:
     try:
         data = await fetch_marrvel_data(f"/gtex/gene/entrezId/{entrez_id}", is_graphql=False)
         data_obj = json.loads(data)
+        if data_obj is None:
+            return json.dumps(
+                {"error": f"No GTEx expression data found for Entrez ID {entrez_id}"}, indent=2
+            )
         for category in data_obj["data"].keys():
             for subcategory in data_obj["data"][category].keys():
                 data_obj["data"][category][subcategory] = statistics.median(
@@ -1258,10 +1262,18 @@ async def get_ortholog_expression(entrez_id: str, taxon_id: str) -> str:
             f"/expression/orthologs/gene/entrezId/{entrez_id}", is_graphql=False
         )
         data_obj = json.loads(data)
+        entry = None
         for i in data_obj:
             if i["taxonId2"] == int(taxon_id) and i["bestScore"]:
                 entry = i
                 break
+        if not entry:
+            return json.dumps(
+                {
+                    "error": f"No ortholog found for Entrez ID {entrez_id} in taxon ID {taxon_id}"
+                },
+                indent=2,
+            )
 
         if entry["gene2"] and entry["gene2"]["agrExpressions"]:
             for group in entry["gene2"]["agrExpressions"]["expressionSummary"]["groups"]:
