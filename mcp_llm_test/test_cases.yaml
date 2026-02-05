@@ -6,7 +6,7 @@
 # - Expression Databases: Gene expression data (GTEx, ortholog expression)
 # - Ortholog Data: Comparative genomic information from model organisms (DIOPT)
 # - Literature: Scientific publication databases (PubMed, PMC)
-# - Protein Interactions: Protein-protein interaction networks (STRING) 
+# - Protein Interactions: Protein-protein interaction networks (STRING)
 
 
 - case:
@@ -54,7 +54,7 @@
 - case:
     name: "CADD phred prediction"
     category: "Variant Prioritization"
-    input: "What is the CADD phred prediction for the variant rs137852987?" 
+    input: "What is the CADD phred prediction for the variant rs137852987?"
     expected: "The CADD prediction for this variant is highly deleterious."
 
 - case:
