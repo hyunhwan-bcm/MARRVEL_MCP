@@ -379,6 +379,7 @@ def create_llm_instance(
 
         return ChatBedrock(
             model_id=effective_model_id,
+            provider="anthropic",
             model_kwargs={"temperature": temperature, **kwargs.get("model_kwargs", {})},
             client=bedrock_client,
             **{k: v for k, v in kwargs.items() if k != "model_kwargs"},
