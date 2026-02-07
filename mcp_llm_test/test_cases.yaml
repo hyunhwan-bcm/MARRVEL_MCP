@@ -558,8 +558,8 @@
 - case:
     name: "PubMed search by variant name 1"
     category: "Literature"
-    input: "Search PubMed for articles about SNPs at chr4:6302385. How many articles are there?"
-    expected: "One article found chr4:6302385, with PMID 38470317."
+    input: "Search PubMed for articles about the specific mutation chr4:6302385 G>A. How many articles are there? Give the PMID for the top article."
+    expected: "One article found chr4:6302385 G>A, with PMID 38470317."
 
 - case:
     name: "PubMed search by variant name 2"
