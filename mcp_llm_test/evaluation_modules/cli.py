@@ -243,4 +243,13 @@ Cache Behavior:
         help="Override model for this run (e.g. meta-llama/llama-3.1-8b-instruct, gpt-4o).",
     )
 
+    parser.add_argument(
+        "--export-json",
+        type=str,
+        nargs="?",
+        const="auto",
+        metavar="PATH",
+        help="Export results as JSON after evaluation. Writes to <output-dir>/results.json by default.",
+    )
+
     return parser.parse_args()

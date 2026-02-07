@@ -370,6 +370,79 @@ ${jsonContent}
             // Open GitHub new issue page
             window.open(`${repoUrl}/issues/new?title=${title}&body=${encodedBody}&labels=test-failure`, '_blank');
         }
+
+        // ---- Structured data export (JSON / YAML) ----
+        // Embedded results data from Jinja2 template rendering
+        const _exportData = {
+            metadata: {
+                tested_model: {{ (tested_model or '') | tojson }},
+                tested_provider: {{ (tested_provider or '') | tojson }},
+                evaluator_model: {{ (evaluator_model or '') | tojson }},
+                evaluator_provider: {{ (evaluator_provider or '') | tojson }},
+                total_tests: {{ total_tests | tojson }},
+                exported_at: new Date().toISOString()
+            },
+            results: {{ results | tojson }}
+        };
+
+        function _downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportJSON() {
+            const json = JSON.stringify(_exportData, null, 2);
+            _downloadFile(json, 'evaluation_results.json', 'application/json;charset=utf-8;');
+        }
+
+        // Minimal YAML serializer for clean structured data
+        function _toYAML(obj, indent) {
+            indent = indent || 0;
+            const pad = '  '.repeat(indent);
+            if (obj === null || obj === undefined) return pad + 'null';
+            if (typeof obj === 'boolean') return pad + (obj ? 'true' : 'false');
+            if (typeof obj === 'number') return pad + String(obj);
+            if (typeof obj === 'string') {
+                // Quote strings that contain special YAML chars or are multiline
+                if (obj === '' || obj.includes('\n') || obj.includes(':') || obj.includes('#') ||
+                    obj.includes('"') || obj.includes("'") || /^[\s\-\[\]{}>|*&!%@`]/.test(obj) ||
+                    obj === 'true' || obj === 'false' || obj === 'null' || !isNaN(Number(obj))) {
+                    return pad + JSON.stringify(obj);
+                }
+                return pad + obj;
+            }
+            if (Array.isArray(obj)) {
+                if (obj.length === 0) return pad + '[]';
+                return obj.map(item => {
+                    const v = _toYAML(item, indent + 1).trimStart();
+                    return pad + '- ' + v;
+                }).join('\n');
+            }
+            if (typeof obj === 'object') {
+                const keys = Object.keys(obj);
+                if (keys.length === 0) return pad + '{}';
+                return keys.map(key => {
+                    const val = obj[key];
+                    const safeKey = /[:\s\-#\[\]{}]/.test(key) ? JSON.stringify(key) : key;
+                    if (val !== null && typeof val === 'object' && (Array.isArray(val) ? val.length > 0 : Object.keys(val).length > 0)) {
+                        return pad + safeKey + ':\n' + _toYAML(val, indent + 1);
+                    }
+                    return pad + safeKey + ': ' + _toYAML(val, 0).trimStart();
+                }).join('\n');
+            }
+            return pad + String(obj);
+        }
+
+        function exportYAML() {
+            const yaml = _toYAML(_exportData, 0);
+            _downloadFile(yaml, 'evaluation_results.yaml', 'text/yaml;charset=utf-8;');
+        }
     </script>
 </head>
 <body class="min-h-screen py-8 px-4">
@@ -396,6 +469,18 @@ ${jsonContent}
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                             Export TSV
+                        </button>
+                        <button onclick="exportJSON()" class="inline-flex items-center gap-x-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-sm font-medium rounded-md transition-colors backdrop-blur-sm">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Export JSON
+                        </button>
+                        <button onclick="exportYAML()" class="inline-flex items-center gap-x-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-sm font-medium rounded-md transition-colors backdrop-blur-sm">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Export YAML
                         </button>
                     </div>
                 </div>
