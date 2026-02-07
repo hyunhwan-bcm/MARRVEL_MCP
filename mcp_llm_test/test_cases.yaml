@@ -558,14 +558,14 @@
 - case:
     name: "PubMed search by variant name 1"
     category: "Literature"
-    input: "Search PubMed for articles about the specific mutation chr4:6302385 G>A. How many articles are there?"
-    expected: "No articles are found about the variant chr4:6302385 G>A."
+    input: "Search PubMed for articles about SNPs at chr4:6302385. How many articles are there?"
+    expected: "One article found chr4:6302385, with PMID 38470317."
 
 - case:
     name: "PubMed search by variant name 2"
     category: "Literature"
-    input: "Search PubMed for articles about the mutation p.N155S in PYROXD1. What are the top 3 PMIDs?"
-    expected: "The top 3 PMIDs for articles about the mutation p.N155S in PYROXD1 are 38553017, 30203143, and 31455395."
+    input: "Search PubMed for articles about the mutation p.N155S in PYROXD1. What are the PMIDs? Limit to 3 results."
+    expected: "The 3 PMIDs for articles about the mutation p.N155S in PYROXD1 are 38553017, 30203143, and 31455395."
 
 - case:
     name: "PubMed search by variant name 3"

@@ -164,9 +164,16 @@ async def main():
     # Apply explicit CLI overrides if provided (validated set: bedrock, openai, openrouter)
     if getattr(args, "provider", None):
         override_provider = args.provider.strip().lower()
-        if override_provider not in {"bedrock", "openai", "openrouter"}:
+        if override_provider not in {
+            "bedrock",
+            "openai",
+            "openrouter",
+            "ollama",
+            "lm-studio",
+            "llama_cpp",
+        }:
             logging.error(
-                f"❌ Error: Unsupported provider override '{override_provider}'. Allowed: bedrock, openai, openrouter"
+                f"❌ Error: Unsupported provider override '{override_provider}'. Allowed: bedrock, openai, openrouter, ollama, lm-studio, llama_cpp"
             )
             return
         provider = override_provider  # type: ignore
