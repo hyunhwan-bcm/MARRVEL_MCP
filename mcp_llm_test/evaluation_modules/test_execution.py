@@ -81,11 +81,25 @@ async def run_test_case(
                 status = cached.get("status", "")
 
                 # Refined Retry Logic:
-                # 1. ERROR status -> Always retry (treat as missing)
+                # 1. ERROR status -> Retry only if retry_failed is True
                 if status == "ERROR" or "error" in str(classification).lower():
-                    if pbar:
-                        mode_label = "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
-                        pbar.set_postfix_str(f"Retrying error ({mode_label}): {name[:40]}...")
+                    if retry_failed:
+                        if pbar:
+                            mode_label = (
+                                "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
+                            )
+                            pbar.set_postfix_str(f"Retrying error ({mode_label}): {name[:40]}...")
+                    else:
+                        # Return cached error without re-running
+                        if test_stats is not None:
+                            test_stats["failed"] += 1
+                        if pbar:
+                            mode_label = (
+                                "web" if web_mode else ("vanilla" if vanilla_mode else "tool")
+                            )
+                            update_progress_bar_with_stats(pbar, test_stats)
+                            pbar.update(1)
+                        return cached
 
                 # 2. Incorrect answer ("no") -> Retry only if retry_failed is True
                 elif str(classification).lower().startswith("no"):
