@@ -1269,9 +1269,7 @@ async def get_ortholog_expression(entrez_id: str, taxon_id: str) -> str:
                 break
         if not entry:
             return json.dumps(
-                {
-                    "error": f"No ortholog found for Entrez ID {entrez_id} in taxon ID {taxon_id}"
-                },
+                {"error": f"No ortholog found for Entrez ID {entrez_id} in taxon ID {taxon_id}"},
                 indent=2,
             )
 
