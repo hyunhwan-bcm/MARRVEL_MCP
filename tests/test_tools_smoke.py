@@ -69,7 +69,7 @@ JSON (or a Python literal convertible to JSON), the test will fail.
 # Essential tools to exercise representing critical functionality categories.
 # This reduced set covers: gene queries, variant analysis, disease associations,
 # orthologs, literature search, and coordinate conversion.
-TEST_VARIANT = {"chr": "6", "pos": "98917691", "ref": "T", "alt": "C", "build": "hg38"}
+TEST_VARIANT = {"chr": "6", "pos": "98917691", "ref": "T", "alt": "C"}
 tool_calls = [
     ("get_gene_by_symbol", {"gene_symbol": "TP53", "taxon_id": "9606"}),
     ("get_protein_change_by_genomic_position", TEST_VARIANT),
