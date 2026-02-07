@@ -64,3 +64,6 @@ llms.txt
 mcp_llm_test/evaluate_mcp_backup.py
 mcp_llm_test/evaluate_mcp_original.py
 mcp_llm_test/evaluate_mcp_new.py
+
+# Claude Code
+.claude/
