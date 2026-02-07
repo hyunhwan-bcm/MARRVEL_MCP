@@ -139,6 +139,23 @@ PROVIDER_CONFIGS: Dict[ProviderType, ProviderConfig] = {
         supports_web_search=True,
         web_search_suffix=":online",
     ),
+    # Ollama local LLM server
+    "ollama": ProviderConfig(
+        name="ollama",
+        default_api_base="http://localhost:11434/v1",
+        supports_web_search=False,
+    ),
+    # LM Studio local LLM server
+    "lm-studio": ProviderConfig(
+        name="lm-studio",
+        default_api_base="http://localhost:1234/api/v1/",
+        supports_web_search=False,
+    ),
+    "llama_cpp": ProviderConfig(
+        name="llama_cpp",
+        default_api_base="http://localhost:8080/v1",
+        supports_web_search=False,
+    ),
 }
 
 
@@ -379,6 +396,7 @@ def create_llm_instance(
 
         return ChatBedrock(
             model_id=effective_model_id,
+            provider="anthropic",
             model_kwargs={"temperature": temperature, **kwargs.get("model_kwargs", {})},
             client=bedrock_client,
             **{k: v for k, v in kwargs.items() if k != "model_kwargs"},
