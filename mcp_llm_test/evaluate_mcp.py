@@ -76,6 +76,8 @@ from evaluation_modules import (
     parse_subset,
 )
 
+from export_json import build_export_json
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -661,6 +663,43 @@ async def main():
             open_in_browser(html_path)
         except Exception as e:
             logging.error(f"Error generating HTML or opening browser: {e}")
+
+    # Export JSON if requested (applies to all code paths)
+    if getattr(args, "export_json", None):
+        try:
+            run_metadata = {
+                "tested_model": resolved_model,
+                "tested_provider": provider,
+                "evaluator_model": evaluator_model,
+                "evaluator_provider": evaluator_provider,
+                "concurrency": args.concurrency,
+                "modes": [],
+            }
+            if args.with_web:
+                run_metadata["modes"] = ["vanilla", "web", "tool"]
+            elif args.with_vanilla:
+                run_metadata["modes"] = ["vanilla", "tool"]
+            else:
+                run_metadata["modes"] = ["tool"]
+
+            export_data = build_export_json(
+                run_id=run_id,
+                compact=True,
+                run_metadata=run_metadata,
+            )
+
+            if args.export_json == "auto":
+                json_path = Path(str(output_dir)) / "results.json"
+            else:
+                json_path = Path(args.export_json)
+            json_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(export_data, f, indent=2, default=str, ensure_ascii=False)
+
+            vprint(f"📄 JSON export saved to: {json_path}")
+        except Exception as e:
+            logging.error(f"Error exporting JSON: {e}")
 
 
 if __name__ == "__main__":
