@@ -9,132 +9,74 @@ A Model Context Protocol (MCP) server for [MARRVEL](https://marrvel.org) - enabl
 ## Demo
 
 Try out MARRVEL-MCP in action:
-- <a href="https://chat.marrvel.org">MARRVEL-MCP Chatbot Demo</a>: Demo site showing MARRVEL-MCP usage with a chatbot
+- <a href="https://chat.marrvel.org">MARRVEL-MCP Chatbot Demo</a>
 
 ## Quick Start
 
 ### Installation
 
-1. Clone and install:
 ```bash
 git clone https://github.com/hyunhwan-bcm/MARRVEL_MCP.git
 cd MARRVEL_MCP
-pip install -r requirements.txt
-```
-### MCP Server Setup (mcp.json)
 
-To use MARRVEL-MCP with LM Studio, Claude Desktop, or other MCP-compatible clients, create an `mcp.json` file or add the following block to your client configuration:
+# Using uv (recommended)
+uv sync                  # core MCP server only
+uv sync --extra eval     # include evaluation framework dependencies
+
+# Or using pip
+pip install .                  # core MCP server only
+pip install ".[eval]"          # include evaluation framework dependencies
+```
+
+### MCP Server Setup
+
+To use MARRVEL-MCP with Claude Desktop, LM Studio, or other MCP-compatible clients, add the following to your client's MCP configuration:
 
 ```json
 {
   "mcpServers": {
     "marrvel-mcp": {
-      "command": "/Users/hyunhwan/CodeWorkspace/MARRVEL_MCP/.venv/bin/python",
-      "args": [
-        "/Users/hyunhwan/CodeWorkspace/MARRVEL_MCP/server.py"
-      ]
+      "command": "/path/to/your/.venv/bin/python",
+      "args": ["/path/to/MARRVEL_MCP/server.py"]
     }
   }
 }
 ```
 
-- **Recommended:** Use a Python virtual environment (`venv`) and specify the full path to your venv's python executable as shown above.
-- If you do not use a venv, you can use the system python (e.g., `"command": "python"` or `"python3"`).
-- Make sure all dependencies are installed in the environment you specify.
-
-This configuration allows your MCP client to launch the MARRVEL server and access all tools.
+Replace the paths with the actual locations of your Python virtual environment and the cloned repository.
 
 ### Usage
 
-Ask your AI assistant natural language questions about genes, variants, diseases, orthologs, and literature.
-
-For comprehensive examples and test cases, see: [test_cases.yaml](mcp-llm-test/test_cases.yaml)
+Ask your AI assistant natural language questions about genes, variants, diseases, orthologs, and literature. For example test cases, see [`mcp_llm_test/test_cases.yaml`](mcp_llm_test/test_cases.yaml).
 
 ## Features
 
-MARRVEL-MCP supports **various MCP Tools** for genetics research including:
+MARRVEL-MCP provides **35+ MCP tools** for genetics research:
 
-- Gene queries (by symbol, ID, or position)
-- Variant analysis (dbNSFP, ClinVar, gnomAD)
-- Disease associations (OMIM, HPO)
-- Ortholog information (DIOPT)
-- Expression data (GTEx)
-- Literature search (PubMed, PMC)
+- **Gene queries** - by symbol, Entrez ID, or genomic position
+- **Variant analysis** - dbNSFP, ClinVar, gnomAD, DGV, Geno2MP
+- **Disease associations** - OMIM, HPO, DECIPHER
+- **Ortholog information** - DIOPT across model organisms
+- **Expression data** - GTEx, Pharos drug targets, STRING interactions
+- **Literature search** - PubMed, PMC full text/tables/figures
+- **Coordinate conversion** - hg19/hg38 liftover
 
-## LLM Provider Configuration
-
-MARRVEL-MCP supports multiple LLM providers through a **unified OpenAI-compatible configuration**, with the exception of Amazon Bedrock which uses separate AWS credentials.
-
-### Unified Configuration Model
-
-All OpenAI-compatible providers (OpenRouter, OpenAI, Groq, Mistral, DeepSeek, Ollama, LM Studio, vLLM, llama.cpp, etc.) share the same global configuration:
-
-**Global Defaults:**
-- `OPENAI_API_KEY`: API key for OpenAI-compatible providers
-- `OPENAI_API_BASE`: Server address for OpenAI-compatible providers
-- `OPENAI_MODEL`: Default model name
-
-**Per-Model Overrides** (in YAML config or function parameters):
-- `api_key`: Override OPENAI_API_KEY for specific model
-- `api_base`: Override OPENAI_API_BASE for specific model
-
-### Supported Providers
-
-#### 1. OpenRouter
-
-Access 100+ models through OpenRouter:
-
-```bash
-export LLM_PROVIDER=openrouter
-export LLM_MODEL=google/gemini-2.5-flash
-export OPENAI_API_KEY=your_openrouter_api_key
-# OPENAI_API_BASE is automatically set to https://openrouter.ai/api/v1 for openrouter provider
-```
-
-#### 2. OpenAI
-
-Use OpenAI's official API:
-
-```bash
-export LLM_PROVIDER=openai
-export LLM_MODEL=gpt-4
-export OPENAI_API_KEY=your_openai_api_key
-# OPENAI_API_BASE uses OpenAI's default endpoint if not specified
-```
-#### 3. AWS Bedrock (Separate Configuration)
-
-Bedrock uses AWS credentials, not OpenAI-compatible config:
-
-```bash
-export LLM_PROVIDER=bedrock
-export LLM_MODEL=anthropic.claude-3-5-sonnet-20241022-v2:0
-export AWS_ACCESS_KEY_ID=your_aws_access_key
-export AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-export AWS_REGION=us-east-1
-```
-
-#### 4. Other OpenAI-Compatible Services
-
-Any service compatible with the OpenAI API (Groq, Mistral, DeepSeek, vLLM, etc.):
-
-```bash
-export LLM_PROVIDER=openai  # Or create a custom provider type
-export LLM_MODEL=your-model-name
-export OPENAI_API_KEY=your-api-key
-export OPENAI_API_BASE=https://your-service.com/v1
-```
+See [`docs/TOOL_RELATIONSHIPS.md`](docs/TOOL_RELATIONSHIPS.md) for a visual diagram of tool chains and workflows.
 
 ## Documentation
 
-- **[Multi-Model Benchmark Testing](docs/BENCHMARK_WORKFLOW.md)** - New modular benchmark workflow
-- **[MCP LLM Evaluation](mcp_llm_test/README.md)** - CLI tool for testing MCP with LangChain
-- **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines
+| Document | Description |
+|----------|-------------|
+| [`mcp_llm_test/README.md`](mcp_llm_test/README.md) | Evaluation framework for benchmarking LLMs with MARRVEL-MCP |
+| [`docs/TOOL_RELATIONSHIPS.md`](docs/TOOL_RELATIONSHIPS.md) | Tool relationship graph and common analysis chains |
+| [`marrvel_mcp/README.md`](marrvel_mcp/README.md) | Package API reference for the `marrvel_mcp` module |
+| [`tests/README.md`](tests/README.md) | Test suite overview and instructions |
 
 ## Development
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install with dev dependencies
+uv sync --group dev --extra eval
 
 # Run tests
 pytest tests/
@@ -142,8 +84,6 @@ pytest tests/
 # Format code
 black .
 ```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development instructions.
 
 ## Citation
 

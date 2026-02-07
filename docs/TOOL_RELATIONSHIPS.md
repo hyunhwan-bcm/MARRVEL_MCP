@@ -8,12 +8,6 @@ config:
   layout: elk
 ---
 flowchart LR
-    %% Input Layer
-    ---
-config:
-  layout: elk
----
-flowchart LR
     User@{ label: "<b><font size=\"6\">LLM</font></b>" } --> Input1@{ label: "<b><font size=\"5\">Gene Symbol</font></b>" } & Input2@{ label: "<b><font size=\"5\">Genomic Position</font></b>" } & Input3@{ label: "<b><font size=\"5\">Variant Notation</font></b><br>(HGVS/rsID/Protein)" } & Input4@{ label: "<b><font size=\"5\">Disease/Phenotype</font></b>" } & Input5@{ label: "<b><font size=\"5\">Literature ID</font></b><br>(PMID/PMCID)" }
     Input1 --> GeneTools@{ label: "<b><font size=\"4\">Gene Information</font></b><br>get_gene_by_symbol, get_gene_by_entrez_id, get_gene_by_position" } & LiteratureTools@{ label: "<b><font size=\"4\">Literature Search</font></b><br>search_pubmed, get_pubmed_article, pmid_to_pmcid, get_pmc_fulltext_by_pmcid, get_pmc_tables_by_pmcid" }
     Input2 --> GeneTools & VariantAnnotation@{ label: "<b><font size=\"4\">Variant Annotation</font></b><br>get_variant_dbnsfp, get_clinvar_by_variant, get_gnomad_variant, get_variant_annotation_by_genomic_position" }
