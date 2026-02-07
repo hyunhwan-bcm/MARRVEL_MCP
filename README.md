@@ -6,6 +6,11 @@
 
 A Model Context Protocol (MCP) server for [MARRVEL](https://marrvel.org) - enabling AI agents to access genetics databases and variant analysis tools for rare disease research.
 
+## Demo
+
+Try out MARRVEL-MCP in action:
+- <a href="https://chat.marrvel.org">MARRVEL-MCP Chatbot Demo</a>: Demo site showing MARRVEL-MCP usage with a chatbot
+
 ## Quick Start
 
 ### Installation
