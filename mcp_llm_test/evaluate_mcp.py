@@ -382,6 +382,26 @@ async def main():
         with open(snapshot_path, "w", encoding="utf-8") as f:
             yaml.dump(all_test_cases, f, sort_keys=False)
 
+        # Save run configuration for reproducibility
+        run_config = {
+            "run_id": run_id,
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "tested_model": resolved_model,
+            "tested_provider": provider,
+            "evaluator_model": evaluator_model,
+            "evaluator_provider": evaluator_provider,
+            "concurrency": args.concurrency,
+            "with_vanilla": args.with_vanilla,
+            "with_web": args.with_web,
+            "subset": args.subset,
+        }
+        if getattr(args, "api_base", None):
+            run_config["api_base"] = args.api_base
+        run_config_path = run_dir / "run_config.yaml"
+        with open(run_config_path, "w", encoding="utf-8") as f:
+            yaml.dump(run_config, f, sort_keys=False)
+        vprint(f"📋 Saving run config to: {run_config_path}")
+
     # Filter test cases if subset is specified
     if args.subset:
         try:
