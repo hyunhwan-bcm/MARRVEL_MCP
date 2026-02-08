@@ -252,30 +252,56 @@ def build_export_json(
     total_tests = len(test_results)
 
     # Build run-level metadata
-    # If explicit metadata was provided (from evaluate_mcp.py), use it.
-    # Otherwise, try to extract from pickle data on a best-effort basis.
+    # Priority: 1) explicit run_metadata (from evaluate_mcp.py --export-json)
+    #           2) run_config.yaml saved in the run directory
+    #           3) best-effort extraction from pickle metadata fields
     effective_metadata: Dict[str, Any] = {}
     if run_metadata:
         effective_metadata = dict(run_metadata)
     else:
-        # Extract model info from pickle metadata (best-effort)
-        for modes_data in results_by_uuid.values():
-            for result_data in modes_data.values():
-                meta = result_data.get("metadata", {})
-                if isinstance(meta, dict) and meta.get("model_used"):
-                    effective_metadata.setdefault("model", meta["model_used"])
-                if isinstance(meta, dict) and meta.get("finish_reason"):
-                    effective_metadata.setdefault("finish_reason_sample", meta["finish_reason"])
-            if "model" in effective_metadata:
-                break
-        # Add directory timestamp as run date
-        try:
-            effective_metadata["run_date"] = datetime.fromtimestamp(
-                run_dir.stat().st_mtime, tz=timezone.utc
-            ).isoformat()
-        except OSError:
-            pass
-        effective_metadata["modes"] = sorted(summary.keys())
+        # Try loading run_config.yaml first (saved by evaluate_mcp.py since this feature)
+        run_config_path = run_dir / "run_config.yaml"
+        if run_config_path.exists():
+            import yaml
+
+            with open(run_config_path, "r", encoding="utf-8") as f:
+                run_config = yaml.safe_load(f) or {}
+            effective_metadata = {
+                "tested_model": run_config.get("tested_model", ""),
+                "tested_provider": run_config.get("tested_provider", ""),
+                "evaluator_model": run_config.get("evaluator_model", ""),
+                "evaluator_provider": run_config.get("evaluator_provider", ""),
+                "concurrency": run_config.get("concurrency"),
+                "created_at": run_config.get("created_at", ""),
+            }
+            # Derive modes from config flags
+            if run_config.get("with_web"):
+                effective_metadata["modes"] = ["vanilla", "web", "tool"]
+            elif run_config.get("with_vanilla"):
+                effective_metadata["modes"] = ["vanilla", "tool"]
+            else:
+                effective_metadata["modes"] = sorted(summary.keys())
+            if run_config.get("api_base"):
+                effective_metadata["api_base"] = run_config["api_base"]
+        else:
+            # Fallback: extract model info from pickle metadata (best-effort)
+            for modes_data in results_by_uuid.values():
+                for result_data in modes_data.values():
+                    meta = result_data.get("metadata", {})
+                    if isinstance(meta, dict) and meta.get("model_used"):
+                        effective_metadata.setdefault("tested_model", meta["model_used"])
+                if "tested_model" in effective_metadata:
+                    break
+            effective_metadata["modes"] = sorted(summary.keys())
+
+        # Add directory timestamp as run date if not already present
+        if not effective_metadata.get("created_at"):
+            try:
+                effective_metadata["created_at"] = datetime.fromtimestamp(
+                    run_dir.stat().st_mtime, tz=timezone.utc
+                ).isoformat()
+            except OSError:
+                pass
 
     export = {
         "schema_version": "1.0",
