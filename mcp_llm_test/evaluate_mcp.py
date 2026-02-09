@@ -630,6 +630,60 @@ async def main():
         except Exception as e:
             logging.error(f"Error generating HTML or opening browser: {e}")
 
+    elif args.only_vanilla:
+        vprint(f"🚀 Running {len(test_cases)} test case(s) with ONLY vanilla (no mcp tools)")
+        vprint(f"   Concurrency: {args.concurrency}")
+        if use_cache:
+            vprint(f"💾 Cache enabled")
+
+        async with mcp_client:
+            # Run vanilla mode tests
+            vprint("\n🍦 Running VANILLA mode...")
+            test_stats_vanilla = {"yes": 0, "no": 0, "failed": 0}
+            pbar_vanilla = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
+
+            vanilla_tasks = [
+                run_test_case(
+                    semaphore,
+                    mcp_client,
+                    test_case,
+                    llm_evaluator,
+                    run_id,
+                    test_case["uuid"],
+                    use_cache=use_cache,
+                    retry_failed=args.retry_failed,
+                    vanilla_mode=True,
+                    pbar=pbar_vanilla,
+                    llm_instance=llm,
+                    llm_web_instance=llm_web,
+                    test_stats=test_stats_vanilla,
+                )
+                for test_case in test_cases
+            ]
+            vanilla_results = await asyncio.gather(*vanilla_tasks)
+            pbar_vanilla.close()
+
+        # Sort results to match the original order of test cases
+        results_map = {res["question"]: res for res in vanilla_results}
+        ordered_results = [
+            results_map[tc["case"]["input"]]
+            for tc in test_cases
+            if tc["case"]["input"] in results_map
+        ]
+
+        # Generate HTML report and open in browser
+        try:
+            html_path = generate_html_report(
+                ordered_results,
+                evaluator_model=evaluator_model,
+                evaluator_provider=evaluator_provider,
+                tested_model=resolved_model,
+                tested_provider=provider,
+            )
+            open_in_browser(html_path)
+        except Exception as e:
+            logging.error(f"Error generating HTML or opening browser: {e}")
+
     else:
         # Normal mode: run with tools only
         vprint(f"🚀 Running {len(test_cases)} test case(s) with concurrency={args.concurrency}")
