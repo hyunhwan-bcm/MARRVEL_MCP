@@ -197,6 +197,12 @@ Cache Behavior:
     )
 
     parser.add_argument(
+        "--only-vanilla",
+        action="store_true",
+        help="Run tests in vanilla mode (without tool calling) only, skipping tool-based evaluation. Useful for isolating LLM performance without tools.",
+    )
+
+    parser.add_argument(
         "--with-vanilla",
         action="store_true",
         help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",
