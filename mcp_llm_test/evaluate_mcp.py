@@ -428,8 +428,61 @@ async def main():
     # For now, just OR it with the cache flag
     use_cache = args.cache or bool(args.resume)
 
+    # Handle --vanilla-only mode: run only vanilla (no tools, no web)
+    if args.vanilla_only:
+        vprint(f"🍦 Running {len(test_cases)} test case(s) in VANILLA-ONLY mode (no tools)")
+        vprint(f"   Concurrency: {args.concurrency}")
+        if use_cache:
+            vprint(f"💾 Cache enabled")
+
+        async with mcp_client:
+            test_stats = {"yes": 0, "no": 0, "failed": 0}
+            pbar = atqdm(total=len(test_cases), desc="Vanilla mode", unit="test")
+
+            tasks = [
+                run_test_case(
+                    semaphore,
+                    mcp_client,
+                    test_case,
+                    llm_evaluator,
+                    run_id,
+                    test_case["uuid"],
+                    use_cache=use_cache,
+                    retry_failed=args.retry_failed,
+                    vanilla_mode=True,
+                    pbar=pbar,
+                    llm_instance=llm,
+                    llm_web_instance=llm_web,
+                    test_stats=test_stats,
+                )
+                for test_case in test_cases
+            ]
+            results = await asyncio.gather(*tasks)
+            pbar.close()
+
+        # Sort results to match the original order of test cases
+        results_map = {res["question"]: res for res in results}
+        ordered_results = [
+            results_map[tc["case"]["input"]]
+            for tc in test_cases
+            if tc["case"]["input"] in results_map
+        ]
+
+        # Generate HTML report
+        try:
+            html_path = generate_html_report(
+                ordered_results,
+                evaluator_model=evaluator_model,
+                evaluator_provider=evaluator_provider,
+                tested_model=resolved_model,
+                tested_provider=provider,
+            )
+            open_in_browser(html_path)
+        except Exception as e:
+            logging.error(f"Error generating HTML or opening browser: {e}")
+
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
-    if args.with_web:
+    elif args.with_web:
         vprint(
             f"🚀 Running {len(test_cases)} test case(s) with THREE modes: "
             f"vanilla, web search, and MARRVEL-MCP"

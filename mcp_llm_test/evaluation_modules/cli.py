@@ -197,6 +197,12 @@ Cache Behavior:
     )
 
     parser.add_argument(
+        "--vanilla-only",
+        action="store_true",
+        help="Run tests in vanilla mode only (no tool calling, no web search). Useful for baseline evaluation.",
+    )
+
+    parser.add_argument(
         "--with-vanilla",
         action="store_true",
         help="Run tests in both vanilla mode (without tool calling) and with tool calling, then combine results for comparison.",
