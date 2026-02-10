@@ -356,12 +356,12 @@ async def fix_missing_hg38_vals(data: str) -> str:
     for sub_dict in sub_dict_list:
         if sub_dict["taxonId"] == 9606:
             try:
-                if sub_dict.get("hg38Start") is None:
+                if sub_dict.get("hg38Start") is None and sub_dict.get("hg19Start") is not None:
                     lo_data = await liftover_hg19_to_hg38(sub_dict["chr"], sub_dict["hg19Start"])
                     lo_data_obj = json.loads(lo_data)
                     sub_dict["hg38Start"] = lo_data_obj["hg38Pos"]
 
-                if sub_dict.get("hg38Stop") is None:
+                if sub_dict.get("hg38Stop") is None and sub_dict.get("hg19Stop") is not None:
                     lo_data = await liftover_hg19_to_hg38(sub_dict["chr"], sub_dict["hg19Stop"])
                     lo_data_obj = json.loads(lo_data)
                     sub_dict["hg38Stop"] = lo_data_obj["hg38Pos"]
