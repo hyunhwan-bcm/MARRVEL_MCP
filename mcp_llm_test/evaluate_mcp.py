@@ -158,6 +158,12 @@ async def main():
         vprint(f"🆔 Run ID: {run_id}")
         vprint(f"📁 Output directory: {output_dir}")
 
+    # Canonical run metadata/cache directory (stable regardless of --output-dir)
+    run_dir = CACHE_DIR / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    mirror_metadata_to_output = output_dir.resolve() != run_dir.resolve()
+
     # Configure LLM with provider abstraction
     # Re-resolve model config inside main to respect any env var changes that occurred
     # after module import (e.g., in CI or wrapper scripts).
@@ -348,19 +354,29 @@ async def main():
 
         return  # Exit after handling prompt
 
+    # Determine whether to use cache
+    # If resuming, default to using cache unless explicitly disabled (though we don't have a disable flag yet)
+    # For now, just OR it with the cache flag
+    use_cache = args.cache or bool(args.resume)
+
     # Load test cases with snapshotting and UUID generation
-    run_dir = output_dir
-    run_dir.mkdir(parents=True, exist_ok=True)
     snapshot_path = run_dir / "test_cases.yaml"
+    output_snapshot_path = output_dir / "test_cases.yaml"
 
     if args.resume:
         if not snapshot_path.exists():
-            logging.error(f"❌ Error: Snapshot not found for run {run_id}")
-            if not quiet_enabled:
-                print(f"   Expected: {snapshot_path}")
-            return
+            # Backward compatibility: older runs might have snapshots only in output_dir
+            if mirror_metadata_to_output and output_snapshot_path.exists():
+                snapshot_path = output_snapshot_path
+                vprint(f"📂 Loading legacy snapshot from output directory: {snapshot_path}")
+            else:
+                logging.error(f"❌ Error: Snapshot not found for run {run_id}")
+                if not quiet_enabled:
+                    print(f"   Expected: {snapshot_path}")
+                return
+        else:
+            vprint(f"📂 Loading test cases from snapshot: {snapshot_path}")
 
-        vprint(f"📂 Loading test cases from snapshot: {snapshot_path}")
         with open(snapshot_path, "r", encoding="utf-8") as f:
             all_test_cases = yaml.safe_load(f)
     else:
@@ -377,30 +393,60 @@ async def main():
             tc_uuid = hashlib.md5(case_content.encode()).hexdigest()[:8]
             tc["uuid"] = tc_uuid
 
-        # Save snapshot
+        # Save snapshot in the canonical cache run directory
         vprint(f"📸 Saving test case snapshot to: {snapshot_path}")
         with open(snapshot_path, "w", encoding="utf-8") as f:
             yaml.dump(all_test_cases, f, sort_keys=False)
 
-        # Save run configuration for reproducibility
-        run_config = {
-            "run_id": run_id,
-            "created_at": datetime.utcnow().isoformat() + "Z",
-            "tested_model": resolved_model,
-            "tested_provider": provider,
-            "evaluator_model": evaluator_model,
-            "evaluator_provider": evaluator_provider,
-            "concurrency": args.concurrency,
-            "with_vanilla": args.with_vanilla,
-            "with_web": args.with_web,
-            "subset": args.subset,
-        }
-        if getattr(args, "api_base", None):
-            run_config["api_base"] = args.api_base
-        run_config_path = run_dir / "run_config.yaml"
-        with open(run_config_path, "w", encoding="utf-8") as f:
+        # Mirror snapshot to output directory for convenience when different
+        if mirror_metadata_to_output:
+            with open(output_snapshot_path, "w", encoding="utf-8") as f:
+                yaml.dump(all_test_cases, f, sort_keys=False)
+            vprint(f"📸 Mirroring test case snapshot to: {output_snapshot_path}")
+
+    # Save/update run configuration for reproducibility
+    run_config_path = run_dir / "run_config.yaml"
+    existing_run_config = {}
+    if run_config_path.exists():
+        try:
+            with open(run_config_path, "r", encoding="utf-8") as f:
+                existing_run_config = yaml.safe_load(f) or {}
+        except Exception as e:
+            logging.warning(f"Failed to load existing run config from {run_config_path}: {e}")
+
+    run_config = {
+        "run_id": run_id,
+        "created_at": existing_run_config.get("created_at", datetime.utcnow().isoformat() + "Z"),
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+        "is_resume": bool(args.resume),
+        "resume_from_run_id": args.resume if args.resume else None,
+        "cache_requested": bool(args.cache),
+        "cache_enabled": bool(use_cache),
+        "retry_failed": bool(args.retry_failed),
+        "tested_model": resolved_model,
+        "tested_provider": provider,
+        "evaluator_model": evaluator_model,
+        "evaluator_provider": evaluator_provider,
+        "concurrency": args.concurrency,
+        "only_vanilla": args.only_vanilla,
+        "with_vanilla": args.with_vanilla,
+        "with_web": args.with_web,
+        "subset": args.subset,
+        "output_dir": str(output_dir),
+        "cache_run_dir": str(run_dir),
+    }
+    if getattr(args, "api_base", None):
+        run_config["api_base"] = args.api_base
+
+    with open(run_config_path, "w", encoding="utf-8") as f:
+        yaml.dump(run_config, f, sort_keys=False)
+    vprint(f"📋 Saving run config to: {run_config_path}")
+
+    if mirror_metadata_to_output:
+        output_run_config_path = output_dir / "run_config.yaml"
+        with open(output_run_config_path, "w", encoding="utf-8") as f:
             yaml.dump(run_config, f, sort_keys=False)
-        vprint(f"📋 Saving run config to: {run_config_path}")
+        vprint(f"📋 Mirroring run config to: {output_run_config_path}")
 
     # Filter test cases if subset is specified
     if args.subset:
@@ -422,11 +468,6 @@ async def main():
 
     # Create a semaphore to limit concurrency
     semaphore = asyncio.Semaphore(args.concurrency)
-
-    # Determine whether to use cache
-    # If resuming, default to using cache unless explicitly disabled (though we don't have a disable flag yet)
-    # For now, just OR it with the cache flag
-    use_cache = args.cache or bool(args.resume)
 
     # Handle --with-web mode: run vanilla, web, and tool modes (3-way comparison)
     if args.with_web:

@@ -102,6 +102,12 @@ Results are cached to `~/.cache/marrvel-mcp/evaluations/` after every run. By de
 
 The cache does **not** detect changes to test cases, server code, or model behavior. Run without `--cache` after making changes.
 
+Run metadata is stored in a canonical file at:
+
+`~/.cache/marrvel-mcp/evaluations/<run_id>/run_config.yaml`
+
+When `--output-dir` points elsewhere, `run_config.yaml` and `test_cases.yaml` are mirrored there for convenience.
+
 ## Multi-Model Benchmarks
 
 To benchmark multiple models, use `run_benchmark.sh` with `models_config.yaml`:
