@@ -146,3 +146,5 @@ Run artifacts are written to `--output-dir` (or `~/.cache/marrvel-mcp/evaluation
 - `results.json` (when `--export-json` is used)
 - `run_config.yaml`
 - `test_cases.yaml`
+
+When `--output-dir` is provided without `--resume`, the directory is reset before the run starts.

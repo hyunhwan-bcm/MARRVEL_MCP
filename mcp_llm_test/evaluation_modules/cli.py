@@ -218,7 +218,7 @@ Cache Behavior:
         "--output-dir",
         type=str,
         metavar="PATH",
-        help="Directory to save run artifacts (results.yaml, optional results.json, snapshots, HTML report). Defaults to cache run directory.",
+        help="Directory to save run artifacts (results.yaml, optional results.json, snapshots, HTML report). In non-resume runs, existing directory content is replaced. Defaults to cache run directory.",
     )
 
     parser.add_argument(

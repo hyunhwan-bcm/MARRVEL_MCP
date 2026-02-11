@@ -34,6 +34,7 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 import sys
 import uuid
 from datetime import datetime
@@ -138,23 +139,33 @@ async def main():
             print(*a, **k)
 
     # Determine output directory and run ID
-    if args.output_dir:
-        # Use provided output directory
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        # Extract or generate run ID from output directory name
-        run_id = output_dir.name if not args.resume else args.resume
-        vprint(f"📁 Output directory: {output_dir}")
-    elif args.resume:
+    if args.resume:
         run_id = args.resume
-        output_dir = CACHE_DIR / run_id
+        if args.output_dir:
+            output_dir = Path(args.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            output_dir = CACHE_DIR / run_id
         vprint(f"🔄 Resuming run: {run_id}")
+        vprint(f"📁 Output directory: {output_dir}")
         if args.retry_failed:
             vprint("   Re-running failed tests")
     else:
-        # Generate new unique ID: short UUID (8 chars)
+        # Fresh runs always get a unique short run ID (independent of output directory name)
         run_id = str(uuid.uuid4())[:8]
-        output_dir = CACHE_DIR / run_id
+        if args.output_dir:
+            output_dir = Path(args.output_dir)
+            # For non-resume runs, clear stale output artifacts first.
+            if output_dir.exists() and not args.clear:
+                try:
+                    shutil.rmtree(output_dir)
+                    vprint(f"🧹 Cleared existing output directory: {output_dir}")
+                except Exception as e:
+                    logging.error(f"❌ Error clearing output directory {output_dir}: {e}")
+                    return
+            output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            output_dir = CACHE_DIR / run_id
         vprint(f"🆔 Run ID: {run_id}")
         vprint(f"📁 Output directory: {output_dir}")
 
