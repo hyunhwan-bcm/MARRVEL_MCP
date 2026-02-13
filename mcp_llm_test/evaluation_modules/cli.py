@@ -5,6 +5,7 @@ This module handles parsing of command-line arguments and subset specifications.
 """
 
 import argparse
+from pathlib import Path
 from typing import List
 
 from .cache import CACHE_DIR
@@ -256,6 +257,14 @@ Cache Behavior:
         const="auto",
         metavar="PATH",
         help="Export results as JSON after evaluation. Writes to <output-dir>/results.json by default.",
+    )
+
+    parser.add_argument(
+        "--test-cases",
+        type=str,
+        default=str(Path(__file__).resolve().parent.parent / "test_cases.yaml"),
+        metavar="PATH",
+        help="Path to a custom test cases YAML file (default: mcp_llm_test/test_cases.yaml).",
     )
 
     return parser.parse_args()
