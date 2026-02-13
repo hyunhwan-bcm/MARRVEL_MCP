@@ -392,7 +392,7 @@ async def main():
             all_test_cases = yaml.safe_load(f)
     else:
         # Load from source
-        source_path = Path(__file__).parent / "test_cases.yaml"
+        source_path = Path(args.test_cases)
         with open(source_path, "r", encoding="utf-8") as f:
             all_test_cases = yaml.safe_load(f)
 
