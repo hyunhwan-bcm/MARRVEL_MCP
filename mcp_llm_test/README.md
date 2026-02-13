@@ -140,3 +140,11 @@ After each run, an HTML report is generated with:
 - Overall success rate
 - Expandable conversation history and tool call details
 - Token usage statistics
+
+Run artifacts are written to `--output-dir` (or `~/.cache/marrvel-mcp/evaluations/<run_id>/` by default):
+- `results.yaml` (always generated)
+- `results.json` (when `--export-json` is used)
+- `run_config.yaml`
+- `test_cases.yaml`
+
+When `--output-dir` is provided without `--resume`, the directory is reset before the run starts.

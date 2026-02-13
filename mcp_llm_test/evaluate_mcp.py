@@ -34,6 +34,7 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 import sys
 import uuid
 from datetime import datetime
@@ -138,23 +139,33 @@ async def main():
             print(*a, **k)
 
     # Determine output directory and run ID
-    if args.output_dir:
-        # Use provided output directory
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        # Extract or generate run ID from output directory name
-        run_id = output_dir.name if not args.resume else args.resume
-        vprint(f"📁 Output directory: {output_dir}")
-    elif args.resume:
+    if args.resume:
         run_id = args.resume
-        output_dir = CACHE_DIR / run_id
+        if args.output_dir:
+            output_dir = Path(args.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            output_dir = CACHE_DIR / run_id
         vprint(f"🔄 Resuming run: {run_id}")
+        vprint(f"📁 Output directory: {output_dir}")
         if args.retry_failed:
             vprint("   Re-running failed tests")
     else:
-        # Generate new unique ID: short UUID (8 chars)
+        # Fresh runs always get a unique short run ID (independent of output directory name)
         run_id = str(uuid.uuid4())[:8]
-        output_dir = CACHE_DIR / run_id
+        if args.output_dir:
+            output_dir = Path(args.output_dir)
+            # For non-resume runs, clear stale output artifacts first.
+            if output_dir.exists() and not args.clear:
+                try:
+                    shutil.rmtree(output_dir)
+                    vprint(f"🧹 Cleared existing output directory: {output_dir}")
+                except Exception as e:
+                    logging.error(f"❌ Error clearing output directory {output_dir}: {e}")
+                    return
+            output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            output_dir = CACHE_DIR / run_id
         vprint(f"🆔 Run ID: {run_id}")
         vprint(f"📁 Output directory: {output_dir}")
 
@@ -779,42 +790,60 @@ async def main():
         except Exception as e:
             logging.error(f"Error generating HTML or opening browser: {e}")
 
+    run_metadata = {
+        "tested_model": resolved_model,
+        "tested_provider": provider,
+        "evaluator_model": evaluator_model,
+        "evaluator_provider": evaluator_provider,
+        "concurrency": args.concurrency,
+        "modes": [],
+    }
+    if args.with_web:
+        run_metadata["modes"] = ["vanilla", "web", "tool"]
+    elif args.with_vanilla:
+        run_metadata["modes"] = ["vanilla", "tool"]
+    else:
+        run_metadata["modes"] = ["tool"]
+
+    export_data = None
+    try:
+        export_data = build_export_json(
+            run_id=run_id,
+            compact=True,
+            run_metadata=run_metadata,
+        )
+    except Exception as e:
+        logging.error(f"Error building export payload: {e}")
+
+    # Always export YAML summary for each evaluation run.
+    if export_data is not None:
+        try:
+            yaml_path = Path(str(output_dir)) / "results.yaml"
+            yaml_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(yaml_path, "w", encoding="utf-8") as f:
+                yaml.dump(export_data, f, sort_keys=False, allow_unicode=True)
+            vprint(f"📄 YAML export saved to: {yaml_path}")
+        except Exception as e:
+            logging.error(f"Error exporting YAML: {e}")
+
     # Export JSON if requested (applies to all code paths)
     if getattr(args, "export_json", None):
-        try:
-            run_metadata = {
-                "tested_model": resolved_model,
-                "tested_provider": provider,
-                "evaluator_model": evaluator_model,
-                "evaluator_provider": evaluator_provider,
-                "concurrency": args.concurrency,
-                "modes": [],
-            }
-            if args.with_web:
-                run_metadata["modes"] = ["vanilla", "web", "tool"]
-            elif args.with_vanilla:
-                run_metadata["modes"] = ["vanilla", "tool"]
-            else:
-                run_metadata["modes"] = ["tool"]
+        if export_data is None:
+            logging.error("Error exporting JSON: export payload is unavailable.")
+        else:
+            try:
+                if args.export_json == "auto":
+                    json_path = Path(str(output_dir)) / "results.json"
+                else:
+                    json_path = Path(args.export_json)
+                json_path.parent.mkdir(parents=True, exist_ok=True)
 
-            export_data = build_export_json(
-                run_id=run_id,
-                compact=True,
-                run_metadata=run_metadata,
-            )
+                with open(json_path, "w", encoding="utf-8") as f:
+                    json.dump(export_data, f, indent=2, default=str, ensure_ascii=False)
 
-            if args.export_json == "auto":
-                json_path = Path(str(output_dir)) / "results.json"
-            else:
-                json_path = Path(args.export_json)
-            json_path.parent.mkdir(parents=True, exist_ok=True)
-
-            with open(json_path, "w", encoding="utf-8") as f:
-                json.dump(export_data, f, indent=2, default=str, ensure_ascii=False)
-
-            vprint(f"📄 JSON export saved to: {json_path}")
-        except Exception as e:
-            logging.error(f"Error exporting JSON: {e}")
+                vprint(f"📄 JSON export saved to: {json_path}")
+            except Exception as e:
+                logging.error(f"Error exporting JSON: {e}")
 
 
 if __name__ == "__main__":

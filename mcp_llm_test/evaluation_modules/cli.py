@@ -219,7 +219,7 @@ Cache Behavior:
         "--output-dir",
         type=str,
         metavar="PATH",
-        help="Directory to save test results (CSV, cache, HTML report). Defaults to test-output/<timestamp>",
+        help="Directory to save run artifacts (results.yaml, optional results.json, snapshots, HTML report). In non-resume runs, existing directory content is replaced. Defaults to cache run directory.",
     )
 
     parser.add_argument(
@@ -256,7 +256,7 @@ Cache Behavior:
         nargs="?",
         const="auto",
         metavar="PATH",
-        help="Export results as JSON after evaluation. Writes to <output-dir>/results.json by default.",
+        help="Export results as JSON after evaluation. Writes to <output-dir>/results.json by default (results.yaml is always generated).",
     )
 
     parser.add_argument(
