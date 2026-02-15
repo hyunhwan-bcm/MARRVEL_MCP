@@ -5,7 +5,9 @@ This diagram is a detailed, figure-style map of how user inputs can flow through
 ```mermaid
 ---
 config:
-  layout: elk
+  layout: dagre
+  theme: redux
+  look: neo
 ---
 flowchart LR
     Q([LLM Query])
