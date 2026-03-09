@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.hyunhwan-bcm/marrvel-mcp",
+  "title": "MARRVEL-MCP",
+  "description": "MARRVEL MCP server providing 35+ tools for rare disease genetics research.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/hyunhwan-bcm/MARRVEL_MCP",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "marrvel-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
