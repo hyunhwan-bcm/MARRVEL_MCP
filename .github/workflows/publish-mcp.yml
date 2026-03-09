@@ -1,0 +1,117 @@
+name: Publish to PyPI and MCP Registry
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-dist:
+    name: Build Distribution
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Verify release metadata versions
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import tomllib
+
+          release = os.environ["RELEASE_VERSION"]
+          if release.startswith("v"):
+              release = release[1:]
+
+          pyproject = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          server = json.loads(pathlib.Path("server.json").read_text())
+
+          package_version = pyproject["project"]["version"]
+          server_version = server["version"]
+          package_entry = server["packages"][0]
+          package_entry_version = package_entry["version"]
+
+          expected = release
+          versions = {
+              "pyproject.toml": package_version,
+              "server.json": server_version,
+              "server.json package": package_entry_version,
+          }
+
+          mismatches = [
+              f"{name}={value}"
+              for name, value in versions.items()
+              if value != expected
+          ]
+          if mismatches:
+              raise SystemExit(
+                  "Version mismatch for release "
+                  f"{expected}: " + ", ".join(mismatches)
+              )
+          PY
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade build
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Upload built distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: build-dist
+    environment:
+      name: pypi
+      url: https://pypi.org/p/marrvel-mcp
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download built distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-mcp:
+    name: Publish to MCP Registry
+    runs-on: ubuntu-latest
+    needs: publish-pypi
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish server to MCP Registry
+        run: ./mcp-publisher publish

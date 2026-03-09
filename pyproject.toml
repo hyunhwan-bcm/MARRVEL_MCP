@@ -1,8 +1,16 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "marrvel-mcp"
 version = "0.1.0"
 description = "MARRVEL MCP server providing 35+ tools for rare disease genetics research"
 requires-python = ">=3.12"
+readme = "README.md"
+authors = [
+    { name = "MARRVEL Team" },
+]
 dependencies = [
     # MCP server framework
     "fastmcp>=3.0.0b1",
@@ -32,6 +40,11 @@ eval = [
 
 [project.scripts]
 marrvel-mcp = "marrvel_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/hyunhwan-bcm/MARRVEL_MCP"
+Repository = "https://github.com/hyunhwan-bcm/MARRVEL_MCP"
+Issues = "https://github.com/hyunhwan-bcm/MARRVEL_MCP/issues"
 
 [dependency-groups]
 dev = [
@@ -70,3 +83,6 @@ asyncio_mode = "auto"
 markers = [
     "integration: marks tests as integration tests (may be slow)",
 ]
+
+[tool.setuptools.packages.find]
+include = ["marrvel_mcp*", "config*"]

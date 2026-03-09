@@ -121,7 +121,7 @@ __all__ = [
 ]
 
 # Package metadata
-__version__ = "1.0.0"
+__version__ = "0.1.0"
 __author__ = "MARRVEL Team"
 __description__ = (
     "MARRVEL MCP server and agent components for genetics research with LLM tool calling"
