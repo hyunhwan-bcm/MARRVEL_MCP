@@ -8,9 +8,6 @@ config:
   layout: dagre
   theme: redux
   look: neo
-  themeVariables:
-    fontSize: 16px
-    fontFamily: Arial, Helvetica, sans-serif
 ---
 flowchart LR
     Q([LLM Query])
@@ -81,9 +78,6 @@ config:
   layout: dagre
   theme: redux
   look: neo
-  themeVariables:
-    fontSize: 16px
-    fontFamily: Arial, Helvetica, sans-serif
 ---
 flowchart LR
     Q([LLM Query])
@@ -217,9 +211,6 @@ config:
   layout: dagre
   theme: redux
   look: neo
-  themeVariables:
-    fontSize: 16px
-    fontFamily: Arial, Helvetica, sans-serif
 ---
 flowchart LR
     Q([LLM Query])
