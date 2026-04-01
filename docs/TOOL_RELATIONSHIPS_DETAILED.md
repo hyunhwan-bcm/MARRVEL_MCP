@@ -254,8 +254,6 @@ flowchart LR
         O_docs["Tool + Dataset Documentation"]
     end
 
-    Panel_AB(["Outputs from Panels A + B"])
-
     R["Comprehensive Rare Disease<br/>Analysis Report"]
 
     Q --> I_gene
