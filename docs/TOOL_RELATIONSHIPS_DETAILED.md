@@ -313,18 +313,6 @@ flowchart LR
     O_literature --> O_lit_ref
     O_docs --> O_docs_ref
 
-    O_variant --> R
-    O_variant_clin --> R
-    O_variant_freq --> R
-    O_protein_change --> R
-    O_gene_stats --> R
-    O_cnv --> R
-    O_disease --> R
-    O_go --> R
-    O_ortholog --> R
-    O_tissue --> R
-    O_drug --> R
-    O_ppi --> R
     O_lit_ref --> R
     O_docs_ref --> R
 
@@ -339,6 +327,6 @@ flowchart LR
     class I_gene,I_disease,I_hgvs,I_protein,I_rsid,I_lit inputNode
     class T_pubmed_search,T_pubmed_article,T_pmid_pmcid,T_pmc_abs,T_pmc_full,T_pmc_tables,T_pmc_figs,T_dataset_docs,T_dbnsfp_docs,T_gnomad_docs toolNode
     class O_literature,O_docs outputNode
-    class O_variant,O_variant_clin,O_variant_freq,O_protein_change,O_gene_stats,O_cnv,O_disease,O_go,O_ortholog,O_tissue,O_drug,O_ppi,O_lit_ref,O_docs_ref synthNode
+    class O_lit_ref,O_docs_ref synthNode
     class R reportNode
 ```
