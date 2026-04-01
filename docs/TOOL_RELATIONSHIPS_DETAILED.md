@@ -8,9 +8,6 @@ config:
   layout: dagre
   theme: redux
   look: neo
-  themeVariables:
-    fontSize: 16px
-    fontFamily: Arial, Helvetica, sans-serif
 ---
 flowchart LR
     Q([LLM Query])
@@ -81,9 +78,6 @@ config:
   layout: dagre
   theme: redux
   look: neo
-  themeVariables:
-    fontSize: 16px
-    fontFamily: Arial, Helvetica, sans-serif
 ---
 flowchart LR
     Q([LLM Query])
@@ -217,9 +211,6 @@ config:
   layout: dagre
   theme: redux
   look: neo
-  themeVariables:
-    fontSize: 16px
-    fontFamily: Arial, Helvetica, sans-serif
 ---
 flowchart LR
     Q([LLM Query])
@@ -252,23 +243,6 @@ flowchart LR
     subgraph Output_Figures_C["Output Figures"]
         O_literature["Literature Content<br/>(abstract / fulltext / tables / figures)"]
         O_docs["Tool + Dataset Documentation"]
-    end
-
-    subgraph All_Outputs["All Output Figures (from Panels A–C)"]
-        O_variant["Variant Annotations"]
-        O_variant_clin["Variant Clinical Interpretation"]
-        O_variant_freq["Variant Population Frequencies"]
-        O_protein_change["Protein Change Mapping"]
-        O_gene_stats["Gene-Level Variant Burden"]
-        O_cnv["Structural Variants + CNVs"]
-        O_disease["Disease Details + Phenotypes"]
-        O_go["Gene Ontology Functional Profile"]
-        O_ortholog["Comparative Ortholog Analysis"]
-        O_tissue["Human + Ortholog Expression"]
-        O_drug["Drug Target Information"]
-        O_ppi["Protein–Protein Interactions"]
-        O_lit_ref["Literature Content"]
-        O_docs_ref["Tool + Dataset Documentation"]
     end
 
     R["Comprehensive Rare Disease<br/>Analysis Report"]
@@ -310,23 +284,19 @@ flowchart LR
     T_dbnsfp_docs --> O_docs
     T_gnomad_docs --> O_docs
 
-    O_literature --> O_lit_ref
-    O_docs --> O_docs_ref
-
-    O_lit_ref --> R
-    O_docs_ref --> R
+    O_literature --> R
+    O_docs --> R
 
     classDef queryNode fill:#fffde7,stroke:#f9a825,stroke-width:2px,color:#212121
     classDef inputNode fill:#e3f2fd,stroke:#1e88e5,stroke-width:1.5px,color:#0d47a1
     classDef toolNode fill:#f3e5f5,stroke:#8e24aa,stroke-width:1.5px,color:#4a148c
     classDef outputNode fill:#fff3e0,stroke:#ef6c00,stroke-width:1.5px,color:#e65100
     classDef reportNode fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
-    classDef synthNode fill:#fce4ec,stroke:#c62828,stroke-width:1.5px,color:#b71c1c
+    classDef refNode fill:#fce4ec,stroke:#c62828,stroke-width:2px,color:#b71c1c
 
     class Q queryNode
     class I_gene,I_disease,I_hgvs,I_protein,I_rsid,I_lit inputNode
     class T_pubmed_search,T_pubmed_article,T_pmid_pmcid,T_pmc_abs,T_pmc_full,T_pmc_tables,T_pmc_figs,T_dataset_docs,T_dbnsfp_docs,T_gnomad_docs toolNode
     class O_literature,O_docs outputNode
-    class O_lit_ref,O_docs_ref synthNode
     class R reportNode
 ```
