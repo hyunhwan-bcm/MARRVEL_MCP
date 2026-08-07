@@ -505,10 +505,15 @@ async def get_gene_by_symbol(gene_symbol: str, taxon_id: str = "9606") -> str:
 )
 async def get_gene_by_position(chromosome: str, position: int) -> str:
     try:
+        # The MARRVEL GraphQL `genesByGenomicLocation` field rejects a leading "chr"
+        # prefix on the chromosome (returns [] for "chr1" but finds the gene for
+        # "1"). The REST endpoints tolerate either form, so callers routinely pass
+        # "chrN"; normalize here so this tool works regardless of input convention.
+        chromosome_clean = re.sub(r"^chr", "", str(chromosome), flags=re.IGNORECASE)
         data = await fetch_marrvel_data(
             f"""
             query MyQuery {{
-                genesByGenomicLocation(chr: "{chromosome}", posStart: {position}, posStop: {position}, build: "hg38") {{
+                genesByGenomicLocation(chr: "{chromosome_clean}", posStart: {position}, posStop: {position}, build: "hg38") {{
                     alias
                     chr
                     entrezId
@@ -552,10 +557,13 @@ async def get_gene_by_position(chromosome: str, position: int) -> str:
 )
 async def get_variant_dbnsfp(chr: str, pos: str, ref: str, alt: str) -> str:
     try:
+        # Same chr-prefix intolerance as genesByGenomicLocation: dbnsfpByVariant
+        # returns null for "chr1" but returns scores for "1". Strip the prefix.
+        chr_clean = re.sub(r"^chr", "", str(chr), flags=re.IGNORECASE)
         data = await fetch_marrvel_data(
             f"""
             query MyQuery {{
-                dbnsfpByVariant(chr: "{chr}", pos: {pos}, alt: "{alt}", ref: "{ref}", build: "hg38") {{
+                dbnsfpByVariant(chr: "{chr_clean}", pos: {pos}, alt: "{alt}", ref: "{ref}", build: "hg38") {{
                     scores {{
                         AlphaMissense {{
                             predictions
