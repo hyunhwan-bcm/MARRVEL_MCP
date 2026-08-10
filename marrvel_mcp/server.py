@@ -368,7 +368,11 @@ async def fix_missing_hg38_vals(data: str) -> str:
                 del sub_dict["hg19Start"], sub_dict["hg19Stop"]
                 data = json.dumps(data_obj, indent=2)
 
-            except httpx.HTTPError as e:
+            except (httpx.HTTPError, KeyError) as e:
+                # KeyError covers a liftover response with no "hg38Pos" — either the call
+                # itself failed (liftover_hg19_to_hg38 caught its own HTTPError and returned
+                # {"error": ...} instead) or the hg19 coordinate has no hg38 equivalent
+                # (e.g. an assembly-gap position). Either way, it's not exceptional here.
                 return f"Error fetching gene data: {str(e)}"
     return data
 
@@ -901,7 +905,8 @@ async def get_geno2mp_by_variant(chr: str, pos: str, ref: str, alt: str) -> str:
 
         data = await fetch_marrvel_data(f"/geno2mp/variant/{variant_uri}", is_graphql=False)
         return data
-    except httpx.HTTPError as e:
+    except (httpx.HTTPError, KeyError) as e:
+        # KeyError: liftover response had no hg19Chr/hg19Pos (failed call or unmappable coord).
         return f"Error fetching Geno2MP data: {str(e)}"
 
 
@@ -953,7 +958,8 @@ async def get_omim_variant(gene_symbol: str, chr: str, pos: str, ref: str, alt: 
             f"/omim/gene/symbol/{gene_symbol}/variant/{variant_uri}", is_graphql=False
         )
         return data
-    except httpx.HTTPError as e:
+    except (httpx.HTTPError, KeyError) as e:
+        # KeyError: liftover response had no hg19Chr/hg19Pos (failed call or unmappable coord).
         return f"Error fetching OMIM data: {str(e)}"
 
 
