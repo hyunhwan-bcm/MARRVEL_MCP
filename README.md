@@ -3,6 +3,7 @@
 
 [![CI](https://github.com/hyunhwan-bcm/MARRVEL_MCP/actions/workflows/ci.yml/badge.svg)](https://github.com/hyunhwan-bcm/MARRVEL_MCP/actions/workflows/ci.yml)
 [![Pre-commit](https://github.com/hyunhwan-bcm/MARRVEL_MCP/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/hyunhwan-bcm/MARRVEL_MCP/actions/workflows/pre-commit.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 A Model Context Protocol (MCP) server for [MARRVEL](https://marrvel.org) - enabling AI agents to access genetics databases and variant analysis tools for rare disease research.
@@ -94,3 +95,11 @@ Wang J, et al. (2017) MARRVEL: Integration of Human and Model Organism Genetic R
 
 - Website: https://marrvel.org
 - API Docs: https://marrvel.org/doc
+
+## License
+
+The MARRVEL-MCP source code is released under the [MIT License](LICENSE). Copyright (c) 2025-2026 Baylor College of Medicine.
+
+### Data disclaimer
+
+This license covers only the code in this repository. Data returned by the tools comes from MARRVEL and its upstream sources (e.g., OMIM, ClinVar, gnomAD, DGV, Geno2MP, HPO, DECIPHER, DIOPT, GTEx, Pharos, STRING, PubMed), each governed by its own terms of use and licensing. Users are responsible for complying with those terms. Information provided by this tool is for research purposes only and is not intended for clinical diagnosis or medical decision-making.
