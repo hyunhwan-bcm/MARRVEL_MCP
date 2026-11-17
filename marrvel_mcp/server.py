@@ -1842,6 +1842,15 @@ async def pmid_to_pmcid(pmid: str) -> str:
         return json.dumps({"pmid": pmid, "pmcid": "", "error": str(e)}, indent=2)
 
 
+_PUBMED_LIMIT = asyncio.Semaphore(3)  # NCBI allows ~3 req/s without an API key
+
+
+def _fetch_pubmed_article(pubmed_id: str, email: str):
+    """Blocking pymed lookup; run in a worker thread so it never stalls the event loop."""
+    pubmed = PubMed(tool="MARRVEL_MCP", email=email)
+    return next(pubmed.query(pubmed_id, max_results=1), None)
+
+
 @mcp.tool(
     name="get_pubmed_article",
     description="Retrieve detailed information for a specific PubMed article by PMID with comprehensive metadata",
@@ -1849,9 +1858,8 @@ async def pmid_to_pmcid(pmid: str) -> str:
 )
 async def get_pubmed_article(pubmed_id: str, email: str = "zhandongliulab@bcm.edu") -> str:
     try:
-        pubmed = PubMed(tool="MARRVEL_MCP", email=email)
-        results = pubmed.query(pubmed_id, max_results=1)
-        article = next(results, None)
+        async with _PUBMED_LIMIT:
+            article = await asyncio.to_thread(_fetch_pubmed_article, pubmed_id, email)
 
         if not article:
             return json.dumps({"error": f"Article with PMID {pubmed_id} not found"}, indent=2)
