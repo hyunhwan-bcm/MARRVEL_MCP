@@ -1447,81 +1447,281 @@ async def get_protein_change_by_genomic_position(chr: str, pos: int, ref: str, a
         return json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, indent=2)
 
 
+# ----------------------------------------------------------------------------
+# rsID conversion helpers (NCBI dbSNP Variation Services)
+#
+# dbSNP reports alleles as SPDI (Sequence:Position:Deletion:Insertion), whose
+# position is 0-based. VCF/MARRVEL coordinates are 1-based, and indels need an
+# anchor base, so positions must never be passed through unchanged (issue #338).
+# ----------------------------------------------------------------------------
+
+NCBI_VARIATION_BASE_URL = "https://api.ncbi.nlm.nih.gov/variation/v0"
+CLINICAL_TABLES_SNP_URL = "https://clinicaltables.nlm.nih.gov/api/snps/v3/search"
+# NCBI asks clients to stay at or below 1 request/second for this API.
+NCBI_VARIATION_MIN_INTERVAL = 1.0
+_ncbi_variation_lock = asyncio.Lock()
+_ncbi_variation_last_request = 0.0
+
+
+class RsidNotFoundError(Exception):
+    """The rsID does not exist or has no usable GRCh38 placement."""
+
+
+async def _ncbi_variation_get(client: httpx.AsyncClient, path: str) -> httpx.Response:
+    """GET from NCBI Variation Services, throttled to NCBI's 1 request/second limit."""
+    global _ncbi_variation_last_request
+    async with _ncbi_variation_lock:
+        loop = asyncio.get_running_loop()
+        wait = NCBI_VARIATION_MIN_INTERVAL - (loop.time() - _ncbi_variation_last_request)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        try:
+            return await client.get(f"{NCBI_VARIATION_BASE_URL}{path}")
+        finally:
+            _ncbi_variation_last_request = loop.time()
+
+
+def _refseq_chromosome_name(seq_id: str) -> Optional[str]:
+    """Map a GRCh38 RefSeq chromosome accession (e.g. NC_000007.14) to '7', 'X', 'Y' or 'MT'."""
+    match = re.fullmatch(r"NC_0+(\d+)\.\d+", seq_id or "")
+    if not match:
+        return None
+    number = int(match.group(1))
+    if 1 <= number <= 22:
+        return str(number)
+    return {23: "X", 24: "Y", 12920: "MT"}.get(number)
+
+
+def _parse_refsnp_grch38(refsnp: dict) -> dict:
+    """
+    Extract the GRCh38 chromosome placement from an NCBI /refsnp response.
+
+    Returns a dict with ``seq_id``, ``chr``, ``ref_spdi`` (the reference allele SPDI),
+    ``alts`` (list of {"spdi": {...}, "hgvs": str}) and ``genes``.
+    Raises RsidNotFoundError if there is no GRCh38 chromosome placement.
+    """
+    primary = refsnp.get("primary_snapshot_data") or {}
+    for placement in primary.get("placements_with_allele", []):
+        seq_id = placement.get("seq_id", "")
+        traits = (placement.get("placement_annot") or {}).get("seq_id_traits_by_assembly", [])
+        is_grch38 = any(str(t.get("assembly_name", "")).startswith("GRCh38") for t in traits)
+        chrom = _refseq_chromosome_name(seq_id)
+        if not (placement.get("is_ptlp") and is_grch38 and chrom):
+            continue
+
+        ref_spdi = None
+        alts = []
+        seen = set()
+        for allele in placement.get("alleles", []):
+            spdi = (allele.get("allele") or {}).get("spdi") or {}
+            deleted = spdi.get("deleted_sequence")
+            inserted = spdi.get("inserted_sequence")
+            if deleted is None or inserted is None or "position" not in spdi:
+                continue
+            if deleted == inserted:
+                ref_spdi = spdi
+                continue
+            key = (spdi["position"], deleted, inserted)
+            if key in seen:
+                continue
+            seen.add(key)
+            alts.append({"spdi": spdi, "hgvs": allele.get("hgvs")})
+
+        genes = []
+        for annotation in primary.get("allele_annotations", []):
+            for assembly in annotation.get("assembly_annotation", []):
+                for gene in assembly.get("genes", []):
+                    locus = gene.get("locus")
+                    if locus and locus not in genes:
+                        genes.append(locus)
+
+        return {"seq_id": seq_id, "chr": chrom, "ref_spdi": ref_spdi, "alts": alts, "genes": genes}
+
+    raise RsidNotFoundError("No GRCh38 chromosome placement for this rsID")
+
+
+def _spdi_to_vcf_local(spdi: dict) -> Optional[dict]:
+    """
+    Convert a substitution SPDI (equal-length, non-empty ref/alt) to 1-based VCF fields.
+
+    Returns None for indels, which need an anchor base from the reference genome.
+    """
+    deleted = spdi["deleted_sequence"]
+    inserted = spdi["inserted_sequence"]
+    if deleted and inserted and len(deleted) == len(inserted):
+        return {"pos": int(spdi["position"]) + 1, "ref": deleted, "alt": inserted}
+    return None
+
+
+async def _rsid_from_ncbi(client: httpx.AsyncClient, rsid: str) -> dict:
+    """Resolve an rsID to every GRCh38 alternate allele using NCBI Variation Services."""
+    rs_number = rsid[2:]
+    merged_from = None
+    refsnp = None
+    for _ in range(3):  # follow at most a short chain of merges
+        response = await _ncbi_variation_get(client, f"/refsnp/{rs_number}")
+        if response.status_code == 404:
+            raise RsidNotFoundError(f"rsID '{rsid}' not found in dbSNP")
+        response.raise_for_status()
+        refsnp = response.json()
+        merged = (refsnp.get("merged_snapshot_data") or {}).get("merged_into") or []
+        if refsnp.get("primary_snapshot_data") or not merged:
+            break
+        merged_from = merged_from or rsid
+        rs_number = str(merged[0])
+    if refsnp.get("withdrawn_snapshot_data"):
+        raise RsidNotFoundError(f"rsID '{rsid}' has been withdrawn from dbSNP")
+    if not refsnp.get("primary_snapshot_data"):
+        raise RsidNotFoundError(f"rsID '{rsid}' has no current placement in dbSNP")
+
+    placement = _parse_refsnp_grch38(refsnp)
+    variants = []
+    for alt in placement["alts"]:
+        spdi = alt["spdi"]
+        vcf = _spdi_to_vcf_local(spdi)
+        if vcf is None:
+            spdi_str = (
+                f"{spdi['seq_id']}:{spdi['position']}:"
+                f"{spdi['deleted_sequence']}:{spdi['inserted_sequence']}"
+            )
+            response = await _ncbi_variation_get(
+                client, f"/spdi/{quote(spdi_str, safe=':')}/vcf_fields"
+            )
+            response.raise_for_status()
+            data = response.json().get("data") or {}
+            if data.get("warnings"):
+                raise ValueError(f"NCBI could not normalize {spdi_str}: {data['warnings']}")
+            vcf = {"pos": int(data["pos"]), "ref": data["ref"], "alt": data["alt"]}
+        variants.append({**vcf, "hgvs_g": alt["hgvs"]})
+
+    result = {
+        "chr": placement["chr"],
+        "variants": variants,
+        "gene": " ".join(placement["genes"]),
+        "source": "NCBI dbSNP Variation Services",
+    }
+    if merged_from:
+        result["merged_into"] = f"rs{rs_number}"
+    return result
+
+
+async def _rsid_from_clinical_tables(client: httpx.AsyncClient, rsid: str) -> dict:
+    """
+    Fallback resolver using the NLM Clinical Tables SNP API.
+
+    Its ``38.pos`` is the 0-based SPDI position, so substitutions get +1. Indel
+    alleles cannot be anchored without the reference genome and are skipped.
+    Its allele list can be incomplete compared with dbSNP.
+    """
+    response = await client.get(
+        CLINICAL_TABLES_SNP_URL,
+        params={"terms": rsid, "ef": "38.chr,38.pos,38.alleles,38.gene"},
+    )
+    response.raise_for_status()
+    data = response.json()
+    if not data or len(data) < 3 or not data[0] or rsid not in data[1]:
+        raise RsidNotFoundError(f"rsID '{rsid}' not found in dbSNP")
+    idx = data[1].index(rsid)
+    fields = data[2]
+
+    def field(name):
+        values = fields.get(name) or []
+        return values[idx] if idx < len(values) else None
+
+    chromosome, position, alleles = field("38.chr"), field("38.pos"), field("38.alleles")
+    if not chromosome or not position or not alleles:
+        raise RsidNotFoundError(f"rsID '{rsid}' has no GRCh38 placement")
+
+    variants, skipped = [], []
+    for pair in alleles.split(","):
+        parts = [x.strip() for x in pair.split("/")]
+        if len(parts) != 2:
+            continue
+        vcf = _spdi_to_vcf_local(
+            {"position": position, "deleted_sequence": parts[0], "inserted_sequence": parts[1]}
+        )
+        if vcf is None:
+            skipped.append(pair.strip())
+        else:
+            variants.append({**vcf, "hgvs_g": None})
+
+    result = {
+        "chr": str(chromosome),
+        "variants": variants,
+        "gene": field("38.gene") or "",
+        "source": "NLM Clinical Tables (fallback; allele list may be incomplete)",
+    }
+    if skipped:
+        result["skipped_indel_alleles"] = skipped
+    return result
+
+
 @mcp.tool(
     name="convert_rsid_to_variant",
-    description="Convert dbSNP rsID to MARRVEL variant format with GRCh38/hg38 coordinates",
-    meta={"category": "utility", "service": "dbSNP", "version": "1.0", "genome_build": "hg19"},
+    description=(
+        "Convert a dbSNP rsID to MARRVEL variant format (chr-pos-ref-alt, 1-based GRCh38/hg38). "
+        "Returns every alternate allele in `variants`; when `multiallelic` is true, choose the "
+        "allele matching the intended change (e.g. by `hgvs_g`) rather than the first one."
+    ),
+    meta={"category": "utility", "service": "dbSNP", "version": "2.0", "genome_build": "GRCh38"},
 )
 async def convert_rsid_to_variant(rsid: str) -> str:
     try:
+        rsid = rsid.strip().lower()
         if not rsid.startswith("rs"):
             rsid = f"rs{rsid}"
-
-        url = f"https://clinicaltables.nlm.nih.gov/api/snps/v3/search"
-        params = {"terms": rsid, "ef": "38.chr,38.pos,38.alleles,38.gene"}
+        if not rsid[2:].isdigit():
+            return json.dumps({"error": f"Invalid rsID: '{rsid}'"}, indent=2)
 
         async with create_http_client() as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+            try:
+                resolved = await _rsid_from_ncbi(client, rsid)
+            except RsidNotFoundError:
+                raise
+            except (httpx.HTTPError, ValueError, KeyError) as ncbi_error:
+                logging.warning("NCBI Variation Services failed for %s: %s", rsid, ncbi_error)
+                resolved = await _rsid_from_clinical_tables(client, rsid)
+                resolved["warning"] = f"NCBI Variation Services unavailable ({ncbi_error})"
 
-        if not data or len(data) < 3:
-            return json.dumps({"error": "Invalid API response format"}, indent=2)
-
-        total_count = data[0]
-        if total_count == 0:
-            return json.dumps({"error": f"rsID '{rsid}' not found in dbSNP"}, indent=2)
-
-        rsid_list = data[1]
-        field_data = data[2]
-
-        if rsid not in rsid_list:
+        chromosome = resolved.pop("chr")
+        variants = [
+            {
+                "variant": f"{chromosome}-{v['pos']}-{v['ref']}-{v['alt']}",
+                "chr": chromosome,
+                "pos": v["pos"],
+                "ref": v["ref"],
+                "alt": v["alt"],
+                "hgvs_g": v["hgvs_g"],
+            }
+            for v in resolved.pop("variants")
+        ]
+        if not variants:
             return json.dumps(
-                {"error": f"Exact match for '{rsid}' not found", "suggestions": rsid_list[:5]},
+                {"error": f"No usable GRCh38 alternate alleles for '{rsid}'", **resolved},
                 indent=2,
             )
 
-        idx = rsid_list.index(rsid)
-
-        chr_data = field_data.get("38.chr", [])
-        pos_data = field_data.get("38.pos", [])
-        alleles_data = field_data.get("38.alleles", [])
-        gene_data = field_data.get("38.gene", [])
-
-        if idx >= len(chr_data) or idx >= len(pos_data) or idx >= len(alleles_data):
-            return json.dumps({"error": "Incomplete GRCh38 data for this rsID"}, indent=2)
-
-        chromosome = chr_data[idx]
-        position = pos_data[idx]
-        alleles = alleles_data[idx]
-        gene = gene_data[idx] if idx < len(gene_data) and gene_data[idx] is not None else ""
-
-        if not chromosome or not position or not alleles:
-            return json.dumps({"error": "Missing required GRCh38 coordinate data"}, indent=2)
-
-        allele_pairs = alleles.split(",")[0].strip().split("/")
-        if len(allele_pairs) < 2:
-            return json.dumps({"error": f"Invalid allele format: {alleles}"}, indent=2)
-
-        reference = allele_pairs[0].strip()
-        alternate = allele_pairs[1].strip()
-
-        variant = f"{chromosome}-{position}-{reference}-{alternate}"
-
         result = {
             "rsid": rsid,
-            "variant": variant,
-            "chr": chromosome,
-            "pos": position,
-            "ref": reference,
-            "alt": alternate,
-            "alleles": alleles,
-            "gene": gene,
             "assembly": "GRCh38",
+            "chr": chromosome,
+            "multiallelic": len(variants) > 1,
+            "alleles": ", ".join(f"{v['ref']}/{v['alt']}" for v in variants),
+            "variants": variants,
         }
-
+        if len(variants) == 1:
+            single = variants[0]
+            result.update({k: single[k] for k in ("variant", "pos", "ref", "alt", "hgvs_g")})
+        else:
+            result["note"] = (
+                "This rsID has multiple alternate alleles. An rsID alone does not identify "
+                "which one is meant; pick the entry in `variants` matching the intended change."
+            )
+        result.update(resolved)
         return json.dumps(result, indent=2)
 
+    except RsidNotFoundError as e:
+        return json.dumps({"error": str(e)}, indent=2)
     except httpx.HTTPStatusError as e:
         return json.dumps(
             {"error": f"API error: {e.response.status_code}", "message": str(e)}, indent=2
